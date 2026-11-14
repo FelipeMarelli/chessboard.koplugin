@@ -1,0 +1,8 @@
+# Sample books (not redistributable)
+*.pdf
+*.epub
+*.djvu
+
+# KOReader emulator, sources and emulator data
+vendor/
+emu-data/
