@@ -52,7 +52,7 @@ Theme.MARK = {
     target_radius = 0.15,
     capture = gray(0x55),
     capture_leg = 0.28,
-    check = gray(0x55),
+    check = gray(0x77),
     check_radius = 0.48,
 }
 
