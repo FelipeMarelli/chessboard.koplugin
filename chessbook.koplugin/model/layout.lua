@@ -66,6 +66,7 @@ function Layout:setScreen(screen_w, screen_h)
         self:moveTo(self.x, self.y)
     else
         self:placeDefault()
+        self.drag = nil
     end
 end
 
@@ -101,6 +102,7 @@ end
 
 function Layout:setOpen(open)
     self.open = open and true or false
+    self.drag = nil
 end
 
 function Layout:isOpen()
@@ -242,6 +244,49 @@ function Layout:hit(x, y, flipped)
         return { zone = "board" }
     end
     return { zone = "button" }
+end
+
+-- Drags. A drag runs from the finger down to the finger up and is the window's when it starts on
+-- the window, wherever the finger goes after. It moves the window unless it starts on a square,
+-- because the board is for playing.
+
+-- Starts a drag with the finger down at x, y. False when the point is off the window: the drag is
+-- the reader's. Called again with the same point, it goes on with the drag already started.
+function Layout:startDrag(x, y, flipped)
+    local d = self.drag
+    if d and d.x == x and d.y == y then
+        return true
+    end
+    local hit = self:hit(x, y, flipped)
+    self.drag = hit and { x = x, y = y, moves = hit.square == nil } or nil
+    return self.drag ~= nil
+end
+
+function Layout:isDragging()
+    return self.drag ~= nil
+end
+
+-- Where the window would be if the finger, now at x, y, were lifted: a window rect, kept on the
+-- screen. Nil when no drag that moves the window is going on.
+function Layout:dragRect(x, y)
+    local d = self.drag
+    if not (d and d.moves) then
+        return nil
+    end
+    local w, h = self:windowSize()
+    return { x = fit(self.x + x - d.x, w, self.screen_w, self.px.margin),
+        y = fit(self.y + y - d.y, h, self.screen_h, self.px.margin), w = w, h = h }
+end
+
+-- Ends the drag with the finger lifted at x, y, and leaves the window there. True when it moved.
+function Layout:endDrag(x, y)
+    local target = self:dragRect(x, y)
+    self.drag = nil
+    if not target or (target.x == self.x and target.y == self.y) then
+        return false
+    end
+    self.x, self.y = target.x, target.y
+    return true
 end
 
 -- The smallest rect that covers both the window as it was (rects taken before a change) and as

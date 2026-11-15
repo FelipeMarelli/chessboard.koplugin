@@ -317,6 +317,115 @@ test("H04: moveTo keeps whole pixels", function()
     eq(layout:rects().window.x, 40); eq(layout:rects().window.y, 51)
 end)
 
+local function row_point(layout)
+    local row = layout:rects().buttons
+    return row.x + math.floor(row.w / 2), row.y + 2 -- between the buttons
+end
+
+test("H04 C1: dragging from the button row moves the window as far as the finger went", function()
+    local layout = new(632, 840)
+    local before = layout:rects().window
+    local x, y = row_point(layout)
+    eq(layout:startDrag(x, y, false), true)
+    eq(layout:isDragging(), true)
+    eq(layout:dragRect(x - 30, y - 200), { x = before.x - 30, y = before.y - 200,
+        w = before.w, h = before.h })
+    eq(layout:rects().window, before, "the window stays until the finger is lifted")
+    eq(layout:endDrag(x - 40, y - 300), true)
+    eq(layout:isDragging(), false)
+    eq(layout:rects().window, { x = before.x - 40, y = before.y - 300, w = before.w, h = before.h })
+end)
+
+test("H04 C1: a drag that starts on a square is the window's but does not move it", function()
+    local layout = new(632, 840)
+    local before = layout:rects().window
+    for _, flipped in ipairs({ false, true }) do
+        local x, y = center(layout:squareRect(sq("e2"), flipped))
+        eq(layout:startDrag(x, y, flipped), true)
+        eq(layout:dragRect(x - 100, y - 100), nil)
+        eq(layout:endDrag(x - 100, y - 100), false)
+        eq(layout:isDragging(), false)
+        eq(layout:rects().window, before)
+    end
+end)
+
+test("H04: a drag that starts off the window, or with it closed, is not the window's", function()
+    local layout = new(632, 840)
+    local w = layout:rects().window
+    eq(layout:startDrag(w.x - 1, w.y + 10, false), false)
+    eq(layout:isDragging(), false)
+    eq(layout:dragRect(10, 10), nil)
+    eq(layout:endDrag(10, 10), false)
+    eq(layout:rects().window, w)
+    local x, y = row_point(layout)
+    layout:setOpen(false)
+    eq(layout:startDrag(x, y, false), false)
+end)
+
+test("H04 C5: the drag goes on wherever the finger goes, also off the window", function()
+    local layout = new(632, 840)
+    local w = layout:rects().window
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    eq(layout:startDrag(x, y, false), true, "the same start goes on with the drag")
+    assert(layout:dragRect(5, 5), "the finger left the window")
+    eq(layout:endDrag(x, 5), true)
+    eq(layout:rects().window.y, MARGIN)
+    eq(layout:rects().window.x, w.x)
+end)
+
+test("H04: a new start point starts a new drag", function()
+    local layout = new(632, 840)
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    local square_x, square_y = center(layout:squareRect(sq("e4"), false))
+    eq(layout:startDrag(square_x, square_y, false), true)
+    eq(layout:dragRect(0, 0), nil, "this one started on the board")
+end)
+
+test("H04 C3: dropped past an edge, the window rests against the nearest edge", function()
+    local layout = new(632, 840)
+    local w = layout:rects().window
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    local target = layout:dragRect(x + 2000, y + 15)
+    eq(target.x, 632 - MARGIN - w.w, "the rect shown while dragging is kept on the screen too")
+    layout:endDrag(x + 2000, y + 15)
+    eq(layout:rects().window, { x = 632 - MARGIN - w.w, y = 840 - MARGIN - w.h, w = w.w, h = w.h })
+end)
+
+test("H04 C6: lifting the finger where it went down does not move the window", function()
+    local layout = new(632, 840)
+    local w = layout:rects().window
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    eq(layout:endDrag(x, y), false)
+    eq(layout:rects().window, w)
+    eq(layout:isDragging(), false)
+end)
+
+test("H04 C4: the region to repaint after a drop covers where the window was and is", function()
+    local layout = new(632, 840)
+    local before = layout:rects()
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    layout:endDrag(x - 100, y - 300)
+    local dirty = layout:dirtyRect(before)
+    assert(contains(dirty, before.window) and contains(dirty, layout:rects().window))
+end)
+
+test("H04: closing the window or turning the screen drops the drag", function()
+    local layout = new(632, 840)
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    layout:setOpen(false)
+    eq(layout:isDragging(), false)
+    layout:setOpen(true)
+    layout:startDrag(x, y, false)
+    layout:setScreen(840, 632)
+    eq(layout:isDragging(), false)
+end)
+
 -- Coordinates outside the board ---------------------------------------------------------------
 
 local function with_gutter(w, h)
@@ -386,4 +495,21 @@ test("C10: a tap on a gutter is the window's but not a square", function()
         end
     end
     eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "flip" })
+end)
+
+test("H04 C1: a drag also starts on a button, the border and the gutters", function()
+    local points = {
+        function(_) return center(_:buttonRect("close")) end,
+        function(_) return _:rects().window.x, _:rects().window.y end,
+        function(_) return _:rects().ranks.x + 2, _:rects().ranks.y + 50 end,
+        function(_) return _:rects().files.x + 50, _:rects().files.y + 2 end,
+    }
+    for i, point in ipairs(points) do
+        local layout = with_gutter(632, 840)
+        local before = layout:rects().window
+        local x, y = point(layout)
+        assert(layout:startDrag(x, y, false), "point " .. i)
+        eq(layout:endDrag(x - 10, y - 20), true, "point " .. i)
+        eq(layout:rects().window.y, before.y - 20, "point " .. i)
+    end
 end)
