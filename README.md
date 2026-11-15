@@ -182,7 +182,15 @@ Storefront (`ultimatejimmy/storefront.koplugin`) no tiene proceso de envío: arm
 - Un `_meta.lua` con `version`, que se valida al instalar.
 - Un `README.md`, que se muestra en el dispositivo.
 
-Si el Release tiene un `.zip` adjunto se usa ese; si no, el zip automático del repositorio. El catálogo se ordena por estrellas y tiene votos de usuarios. AppStore (`omer-faruq/appstore.koplugin`) usa los mismos criterios.
+Si el Release tiene un `.zip` adjunto se usa ese; si no, el zip automático del repositorio.
+
+El plugin puede estar en una subcarpeta del repositorio, como acá (`chessbook.koplugin/`). El instalador de Storefront busca el `_meta.lua` menos profundo del zip e instala solo lo que hay en esa carpeta, con el nombre de la carpeta (verificado leyendo `storefront_installer.lua`, función `detectPluginFromArchive`, el 14 de noviembre de 2026). Por eso:
+
+- `docs/`, `spec/` y el resto de la raíz no llegan al dispositivo.
+- No puede haber ningún otro `_meta.lua` en la raíz ni a la misma profundidad que el del plugin, porque podría ganarle.
+- El propio repositorio de Storefront usa esta misma estructura.
+
+El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y tiene votos de usuarios. AppStore (`omer-faruq/appstore.koplugin`) usa los mismos criterios.
 
 ## Pendientes
 
