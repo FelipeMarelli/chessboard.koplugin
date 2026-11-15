@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (14 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). Todavía no se pueden hacer jugadas ni mover la ventana. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
+Estado (15 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). En el tablero se juega con dos toques, pieza y destino, solo jugadas legales, con marcas al estilo de lichess y un indicador de turno, de mate y de ahogado (H07); hasta H08, un peón que corona se convierte en dama. Todavía no se puede mover la ventana. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -186,6 +186,7 @@ Abre el libro en la página `CHESSBOOK_PAGE`, inyecta toques, comprueba el resul
 `CHESSBOOK_SCENARIO` elige qué se prueba:
 
 - `h03` (por defecto): abrir, girar, tocar dentro y fuera de la ventana, abrir el menú del lector, tamaño mínimo, cerrar.
+- `h07`: jugar con dos toques (también con el tablero girado), captura al paso, captura, enroque, mate, ahogado, jaque y coronación.
 - `labels`: las variantes de coordenadas que se compararon para H03, en `labels_<v|h>.png`.
 - `sizes`: la ventana con varios tamaños mínimos de casilla sobre la misma página, en `sizes_<v|h>.png`.
 
@@ -216,6 +217,7 @@ El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y 
 - Probar el reconocimiento por plantillas sobre los recortes reales del PDF y el DjVu.
 - Medir en la Kindle cuánto tarda dibujar las piezas la primera vez, y probar que tocar un link con la ventana abierta lo sigue (H03). Los restos al abrir la ventana se resolvieron con un destello en la zona de la ventana.
 - Resolver la reconstrucción de jugadas desde el texto. En el experimento previo se resolvió el 90 % de la línea principal del Nunn y el 57 % del Kasparov, y "resuelta" solo significa que la jugada es legal en alguna posición candidata, no que sea la correcta. Los riesgos son el anclaje de la posición inicial, los errores en cascada y las diferencias entre editoriales.
+- Ajustar en la Kindle los grises de las marcas del tablero (H07): la última jugada en la casilla clara (0xCC) queda a dos tonos de la casilla oscura (0xAA), y el indicador de turno en la esquina mide 2,5 mm.
 - Medir en la Kindle cuánto tarda generar las jugadas legales y escribir la notación (`chess/rules.lua`).
 
 ## Licencia
