@@ -218,6 +218,22 @@ local function h03(t, plugin)
         t:use(plugin, t.full_layout)
     end)
     step(function()
+        t:tapRect(plugin.layout:buttonRect("size"))
+    end)
+    step(function()
+        UIManager:forceRePaint()
+        t:shot("small")
+        t:check("the temporary size button makes the window minimum",
+            plugin.layout:isSmall() and plugin.layout:squareSize() == plugin.layout.px.min_square,
+            plugin.layout:squareSize())
+        t:tapRect(plugin.layout:buttonRect("size"))
+    end)
+    step(function()
+        UIManager:forceRePaint()
+        t:check("and again back to the default size", not plugin.layout:isSmall(),
+            plugin.layout:squareSize())
+    end)
+    step(function()
         t.repaints = {}
         t:tapRect(layout:buttonRect("close"))
     end)
