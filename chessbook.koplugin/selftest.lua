@@ -66,6 +66,42 @@ function SelfTest:watchRepaints()
     end
 end
 
+-- Counts the calls to the handler of a reader touch zone from now on; returns a function that
+-- tells how many there were.
+function SelfTest:countCalls(ui, zone_id)
+    local calls = 0
+    for _, zone in ipairs(ui._ordered_touch_zones) do
+        if zone.def.id == zone_id then
+            local handler = zone.handler
+            zone.handler = function(...)
+                calls = calls + 1
+                return handler(...)
+            end
+        end
+    end
+    return function() return calls end
+end
+
+-- A layout whose board has squares of the minimum size: one for a screen just big enough.
+function SelfTest:minimumLayout()
+    local Layout = require("model/layout")
+    local Theme = require("ui/theme")
+    local min_px = Theme.px(Theme.SIZES.min_square)
+    local side = math.ceil(8 * min_px / 0.6) + 1
+    local layout = Layout.new{ screen_w = side, screen_h = side + 2 * Theme.px(Theme.SIZES.row),
+        px_per_mm = Theme.pxPerMm(), sizes = Theme.SIZES }
+    layout:setOpen(true)
+    return layout
+end
+
+-- Shows another layout in the window and paints it at once.
+function SelfTest:use(plugin, layout)
+    local before = plugin.layout:rects()
+    plugin.layout, plugin.window.layout = layout, layout
+    plugin.window:refresh(layout:dirtyRect(before))
+    UIManager:forceRePaint()
+end
+
 -- The page pixels inside a rect, to compare the page before opening and after closing.
 local function grab(rect)
     local copy = {}
@@ -148,6 +184,7 @@ local function h03(t, plugin)
     step(function()
         local now = reading_position(plugin.ui)
         t:check("taps inside do not move the reading", now == t.position_before, now)
+        t.link_calls = t:countCalls(plugin.ui, "tap_link")
         -- Right of the page, below the top band that opens the reader menu.
         t:tap(Screen:getWidth() * 0.9, Screen:getHeight() * 0.25)
     end)
@@ -156,7 +193,29 @@ local function h03(t, plugin)
         local now = reading_position(plugin.ui)
         t:check("a tap outside moves the reading forward", now ~= t.position_before,
             t.position_before .. " -> " .. now)
+        t:check("a tap outside reaches the reader's links", t.link_calls() == 1, t.link_calls())
         plugin.ui:handleEvent(Event:new("GotoPage", t.page_before))
+    end)
+    step(function()
+        t:tap(Screen:getWidth() / 2, 5) -- top band of the reader
+    end)
+    step(function()
+        t:shot("menu")
+        t:check("a tap on the top band opens the reader menu", plugin.ui.menu.menu_container ~= nil)
+        -- The top band opens the bottom settings panel along with the menu; close both.
+        plugin.ui.menu:onCloseReaderMenu()
+        if plugin.ui.config then
+            plugin.ui.config:onCloseConfigMenu()
+        end
+    end)
+    step(function()
+        t.full_layout = plugin.layout
+        local small = t:minimumLayout()
+        t:use(plugin, small)
+        t:shot("minimum")
+        t:check("the board can be drawn with squares of the minimum size",
+            small:squareSize() == small.px.min_square, small:squareSize())
+        t:use(plugin, t.full_layout)
     end)
     step(function()
         t.repaints = {}
