@@ -84,7 +84,7 @@ test("C2: flip is at the left of the row and close at the right", function()
         assert(button.rect.w >= 7 * PX_PER_MM - 1 and button.rect.h >= 7 * PX_PER_MM - 1,
             "button smaller than 7 mm: " .. button.id)
     end
-    eq(ids, { "flip", "size", "close" })
+    eq(ids, { "flip", "size", "move", "close" })
     eq(layout:buttonRect("flip").x, row.x)
     eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
     eq(layout:buttonRect("flip"), layout:buttons()[1].rect)
@@ -207,8 +207,8 @@ test("C10: taps on the buttons and between them", function()
     local layout = new(632, 840)
     eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
     eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
-    local row = layout:rects().buttons
-    eq(layout:hit(row.x + math.floor(row.w / 2), row.y + 1), { zone = "button" })
+    local size = layout:buttonRect("size")
+    eq(layout:hit(size.x + size.w + 1, size.y + 1), { zone = "button" })
 end)
 
 test("C10: a tap outside the window, or with the window closed, is not the window's", function()
@@ -272,6 +272,40 @@ end)
 
 -- H04. Moving the window -----------------------------------------------------------------------
 
+local function overlap(a, b)
+    return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
+end
+
+test("H04 C1: the move button sits in the middle of the room between the other buttons",
+    function()
+        for _, size in ipairs(SCREENS) do
+            local layout = new(size[1], size[2])
+            local move = layout:buttonRect("move")
+            local left, right = layout:buttonRect("size"), layout:buttonRect("close")
+            local gap_left = move.x - (left.x + left.w)
+            local gap_right = right.x - (move.x + move.w)
+            assert(gap_left >= 0 and gap_right >= 0 and math.abs(gap_left - gap_right) <= 1,
+                gap_left .. " " .. gap_right)
+            eq(layout:hit(center(move)), { zone = "button", button = "move" })
+        end
+    end)
+
+test("H04 C1: with the window at its minimum size the buttons do not overlap", function()
+    -- The sizes of ui/theme.lua.
+    local sizes = { row = 7, button = 8, border = 0.3, margin = 2, min_square = 4, gutter = 2.5 }
+    for _, size in ipairs({ { 632, 840 }, { 1272, 1696 } }) do
+        local layout = Layout.new{ screen_w = size[1], screen_h = size[2],
+            px_per_mm = size[1] / 632 * PX_PER_MM, sizes = sizes }
+        layout:toggleSmall()
+        local list = layout:buttons()
+        for i = 1, #list do
+            for j = i + 1, #list do
+                assert(not overlap(list[i].rect, list[j].rect), list[i].id .. " " .. list[j].id)
+            end
+        end
+    end
+end)
+
 local MARGIN = 12 -- 2 mm at 150 dpi
 
 test("H04: moveTo puts the top left corner of the window at a point", function()
@@ -318,11 +352,10 @@ test("H04: moveTo keeps whole pixels", function()
 end)
 
 local function row_point(layout)
-    local row = layout:rects().buttons
-    return row.x + math.floor(row.w / 2), row.y + 2 -- between the buttons
+    return center(layout:buttonRect("move"))
 end
 
-test("H04 C1: dragging from the button row moves the window as far as the finger went", function()
+test("H04 C1: dragging the move button moves the window as far as the finger went", function()
     local layout = new(632, 840)
     local before = layout:rects().window
     local x, y = row_point(layout)
@@ -497,19 +530,21 @@ test("C10: a tap on a gutter is the window's but not a square", function()
     eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "flip" })
 end)
 
-test("H04 C1: a drag also starts on a button, the border and the gutters", function()
+test("H04 C1: a drag from anywhere on the window but the move button is the window's and does "
+    .. "not move it", function()
+    local layout = with_gutter(632, 840)
+    local r = layout:rects()
+    local move = layout:buttonRect("move")
     local points = {
-        function(_) return center(_:buttonRect("close")) end,
-        function(_) return _:rects().window.x, _:rects().window.y end,
-        function(_) return _:rects().ranks.x + 2, _:rects().ranks.y + 50 end,
-        function(_) return _:rects().files.x + 50, _:rects().files.y + 2 end,
+        { center(layout:buttonRect("close")) }, { center(layout:buttonRect("flip")) },
+        { r.window.x, r.window.y }, { r.ranks.x + 2, r.ranks.y + 50 },
+        { r.files.x + 50, r.files.y + 2 }, { move.x - 1, move.y + 2 },
+        { move.x + move.w, move.y + 2 },
     }
-    for i, point in ipairs(points) do
-        local layout = with_gutter(632, 840)
-        local before = layout:rects().window
-        local x, y = point(layout)
-        assert(layout:startDrag(x, y, false), "point " .. i)
-        eq(layout:endDrag(x - 10, y - 20), true, "point " .. i)
-        eq(layout:rects().window.y, before.y - 20, "point " .. i)
+    for i, p in ipairs(points) do
+        eq(layout:startDrag(p[1], p[2], false), true, "point " .. i)
+        eq(layout:dragRect(p[1] - 10, p[2] - 20), nil, "point " .. i)
+        eq(layout:endDrag(p[1] - 10, p[2] - 20), false, "point " .. i)
+        eq(layout:rects().window, r.window, "point " .. i)
     end
 end)

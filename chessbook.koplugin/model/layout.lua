@@ -12,6 +12,8 @@ local FILES = 8
 -- "size" is temporary, to try the minimum size on the Kindle until the window can be resized (H05).
 local LEFT_BUTTONS = { "flip", "size" }
 local RIGHT_BUTTONS = { "close" }
+-- The one to drag the window by, centred in the room between the two groups.
+local MOVE_BUTTON = "move"
 
 local function px(mm, px_per_mm)
     return math.max(1, math.floor(mm * px_per_mm + 0.5))
@@ -152,6 +154,10 @@ function Layout:buttons()
         list[#list + 1] = { id = id,
             rect = { x = row.x + (i - 1) * bw, y = row.y, w = bw, h = row.h } }
     end
+    local left_end = row.x + #LEFT_BUTTONS * bw
+    local right_start = row.x + row.w - #RIGHT_BUTTONS * bw
+    list[#list + 1] = { id = MOVE_BUTTON, rect = { x = left_end
+        + math.floor((right_start - left_end - bw) / 2), y = row.y, w = bw, h = row.h } }
     for i = #RIGHT_BUTTONS, 1, -1 do
         list[#list + 1] = { id = RIGHT_BUTTONS[i],
             rect = { x = row.x + row.w - i * bw, y = row.y, w = bw, h = row.h } }
@@ -247,8 +253,8 @@ function Layout:hit(x, y, flipped)
 end
 
 -- Drags. A drag runs from the finger down to the finger up and is the window's when it starts on
--- the window, wherever the finger goes after. It moves the window unless it starts on a square,
--- because the board is for playing.
+-- the window, wherever the finger goes after. Only a drag that starts on the move button moves the
+-- window; from anywhere else it does nothing, and from the board above all, which is for playing.
 
 -- Starts a drag with the finger down at x, y. False when the point is off the window: the drag is
 -- the reader's. Called again with the same point, it goes on with the drag already started.
@@ -258,7 +264,7 @@ function Layout:startDrag(x, y, flipped)
         return true
     end
     local hit = self:hit(x, y, flipped)
-    self.drag = hit and { x = x, y = y, moves = hit.square == nil } or nil
+    self.drag = hit and { x = x, y = y, moves = hit.button == MOVE_BUTTON } or nil
     return self.drag ~= nil
 end
 
