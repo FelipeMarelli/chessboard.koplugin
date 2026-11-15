@@ -1,6 +1,5 @@
 -- Paints the board: squares, coordinate labels and pieces, from the session view.
 local Font = require("ui/font")
-local Layout = require("model/layout")
 local Rules = require("chess/rules")
 local Screen = require("device").screen
 local TextWidget = require("ui/widget/textwidget")
@@ -30,23 +29,34 @@ local CORNERS = {
     bottom_right = function(r, size, pad) return r.x + r.w - size.w - pad, r.y + r.h - size.h end,
 }
 
+local function centred(r, size)
+    return r.x + math.floor((r.w - size.w) / 2), r.y + math.floor((r.h - size.h) / 2)
+end
+
+-- Labels go in a corner of their square, or centred in the gutters when the layout has them.
 local function paint_labels(bb, layout, view)
     local style = Theme.LABEL
-    local s = layout:squareSize()
-    local face = face_of_px(math.max(6, math.floor(s * style.share)))
+    local gutters = layout:rects().files ~= nil
+    local s = gutters and layout:rects().files.h or layout:squareSize()
+    local share = gutters and style.gutter_share or style.share
+    local face = face_of_px(math.max(6, math.floor(s * share)))
     local pad = math.max(1, math.floor(s / 20))
-    for _, label in ipairs(Layout.labelSquares(view.flipped)) do
-        local r = layout:squareRect(label.square, view.flipped)
+    for _, label in ipairs(layout:labels(view.flipped)) do
         local name = Rules.squareName(label.square)
         local is_file = label.kind == "file"
+        local color = view.squares[label.square].light and style.on_light or style.on_dark
         local text = TextWidget:new{
             text = is_file and name:sub(1, 1) or name:sub(2, 2),
             face = face,
             bold = style.bold,
-            fgcolor = view.squares[label.square].light and style.on_light or style.on_dark,
+            fgcolor = gutters and style.on_gutter or color,
         }
-        local corner = CORNERS[is_file and style.file_corner or style.rank_corner]
-        text:paintTo(bb, corner(r, text:getSize(), pad))
+        if gutters then
+            text:paintTo(bb, centred(label.rect, text:getSize()))
+        else
+            local corner = CORNERS[is_file and style.file_corner or style.rank_corner]
+            text:paintTo(bb, corner(label.rect, text:getSize(), pad))
+        end
         text:free()
     end
 end

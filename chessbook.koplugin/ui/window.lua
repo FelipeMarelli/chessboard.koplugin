@@ -68,6 +68,11 @@ local function paint_frame(bb, rects)
     bb:paintRect(w.x, w.y, w.w, w.h, gray.frame)
     local row = rects.buttons
     bb:paintRect(row.x, row.y, row.w, row.h, gray.row)
+    local ranks, files = rects.ranks, rects.files
+    if ranks then
+        -- From the top of the ranks strip to the bottom of the files one, corner included.
+        bb:paintRect(ranks.x, ranks.y, ranks.w + files.w, ranks.h + files.h, gray.gutter)
+    end
 end
 
 -- Called by ReaderView after it paints the page.

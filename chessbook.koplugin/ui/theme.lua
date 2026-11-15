@@ -17,6 +17,7 @@ Theme.SIZES = {
     border = 0.3,   -- window frame
     margin = 2,     -- gap to the screen edge
     min_square = 5,
+    gutter = 0,     -- strips for the coordinates outside the board; 0 puts them on the squares
 }
 
 Theme.ICON = 5          -- icon side, mm
@@ -30,12 +31,16 @@ Theme.GRAY = {
     row = gray(0xFF),
     light_square = gray(0xEE),
     dark_square = gray(0xAA),
+    gutter = gray(0xFF),
 }
 
--- Coordinate labels. share: text height as a share of the square. file_corner and rank_corner:
--- "top_left", "top_right", "bottom_left" or "bottom_right" of their square.
+-- Coordinate labels. share: text height as a share of the square; gutter_share: as a share of
+-- the gutter, when there is one. file_corner and rank_corner: "top_left", "top_right",
+-- "bottom_left" or "bottom_right" of their square.
 Theme.LABEL = {
     share = 0.24,
+    gutter_share = 0.8,
+    on_gutter = gray(0x00),
     bold = false,
     on_light = gray(0x66),
     on_dark = gray(0xFF),
