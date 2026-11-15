@@ -539,6 +539,126 @@ local function h04(t, plugin)
     return steps
 end
 
+-- H07: play moves with two taps, and the marks that go with them.
+local function h07(t, plugin)
+    local Rules = require("chess/rules")
+    local layout, session = plugin.layout, plugin.session
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
+    local function info(name)
+        return session:view().squares[Rules.squareFromName(name)]
+    end
+    local function has(name, mark)
+        return info(name).marks[mark] == true
+    end
+    -- Taps squares by name, one after another, forgetting the repaints so far.
+    local function tap(...)
+        t.repaints = {}
+        for _, name in ipairs({ ... }) do
+            t:tapRect(layout:squareRect(Rules.squareFromName(name), session:flipped()))
+        end
+    end
+    -- Checks that each of n taps repainted the window once, without a flash.
+    local function repainted(name, n)
+        local ok = #t.repaints == n
+        for _, repaint in ipairs(t.repaints) do
+            ok = ok and same_rect(repaint, layout:rects().window) and repaint.refresh == "ui"
+        end
+        t:check(name .. " repaints the window once per tap, without a flash", ok, #t.repaints)
+    end
+    local function played(name, square, piece, ...)
+        tap(...)
+        t:check(name, info(square).piece == piece, info(square).piece)
+        repainted(name, select("#", ...))
+    end
+    local function load(fen)
+        assert(session.game:reset(fen))
+        plugin.window:refresh(layout:dirtyRect())
+    end
+    go_to_page(steps, plugin)
+    step(function()
+        t:watchRepaints()
+        plugin:toggle()
+    end)
+    step(function()
+        t:shot("open")
+        tap("e2")
+        t:shot("selected")
+        t:check("a tap on a piece selects it", has("e2", "selected"))
+        t:check("and shows its targets", has("e3", "target") and has("e4", "target"))
+        repainted("selecting", 1)
+    end)
+    step(function()
+        played("a tap on a target plays the move", "e4", "P", "e4")
+        t:shot("played")
+        t:check("the last move stays marked", has("e2", "last_move") and has("e4", "last_move"))
+        t:check("and it is Black's turn", session:view().turn == "b")
+        tap("e5", "e2")
+        t:check("taps that change nothing repaint nothing", #t.repaints == 0, #t.repaints)
+    end)
+    step(function()
+        session:flip()
+        played("with the board flipped, taps find their squares", "a6", "p", "a7", "a6")
+        t:shot("flipped")
+        session:flip()
+    end)
+    step(function()
+        played("e4-e5", "e5", "P", "e4", "e5")
+        played("d7-d5, next to the pawn", "d5", "p", "d7", "d5")
+        tap("e5")
+        t:shot("en_passant")
+        t:check("en passant shows as a capture", has("d6", "capture") and has("e6", "target"))
+    end)
+    step(function()
+        played("en passant", "d6", "P", "d6")
+        t:check("en passant takes the pawn", info("d5").piece == nil)
+        played("a knight", "f6", "n", "g8", "f6")
+        played("a knight", "f3", "N", "g1", "f3")
+        played("a knight", "c6", "n", "b8", "c6")
+        played("a bishop", "c4", "B", "f1", "c4")
+        tap("e7")
+        t:shot("capture")
+        t:check("a capture is told apart from a move to an empty square",
+            has("d6", "capture") and has("e6", "target") and has("e5", "target"))
+    end)
+    step(function()
+        played("a capture", "d6", "p", "d6")
+        tap("e1")
+        t:shot("castling")
+        t:check("the king can go two squares to castle", has("g1", "target"))
+    end)
+    step(function()
+        played("castling", "g1", "K", "g1")
+        t:check("castling moves the rook", info("f1").piece == "R" and info("h1").piece == nil)
+        t:shot("castled")
+        load()
+        played("f2-f3", "f3", "P", "f2", "f3")
+        played("e7-e5", "e5", "p", "e7", "e5")
+        played("g2-g4", "g4", "P", "g2", "g4")
+        played("the queen mates", "h4", "q", "d8", "h4")
+        t:shot("mate")
+        t:check("checkmate", session:view().status == "checkmate")
+        t:check("the king in check is marked", has("e1", "check"))
+    end)
+    step(function()
+        load("7k/8/6K1/8/8/8/8/5Q2 w - - 0 1")
+        played("the queen stalemates", "f7", "Q", "f1", "f7")
+        t:shot("stalemate")
+        t:check("stalemate", session:view().status == "stalemate")
+        load("4k3/8/8/8/8/8/8/R6K w - - 0 1")
+        played("the rook checks", "a8", "R", "a1", "a8")
+        t:shot("check")
+        t:check("the black king in check is marked", has("e8", "check"))
+    end)
+    step(function()
+        load("8/P7/8/8/8/8/8/k6K w - - 0 1")
+        played("a pawn on the last rank becomes a queen, until H08", "a8", "Q", "a7", "a8")
+        t:shot("promoted")
+        plugin.window:setOpen(false)
+    end)
+    return steps
+end
+
 -- Ways of drawing the coordinate labels, to compare them side by side. gutter in mm (0: on the
 -- squares); grays from 0 (black) to 255 (white).
 local LABEL_VARIANTS = {
@@ -683,7 +803,7 @@ local function sizes(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, labels = labels, sizes = sizes }
+local SCENARIOS = { h03 = h03, h04 = h04, h07 = h07, labels = labels, sizes = sizes }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
