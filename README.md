@@ -214,7 +214,7 @@ El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y 
 
 - Probar el plugin en la Kindle: rendimiento y refresco de pantalla.
 - Probar el reconocimiento por plantillas sobre los recortes reales del PDF y el DjVu.
-- Ver en la Kindle cómo quedan los grises de las casillas y las piezas con 16 tonos, si el repintado de la ventana deja restos, y cuánto tarda dibujar las piezas la primera vez (H03).
+- Medir en la Kindle cuánto tarda dibujar las piezas la primera vez, y probar que tocar un link con la ventana abierta lo sigue (H03). Los restos al abrir la ventana se resolvieron con un destello en la zona de la ventana.
 - Resolver la reconstrucción de jugadas desde el texto. En el experimento previo se resolvió el 90 % de la línea principal del Nunn y el 57 % del Kasparov, y "resuelta" solo significa que la jugada es legal en alguna posición candidata, no que sea la correcta. Los riesgos son el anclaje de la posición inicial, los errores en cascada y las diferencias entre editoriales.
 - Medir en la Kindle cuánto tarda generar las jugadas legales y escribir la notación (`chess/rules.lua`).
 
