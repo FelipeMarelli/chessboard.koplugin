@@ -258,6 +258,14 @@ local function same_rect(a, b)
     return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h
 end
 
+-- Checks that what was done since the repaints were last forgotten repainted rect once, with
+-- that kind of refresh, and nothing else.
+function SelfTest:repaintedOnce(name, rect, refresh)
+    local r = self.repaints[1]
+    self:check(name, #self.repaints == 1 and same_rect(r, rect) and r.refresh == refresh,
+        r and string.format("%d repaints, the first %s", #self.repaints, r.refresh) or "none")
+end
+
 -- Where the reader is. For EPUB, the position in the text. For PDF and DjVu, the top page and
 -- the part of it on screen: in continuous scroll mode (the emulator uses it in landscape) a
 -- forward tap scrolls the view, and the page number may stay the same.
@@ -348,28 +356,6 @@ local function h03(t, plugin)
         t:check("the board can be drawn with squares of the minimum size",
             small:squareSize() == small.px.min_square, small:squareSize())
         t:use(plugin, t.full_layout)
-    end)
-    step(function()
-        t.repaints = {}
-        t:tapRect(plugin.layout:buttonRect("size"))
-    end)
-    step(function()
-        UIManager:forceRePaint()
-        t:shot("small")
-        t:check("the temporary size button makes the window minimum",
-            plugin.layout:isSmall() and plugin.layout:squareSize() == plugin.layout.px.min_square,
-            plugin.layout:squareSize())
-        t:check("shrinking does not flash", t.repaints[1] and t.repaints[1].refresh == "ui",
-            t.repaints[1] and t.repaints[1].refresh)
-        t.repaints = {}
-        t:tapRect(plugin.layout:buttonRect("size"))
-    end)
-    step(function()
-        UIManager:forceRePaint()
-        t:check("and again back to the default size", not plugin.layout:isSmall(),
-            plugin.layout:squareSize())
-        t:check("growing flashes", t.repaints[1] and t.repaints[1].refresh == "flashui",
-            t.repaints[1] and t.repaints[1].refresh)
     end)
     step(function()
         t.repaints = {}
@@ -688,7 +674,97 @@ local function h07(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h07 = h07 }
+-- H05: the size row, shrinking and growing to the limits, and back to the main row.
+local function h05(t, plugin)
+    local layout = plugin.layout
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
+    -- Taps a button of the row shown, forgetting the repaints so far and remembering the window.
+    local function tap(id)
+        t.repaints = {}
+        t.before = layout:rects()
+        t:tapRect(layout:buttonRect(id))
+    end
+    local function corner_kept(name)
+        local now = layout:rects().window
+        t:check(name .. " keeps the top left corner", now.x == t.before.window.x
+            and now.y == t.before.window.y, place_text(now))
+    end
+    -- Taps a resize button and checks that the board changed by one step and the window was
+    -- repainted once, where it was and where it is.
+    local function resized(id, steps_taken, refresh)
+        local square = layout:squareSize()
+        tap(id)
+        local now = layout:squareSize()
+        t:check(id .. " changes the squares by one step",
+            now == square + steps_taken * layout.px.size_step, square .. " -> " .. now)
+        t:repaintedOnce(id .. " repaints the window once, " .. refresh, layout:dirtyRect(t.before),
+            refresh)
+    end
+    -- Taps a resize button until it is disabled, and checks that a tap then does nothing.
+    local function to_limit(id)
+        while layout:button(id).enabled do
+            tap(id)
+        end
+        local square = layout:squareSize()
+        tap(id)
+        t:check("at its limit " .. id .. " does nothing", layout:squareSize() == square
+            and #t.repaints == 0, #t.repaints)
+    end
+    local function row_shown(name, row)
+        t:check(name .. " shows the " .. row .. " row", layout:shownRow() == row,
+            layout:shownRow())
+        t:repaintedOnce(name .. " repaints only the row", layout:rects().buttons, "ui")
+    end
+    go_to_page(steps, plugin)
+    step(function()
+        t:watchRepaints()
+        plugin:toggle()
+    end)
+    step(function()
+        t:shot("open")
+        tap("size")
+        row_shown("size", "size")
+        UIManager:forceRePaint()
+        t:shot("size_row")
+    end)
+    step(function()
+        resized("smaller", -1, "ui")
+        corner_kept("smaller")
+        resized("bigger", 1, "flashui")
+        corner_kept("bigger")
+        to_limit("smaller")
+        t:check("the smallest board has squares of the minimum size",
+            layout:squareSize() == layout.px.min_square, layout:squareSize())
+        UIManager:forceRePaint()
+        t:shot("minimum")
+    end)
+    step(function()
+        to_limit("bigger")
+        local screen = { x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() }
+        local window = layout:rects().window
+        t:check("the biggest board fits the screen", window.x >= screen.x
+            and window.y >= screen.y and window.x + window.w <= screen.w
+            and window.y + window.h <= screen.h, place_text(window))
+        UIManager:forceRePaint()
+        t:shot("maximum")
+    end)
+    step(function()
+        tap("back")
+        row_shown("back", "main")
+        UIManager:forceRePaint()
+        t:shot("back")
+        layout:showRow("size")
+        plugin:toggle()
+        plugin:toggle()
+        t:check("closing and opening shows the main row", layout:shownRow() == "main",
+            layout:shownRow())
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07 }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
