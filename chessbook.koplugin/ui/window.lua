@@ -47,19 +47,37 @@ local ACTIONS = {
     end,
 }
 
+-- A tap on a square of the board. Until the promotion picker comes (H08), a pawn that reaches
+-- the last rank becomes a queen.
+local function tap_square(self, sq)
+    local result = self.session:tapSquare(sq)
+    if result.needs_promotion then
+        result = self.session:choosePromotion("q")
+    end
+    if result.changed then
+        self:refresh(self.layout:dirtyRect())
+    end
+end
+
+-- Runs what a tap does; a failure closes the window, so that the reader can go on.
+function Window:run(name, action, ...)
+    local ok, err = pcall(action, self, ...)
+    if not ok then
+        logger.err("chessbook:", name, "failed:", err)
+        self:setOpen(false)
+    end
+end
+
 -- True when the tap was on the window, so that the reader does not get it.
 function Window:onTap(ges)
     local hit = self.layout:hit(ges.pos.x, ges.pos.y, self.session:flipped())
     if not hit then
         return false
     end
-    local action = hit.button and ACTIONS[hit.button]
-    if action then
-        local ok, err = pcall(action, self)
-        if not ok then
-            logger.err("chessbook: button", hit.button, "failed:", err)
-            self:setOpen(false)
-        end
+    if hit.square then
+        self:run("square", tap_square, hit.square)
+    elseif ACTIONS[hit.button] then
+        self:run(hit.button, ACTIONS[hit.button])
     end
     return true
 end
