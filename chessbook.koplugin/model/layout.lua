@@ -147,6 +147,8 @@ function Layout:rects()
     if g > 0 then
         rects.ranks = { x = left, y = top, w = g, h = side }
         rects.files = { x = left + g, y = top + side, w = side, h = g }
+        -- The corner where the two strips meet shows whose turn it is.
+        rects.status = { x = left, y = top + side, w = g, h = g }
     end
     return rects
 end
