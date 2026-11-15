@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (14 de noviembre de 2026): el plugin arranca de cero. Por ahora tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01) y la línea de jugadas con su navegación (`chess/game.lua`, H02). Todavía no muestra nada en pantalla. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
+Estado (14 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). Todavía no se pueden hacer jugadas ni mover la ventana. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -129,6 +129,11 @@ Verificado con toques sintéticos en el emulador, a 632×840 (media escala de un
 chessbook.koplugin/     el plugin (_meta.lua, main.lua)
   chess/rules.lua       reglas: posición, jugadas legales, FEN, notación
   chess/game.lua        línea de jugadas: árbol, cursor, guardado
+  model/                lógica de la ventana sin KOReader: medidas y toques (layout), lo que se ve (session)
+  ui/                   dibujo y gestos: ventana, tablero, medidas y grises (theme)
+  assets/               piezas Merida e íconos, en SVG
+  i18n.lua, l10n/       textos traducibles
+  selftest.lua          prueba de interfaz con toques sintéticos
 spec/                   pruebas de la lógica pura (run.lua las corre todas)
   perft/                posiciones con conteos de jugadas conocidos
 docs/                   historias, arquitectura
@@ -165,9 +170,26 @@ A mano:
 ./run-emu.sh "The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 ```
 
-Por ahora el plugin se carga pero no muestra nada: la ventana con el tablero llega con la historia H03, y con ella la prueba automática de interfaz (`CHESSBOOK_SELFTEST=1`).
+El tablero se abre y se cierra desde el menú del lector: pestaña de herramientas → «More tools» → «Chess board» (con KOReader en castellano, «Tablero de ajedrez»). Con el mouse se toca como con el dedo.
 
-El tamaño de la ventana se cambia con `EMULATE_READER_W`, `EMULATE_READER_H` y `EMULATE_READER_DPI` (por defecto 632, 840 y 150).
+El tamaño de la ventana del emulador se cambia con `EMULATE_READER_W`, `EMULATE_READER_H` y `EMULATE_READER_DPI` (por defecto 632, 840 y 150).
+
+### Prueba de interfaz
+
+```sh
+CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 ./run-emu.sh "$PWD/The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+EMULATE_READER_W=840 EMULATE_READER_H=632 CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 ./run-emu.sh "$PWD/<libro>"
+```
+
+Abre el libro en la página `CHESSBOOK_PAGE`, inyecta toques, comprueba el resultado y cierra el emulador con código distinto de cero si algo falla. Deja en `emu-data/chessbook/` el informe `selftest.txt` y capturas `<escenario>_<v|h>_NN_<paso>.png` (`v` vertical, `h` horizontal). Hay que mirar las capturas: la prueba no juzga cómo se ve.
+
+`CHESSBOOK_SCENARIO` elige qué se prueba:
+
+- `h03` (por defecto): abrir, girar, tocar dentro y fuera de la ventana, abrir el menú del lector, tamaño mínimo, cerrar.
+- `labels`: las variantes de coordenadas que se compararon para H03, en `labels_<v|h>.png`.
+- `sizes`: la ventana con varios tamaños mínimos de casilla sobre la misma página, en `sizes_<v|h>.png`.
+
+Las corridas comparten `emu-data/`: hay que correrlas de a una.
 
 ## Publicación en Storefront
 
@@ -192,7 +214,7 @@ El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y 
 
 - Probar el plugin en la Kindle: rendimiento y refresco de pantalla.
 - Probar el reconocimiento por plantillas sobre los recortes reales del PDF y el DjVu.
-- Verificar el origen y la licencia de las piezas Merida y de la textura de madera (historia H03).
+- Ver en la Kindle cómo quedan los grises de las casillas y las piezas con 16 tonos, si el repintado de la ventana deja restos, y cuánto tarda dibujar las piezas la primera vez (H03).
 - Resolver la reconstrucción de jugadas desde el texto. En el experimento previo se resolvió el 90 % de la línea principal del Nunn y el 57 % del Kasparov, y "resuelta" solo significa que la jugada es legal en alguna posición candidata, no que sea la correcta. Los riesgos son el anclaje de la posición inicial, los errores en cascada y las diferencias entre editoriales.
 - Medir en la Kindle cuánto tarda generar las jugadas legales y escribir la notación (`chess/rules.lua`).
 
@@ -206,4 +228,6 @@ AGPL-3.0, la misma que KOReader. Ver `LICENSE`.
 |---|---|---|
 | `chessbook.koplugin/chess/rules.lua` | `ink_knight/chess.lua` de [Ink Knight](https://github.com/beater-studios/ink_knight.koplugin), commit `601acd2`, © 2026 Beater Studios. Modificado: nombres según el contrato de `docs/arquitectura.md`, lectura estricta de FEN, número de jugada, notación con la letra de pieza aparte, validación de posiciones; se quitó lo propio de las partidas de Ink Knight. | GPL-3.0, solo versión 3 (`chess/LICENSE-GPL-3.0`). Combinable con AGPL-3.0 por la sección 13 de ambas. Los nombres «Ink Knight» y «Beater Studios» no se licencian (sección 7(e)). |
 | `spec/inkknight_rules_spec.lua`, `spec/perft_spec.lua` | `tests/chess_spec.lua` y `tests/perft_spec.lua` de Ink Knight, mismo commit, adaptados. No van en el paquete. | GPL-3.0, solo versión 3. |
+| `chessbook.koplugin/assets/pieces/merida/*.svg` | Piezas Merida de Armando Hernandez Marroquin, tomadas sin cambios de [lichess](https://github.com/lichess-org/lila), commit `8f16c30`, carpeta `public/piece/merida` (detalle en `assets/pieces/merida/README.md`). | GPL-2.0 o posterior según el `COPYING.md` de lichess; se usan bajo GPL-3.0, combinable con AGPL-3.0. |
+| `chessbook.koplugin/assets/icons/*.svg` | Propios del proyecto. | AGPL-3.0, como el plugin. |
 | `spec/perft/*.perft` | [scalachess](https://github.com/lichess-org/scalachess), commit `fbb8f2c`, vía Ink Knight. Recopiladas de chessprogramming.org y del motor Ethereal. | MIT (`spec/perft/LICENSE-scalachess`). |
