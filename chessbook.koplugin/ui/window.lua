@@ -46,12 +46,20 @@ local function resize(self, steps)
     end
 end
 
+-- Repaints the window when a tap changed what it shows.
+local function repaint_if(self, changed)
+    if changed then
+        self:refresh(self.layout:dirtyRect())
+    end
+end
+
 local ACTIONS = {
     close = function(self) self:setOpen(false) end,
     flip = function(self)
         self.session:flip()
         self:refresh(self.layout:dirtyRect())
     end,
+    reset = function(self) repaint_if(self, self.session:reset()) end,
     smaller = function(self) resize(self, -1) end,
     bigger = function(self) resize(self, 1) end,
 }
@@ -69,9 +77,7 @@ local function tap_square(self, sq)
     if result.needs_promotion then
         result = self.session:choosePromotion("q")
     end
-    if result.changed then
-        self:refresh(self.layout:dirtyRect())
-    end
+    repaint_if(self, result.changed)
 end
 
 -- Runs what a tap does; a failure closes the window, so that the reader can go on.
