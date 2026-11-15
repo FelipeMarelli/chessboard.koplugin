@@ -1,0 +1,99 @@
+# Common commands. `task` lists them; https://taskfile.dev
+#
+#   task test                      logic tests (spec/), seconds
+#   task test -- rules_spec.lua    only some spec files
+#   task emu BOOK=petroff          emulator by hand, portrait
+#   task ui SCENARIO=h05           UI self-test, portrait and landscape
+#   task check                     everything a story needs before it is done
+#
+# BOOK is a path or part of a file name in example-books/, case-insensitive.
+
+version: '3'
+
+vars:
+  BOOK: nunn
+  PAGE: 30
+  SCENARIO: h03
+  # Read from the selftest itself, so a new scenario needs no change here.
+  SCENARIOS:
+    sh: grep '^local SCENARIOS' chessbook.koplugin/selftest.lua | grep -o '[a-z0-9_]* =' | tr -d ' ='
+
+tasks:
+  default:
+    cmd: task --list
+    silent: true
+
+  test:
+    desc: Logic tests in spec/ (pass file names after -- to run only those)
+    dir: vendor/koreader-emu/lib/koreader
+    env:
+      PERFT_LIMIT: '{{.PERFT_LIMIT}}' # empty: the spec's own limit
+    cmd: ./luajit "{{.ROOT_DIR}}/spec/run.lua" {{.CLI_ARGS}}
+
+  test:perft:
+    desc: Move-count tests in depth (slow)
+    cmd:
+      task: test
+      vars: { CLI_ARGS: perft_spec.lua, PERFT_LIMIT: 10000000 }
+
+  emu:
+    desc: Emulator by hand, portrait (BOOK=...)
+    cmd: { task: _emulator, vars: { ORIENTATION: v } }
+
+  emu:h:
+    desc: Emulator by hand, landscape (BOOK=...)
+    cmd: { task: _emulator, vars: { ORIENTATION: h } }
+
+  ui:
+    desc: UI self-test of one scenario, portrait and landscape (SCENARIO=h03 ...)
+    cmds:
+      - { task: ui:v, vars: { SCENARIO: '{{.SCENARIO}}' } }
+      - { task: ui:h, vars: { SCENARIO: '{{.SCENARIO}}' } }
+
+  ui:v:
+    desc: UI self-test of one scenario, portrait only
+    cmd: { task: _emulator, vars: { ORIENTATION: v, SELFTEST: 1, SCENARIO: '{{.SCENARIO}}' } }
+
+  ui:h:
+    desc: UI self-test of one scenario, landscape only
+    cmd: { task: _emulator, vars: { ORIENTATION: h, SELFTEST: 1, SCENARIO: '{{.SCENARIO}}' } }
+
+  ui:all:
+    desc: UI self-test of every scenario, portrait and landscape (slow)
+    cmds:
+      - for: { var: SCENARIOS }
+        task: ui
+        vars: { SCENARIO: '{{.ITEM}}' }
+
+  check:
+    desc: Logic tests, then every UI scenario in both orientations
+    cmds:
+      - task: test
+      - task: ui:all
+
+  shots:
+    desc: Open the folder with the self-test report and screenshots
+    cmd: xdg-open emu-data/chessbook
+
+  _emulator:
+    internal: true
+    env:
+      EMULATE_READER_W: '{{if eq .ORIENTATION "h"}}840{{else}}632{{end}}'
+      EMULATE_READER_H: '{{if eq .ORIENTATION "h"}}632{{else}}840{{end}}'
+      CHESSBOOK_SCENARIO: '{{.SCENARIO}}'
+      CHESSBOOK_PAGE: '{{.PAGE}}'
+    # CHESSBOOK_SELFTEST is set only for the self-test: the plugin starts it even when empty.
+    cmd: |
+      book="{{.BOOK}}"
+      if [ ! -f "$book" ]; then
+        book=$(find example-books -maxdepth 1 -type f -iname "*{{.BOOK}}*" | sort | head -n 1)
+      fi
+      if [ -z "$book" ]; then
+        echo "no book matches '{{.BOOK}}' in example-books/" >&2
+        exit 1
+      fi
+      {{if .SELFTEST}}
+      export CHESSBOOK_SELFTEST=1
+      echo "selftest {{.SCENARIO}} ({{.ORIENTATION}}): $book"
+      {{end}}
+      ./run-emu.sh "$(realpath "$book")"

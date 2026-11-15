@@ -152,6 +152,22 @@ El plugin está enlazado con un symlink en `vendor/koreader-emu/lib/koreader/plu
 
 ## Cómo correrlo
 
+### Atajos con Task
+
+`Taskfile.yml` junta los comandos de abajo para [Task](https://taskfile.dev); `task` sin argumentos los lista.
+
+```sh
+task test                     # pruebas de la lógica; task test -- rules_spec.lua corre solo ese archivo
+task test:perft               # conteos de jugadas a fondo (lento)
+task emu BOOK=petroff         # emulador a mano en vertical; emu:h en horizontal
+task ui SCENARIO=h05          # prueba de interfaz en vertical y horizontal; ui:v y ui:h, una sola
+task ui:all                   # todos los escenarios en las dos orientaciones (lento)
+task check                    # pruebas de la lógica y después ui:all
+task shots                    # abre emu-data/chessbook/ con el informe y las capturas
+```
+
+`BOOK` es una ruta o parte del nombre de un libro de `example-books/`, sin importar mayúsculas (por defecto `nunn`). `PAGE` es la página donde arranca la prueba de interfaz (por defecto 30). Los escenarios de `ui:all` se leen de `selftest.lua`.
+
 ### Pruebas de la lógica
 
 ```sh
