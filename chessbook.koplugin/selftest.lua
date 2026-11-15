@@ -160,9 +160,9 @@ end
 -- Ways of drawing the coordinate labels, to compare them side by side. gutter in mm (0: on the
 -- squares); grays from 0 (black) to 255 (white).
 local LABEL_VARIANTS = {
-    { name = "A (now)", gutter = 0, share = 0.24, bold = false, on_light = 0x66, on_dark = 0xFF },
+    { name = "A", gutter = 0, share = 0.24, bold = false, on_light = 0x66, on_dark = 0xFF },
     { name = "G", gutter = 2.5, bold = false, ink = 0x00, paper = 0xFF },
-    { name = "H", gutter = 2.5, bold = true, ink = 0x00, paper = 0xFF },
+    { name = "H (now)", gutter = 2.5, bold = true, ink = 0x00, paper = 0xFF },
     { name = "I", gutter = 2, bold = false, ink = 0x55, paper = 0xFF },
     { name = "J", gutter = 3, bold = false, ink = 0x00, paper = 0xDD },
     { name = "K", gutter = 3, bold = true, ink = 0xFF, paper = 0x00 },

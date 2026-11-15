@@ -17,7 +17,7 @@ Theme.SIZES = {
     border = 0.3,   -- window frame
     margin = 2,     -- gap to the screen edge
     min_square = 5,
-    gutter = 0,     -- strips for the coordinates outside the board; 0 puts them on the squares
+    gutter = 2.5,   -- strips for the coordinates outside the board; 0 puts them on the squares
 }
 
 Theme.ICON = 5          -- icon side, mm
@@ -41,7 +41,7 @@ Theme.LABEL = {
     share = 0.24,
     gutter_share = 0.8,
     on_gutter = gray(0x00),
-    bold = false,
+    bold = true,
     on_light = gray(0x66),
     on_dark = gray(0xFF),
     file_corner = "bottom_right",
