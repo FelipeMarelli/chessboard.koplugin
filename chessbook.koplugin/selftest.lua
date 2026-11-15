@@ -157,16 +157,34 @@ local function h03(t, plugin)
     return steps
 end
 
--- Ways of drawing the coordinate labels, to compare them side by side.
+-- Ways of drawing the coordinate labels, to compare them side by side. gutter in mm (0: on the
+-- squares); grays from 0 (black) to 255 (white).
 local LABEL_VARIANTS = {
-    { name = "A", share = 0.24, bold = false, on_light = 0x66, on_dark = 0xFF },
-    { name = "B", share = 0.30, bold = true, on_light = 0x55, on_dark = 0xFF },
-    { name = "C", share = 0.30, bold = true, on_light = 0x00, on_dark = 0xFF },
-    { name = "D", share = 0.30, bold = true, on_light = 0xAA, on_dark = 0xEE },
-    { name = "E", share = 0.26, bold = false, on_light = 0x00, on_dark = 0x00 },
-    { name = "F", share = 0.30, bold = true, on_light = 0x55, on_dark = 0xFF,
-        file_corner = "bottom_left" },
+    { name = "A (now)", gutter = 0, share = 0.24, bold = false, on_light = 0x66, on_dark = 0xFF },
+    { name = "G", gutter = 2.5, bold = false, ink = 0x00, paper = 0xFF },
+    { name = "H", gutter = 2.5, bold = true, ink = 0x00, paper = 0xFF },
+    { name = "I", gutter = 2, bold = false, ink = 0x55, paper = 0xFF },
+    { name = "J", gutter = 3, bold = false, ink = 0x00, paper = 0xDD },
+    { name = "K", gutter = 3, bold = true, ink = 0xFF, paper = 0x00 },
 }
+
+local function layout_for(plugin, gutter)
+    local Layout = require("model/layout")
+    local Theme = require("ui/theme")
+    local sizes = {}
+    for k, v in pairs(Theme.SIZES) do sizes[k] = v end
+    sizes.gutter = gutter
+    local layout = Layout.new{ screen_w = Screen:getWidth(), screen_h = Screen:getHeight(),
+        px_per_mm = Theme.pxPerMm(), sizes = sizes }
+    layout:setOpen(true)
+    return layout
+end
+
+local function copy(t)
+    local c = {}
+    for k, v in pairs(t) do c[k] = v end
+    return c
+end
 
 -- Paints the window with each label variant and puts them all in one image.
 local function labels(t, plugin)
@@ -174,28 +192,42 @@ local function labels(t, plugin)
     local Font = require("ui/font")
     local TextWidget = require("ui/widget/textwidget")
     local Theme = require("ui/theme")
-    local layout = plugin.layout
-    local original = {}
-    for k, v in pairs(Theme.LABEL) do original[k] = v end
-    local steps, grid = {}, nil
+    local original = { label = copy(Theme.LABEL), gray = copy(Theme.GRAY),
+        layout = plugin.layout }
+    local layouts, cell_w, cell_h = {}, 0, 0
     local columns, caption = 3, 30
-    steps[1] = function() plugin:toggle() end
+    for i, variant in ipairs(LABEL_VARIANTS) do
+        layouts[i] = layout_for(plugin, variant.gutter)
+        local w = layouts[i]:rects().window
+        cell_w, cell_h = math.max(cell_w, w.w + 20), math.max(cell_h, w.h + caption)
+    end
+    local rows = math.ceil(#LABEL_VARIANTS / columns)
+    local grid = Blitbuffer.new(columns * cell_w, rows * cell_h, Screen.bb:getType())
+    grid:fill(Blitbuffer.COLOR_WHITE)
+    local function use(label, gray, layout)
+        for k, v in pairs(label) do Theme.LABEL[k] = v end
+        for k, v in pairs(gray) do Theme.GRAY[k] = v end
+        local before = plugin.layout:rects()
+        plugin.layout, plugin.window.layout = layout, layout
+        plugin.window:refresh(layout:dirtyRect(before))
+    end
+    local steps = {}
     for i, variant in ipairs(LABEL_VARIANTS) do
         steps[#steps + 1] = function()
-            for k, v in pairs(original) do Theme.LABEL[k] = v end
-            Theme.LABEL.share, Theme.LABEL.bold = variant.share, variant.bold
-            Theme.LABEL.on_light = Blitbuffer.Color8(variant.on_light)
-            Theme.LABEL.on_dark = Blitbuffer.Color8(variant.on_dark)
-            Theme.LABEL.file_corner = variant.file_corner or original.file_corner
-            plugin.window:refresh(layout:dirtyRect())
-            UIManager:forceRePaint()
-            local w = layout:rects().window
-            local cell_w, cell_h = w.w + 20, w.h + caption
-            if not grid then
-                local rows = math.ceil(#LABEL_VARIANTS / columns)
-                grid = Blitbuffer.new(columns * cell_w, rows * cell_h, Screen.bb:getType())
-                grid:fill(Blitbuffer.COLOR_WHITE)
+            local label, gray = copy(original.label), copy(original.gray)
+            label.bold = variant.bold
+            label.share = variant.share or label.share
+            if variant.on_light then
+                label.on_light = Blitbuffer.Color8(variant.on_light)
+                label.on_dark = Blitbuffer.Color8(variant.on_dark)
             end
+            if variant.ink then
+                label.on_gutter = Blitbuffer.Color8(variant.ink)
+                gray.gutter = Blitbuffer.Color8(variant.paper)
+            end
+            use(label, gray, layouts[i])
+            UIManager:forceRePaint()
+            local w = layouts[i]:rects().window
             local x, y = ((i - 1) % columns) * cell_w, math.floor((i - 1) / columns) * cell_h
             local text = TextWidget:new{ text = variant.name, face = Font:getFace("cfont", 16),
                 bold = true }
@@ -205,7 +237,7 @@ local function labels(t, plugin)
         end
     end
     steps[#steps + 1] = function()
-        for k, v in pairs(original) do Theme.LABEL[k] = v end
+        use(original.label, original.gray, original.layout)
         local orientation = Screen:getWidth() > Screen:getHeight() and "h" or "v"
         grid:writePNG(string.format("%s/labels_%s.png", t.dir, orientation))
         grid:free()
