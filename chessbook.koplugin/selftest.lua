@@ -322,7 +322,62 @@ local function labels(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, labels = labels }
+-- Square sides in mm to compare as the minimum size of the window.
+local MINIMUM_SIZES = { 2.5, 3, 3.5, 4, 4.5, 5 }
+
+-- Paints the window with each minimum square size over the same page, to compare them with the
+-- text and the diagrams of the book.
+local function sizes(t, plugin)
+    local Blitbuffer = require("ffi/blitbuffer")
+    local Font = require("ui/font")
+    local Layout = require("model/layout")
+    local TextWidget = require("ui/widget/textwidget")
+    local Theme = require("ui/theme")
+    local original = plugin.layout
+    local sheet
+    local x, y, row_h, gap, caption = 10, 60, 0, 10, 22
+    local steps = {}
+    steps[#steps + 1] = function()
+        plugin.window:setOpen(false)
+        UIManager:forceRePaint()
+        sheet = Blitbuffer.new(Screen:getWidth(), Screen:getHeight(), Screen.bb:getType())
+        sheet:blitFrom(Screen.bb, 0, 0, 0, 0, Screen:getWidth(), Screen:getHeight())
+    end
+    for _, mm in ipairs(MINIMUM_SIZES) do
+        steps[#steps + 1] = function()
+            local sizes_mm = copy(Theme.SIZES)
+            sizes_mm.min_square = mm
+            local min_px = Theme.px(mm)
+            local side = math.ceil(8 * min_px / 0.6) + 1
+            local layout = Layout.new{ screen_w = side,
+                screen_h = side + 2 * Theme.px(Theme.SIZES.row),
+                px_per_mm = Theme.pxPerMm(), sizes = sizes_mm }
+            layout:setOpen(true)
+            t:use(plugin, layout)
+            local w = layout:rects().window
+            if x + w.w > Screen:getWidth() then
+                x, y, row_h = 10, y + row_h + gap, 0
+            end
+            local text = TextWidget:new{ text = string.format("%s mm (%d px)", mm,
+                layout:squareSize()), face = Font:getFace("cfont", 14), bold = true }
+            sheet:paintRect(x, y, text:getSize().w + 4, caption, Blitbuffer.COLOR_WHITE)
+            text:paintTo(sheet, x + 2, y)
+            text:free()
+            sheet:blitFrom(Screen.bb, x, y + caption, w.x, w.y, w.w, w.h)
+            x, row_h = x + w.w + gap, math.max(row_h, w.h + caption)
+        end
+    end
+    steps[#steps + 1] = function()
+        t:use(plugin, original)
+        local orientation = Screen:getWidth() > Screen:getHeight() and "h" or "v"
+        sheet:writePNG(string.format("%s/sizes_%s.png", t.dir, orientation))
+        sheet:free()
+        t:check("minimum sizes saved", true)
+    end
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, labels = labels, sizes = sizes }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
