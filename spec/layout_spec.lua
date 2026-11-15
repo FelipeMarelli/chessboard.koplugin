@@ -6,7 +6,7 @@ local eq, test = Helper.eq, Helper.test
 
 local sq = Rules.squareFromName
 
-local SIZES = { bar = 7, row = 9, button = 9, border = 0.3, margin = 2, min_square = 5 }
+local SIZES = { row = 7, button = 9, border = 0.3, margin = 2, min_square = 5 }
 local PX_PER_MM = 150 / 25.4
 
 local function new(w, h, open)
@@ -46,8 +46,8 @@ test("C3: the window starts centred at the bottom, the board near 60 % of the sh
     end)
 
 test("C3: the exact place on the screens of the UI test", function()
-    eq(new(632, 840):rects().window, { x = 126, y = 354, w = 380, h = 474 })
-    eq(new(840, 632):rects().window, { x = 230, y = 146, w = 380, h = 474 })
+    eq(new(632, 840):rects().window, { x = 126, y = 407, w = 380, h = 421 })
+    eq(new(840, 632):rects().window, { x = 230, y = 199, w = 380, h = 421 })
 end)
 
 test("C3: on a small screen the window still fits, with squares of the minimum size or more",
@@ -64,29 +64,30 @@ test("C3: on a small screen the window still fits, with squares of the minimum s
 
 -- 2. Parts of the window ------------------------------------------------------------------------
 
-test("C2: a top bar, the board and a row of buttons, stacked inside the window", function()
+test("C2: the board and a row of buttons under it, inside the window", function()
     local r = new(632, 840):rects()
-    for _, part in ipairs({ "titlebar", "board", "buttons" }) do
+    for _, part in ipairs({ "board", "buttons" }) do
         assert(contains(r.window, r[part]), part)
     end
-    eq(r.titlebar.y + r.titlebar.h, r.board.y)
     eq(r.board.y + r.board.h, r.buttons.y)
-    eq(r.titlebar.w, r.board.w); eq(r.buttons.w, r.board.w)
+    eq(r.buttons.w, r.board.w)
+    eq(r.titlebar, nil)
 end)
 
-test("C2: close is on the top bar and flip on the bottom row", function()
+test("C2: flip is at the left of the row and close at the right", function()
     local layout = new(632, 840)
-    local r = layout:rects()
+    local row = layout:rects().buttons
     local ids = {}
     for _, button in ipairs(layout:buttons()) do
         ids[#ids + 1] = button.id
-        assert(contains(r[button.place], button.rect), button.id)
+        assert(contains(row, button.rect), button.id)
         assert(button.rect.w >= 7 * PX_PER_MM - 1 and button.rect.h >= 7 * PX_PER_MM - 1,
             "button smaller than 7 mm: " .. button.id)
     end
-    eq(ids, { "close", "flip" })
-    eq(layout:buttons()[1].place, "titlebar"); eq(layout:buttons()[2].place, "buttons")
-    eq(layout:buttonRect("flip"), layout:buttons()[2].rect)
+    eq(ids, { "flip", "close" })
+    eq(layout:buttonRect("flip").x, row.x)
+    eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
+    eq(layout:buttonRect("flip"), layout:buttons()[1].rect)
     eq(layout:buttonRect("nothing"), nil)
 end)
 
@@ -184,14 +185,12 @@ test("C10: a tap on a square gives that square, with the board either way round"
     end
 end)
 
-test("C10: taps on the buttons and on the bar", function()
+test("C10: taps on the buttons and between them", function()
     local layout = new(632, 840)
     eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
     eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
-    local bar = layout:rects().titlebar
-    eq(layout:hit(bar.x + 1, bar.y + 1), { zone = "titlebar" })
     local row = layout:rects().buttons
-    eq(layout:hit(row.x + row.w - 1, row.y + 1), { zone = "button" })
+    eq(layout:hit(row.x + math.floor(row.w / 2), row.y + 1), { zone = "button" })
 end)
 
 test("C10: a tap outside the window, or with the window closed, is not the window's", function()
@@ -218,7 +217,8 @@ test("C10: every point inside the window, border included, belongs to some part"
         assert(layout:hit(w.x + w.w - 1, y, false))
     end
     eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "flip" })
-    eq(layout:hit(w.x + w.w - 1, w.y, false), { zone = "button", button = "close" })
+    eq(layout:hit(w.x + w.w - 1, w.y + w.h - 1, false), { zone = "button", button = "close" })
+    eq(layout:hit(w.x + w.w - 1, w.y, false), { zone = "board", square = 64 })
 end)
 
 -- 11. Repainting -------------------------------------------------------------------------------
@@ -233,7 +233,7 @@ test("C11: the region to repaint is the window, or what covers the old and the n
         local now = layout:rects().window
         local dirty = layout:dirtyRect(before)
         assert(contains(dirty, now) and contains(dirty, before.window))
-        eq(dirty, { x = 126, y = 146, w = 484, h = 682 })
+        eq(dirty, { x = 126, y = 199, w = 484, h = 629 })
     end)
 
 -- Rotation -------------------------------------------------------------------------------------

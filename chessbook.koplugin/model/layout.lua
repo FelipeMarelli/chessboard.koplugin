@@ -8,9 +8,9 @@ Layout.__index = Layout
 local BOARD_SHARE = 0.6 -- of the short side of the screen, on first open
 local FILES = 8
 
--- Buttons of the top bar (right aligned) and of the bottom row (left aligned), in order.
-local BAR_BUTTONS = { "close" }
-local ROW_BUTTONS = { "flip" }
+-- Buttons of the row under the board: from the left edge and from the right edge, in order.
+local LEFT_BUTTONS = { "flip" }
+local RIGHT_BUTTONS = { "close" }
 
 local function px(mm, px_per_mm)
     return math.max(1, math.floor(mm * px_per_mm + 0.5))
@@ -24,14 +24,13 @@ local function clamp(value, low, high)
     return math.max(low, math.min(high, value))
 end
 
--- A layout for a screen. sizes, in millimetres: bar (height of the top bar), row (height of the
--- button row), button (width of a button), border, margin (to the screen edge), min_square.
+-- A layout for a screen. sizes, in millimetres: row (height of the button row under the board),
+-- button (width of a button), border, margin (to the screen edge), min_square.
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local ppm = args.px_per_mm
     local sizes = args.sizes
     self.px = {
-        bar = px(sizes.bar, ppm),
         row = px(sizes.row, ppm),
         button = px(sizes.button, ppm),
         border = px(sizes.border, ppm),
@@ -48,7 +47,7 @@ function Layout:defaultSquare()
     local p = self.px
     local wanted = math.floor(BOARD_SHARE * math.min(self.screen_w, self.screen_h) / FILES)
     local room_w = self.screen_w - 2 * (p.margin + p.border)
-    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.bar - p.row
+    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.row
     local fits = math.floor(math.min(room_w, room_h) / FILES)
     return math.max(p.min_square, math.min(wanted, fits))
 end
@@ -66,7 +65,7 @@ end
 function Layout:windowSize()
     local p = self.px
     local side = FILES * self.square
-    return side + 2 * p.border, side + p.bar + p.row + 2 * p.border
+    return side + 2 * p.border, side + p.row + 2 * p.border
 end
 
 function Layout:setOpen(open)
@@ -88,26 +87,23 @@ function Layout:rects()
     local left, top = self.x + p.border, self.y + p.border
     return {
         window = { x = self.x, y = self.y, w = w, h = h },
-        titlebar = { x = left, y = top, w = side, h = p.bar },
-        board = { x = left, y = top + p.bar, w = side, h = side },
-        buttons = { x = left, y = top + p.bar + side, w = side, h = p.row },
+        board = { x = left, y = top, w = side, h = side },
+        buttons = { x = left, y = top + side, w = side, h = p.row },
     }
 end
 
--- Every button with its id, its rect and whether it sits on the top bar or on the bottom row.
+-- Every button of the row with its id and its rect, from left to right.
 function Layout:buttons()
-    local r = self:rects()
+    local row = self:rects().buttons
     local list = {}
     local bw = self.px.button
-    for i, id in ipairs(BAR_BUTTONS) do
-        local bar = r.titlebar
-        list[#list + 1] = { id = id, place = "titlebar",
-            rect = { x = bar.x + bar.w - i * bw, y = bar.y, w = bw, h = bar.h } }
-    end
-    for i, id in ipairs(ROW_BUTTONS) do
-        local row = r.buttons
-        list[#list + 1] = { id = id, place = "buttons",
+    for i, id in ipairs(LEFT_BUTTONS) do
+        list[#list + 1] = { id = id,
             rect = { x = row.x + (i - 1) * bw, y = row.y, w = bw, h = row.h } }
+    end
+    for i = #RIGHT_BUTTONS, 1, -1 do
+        list[#list + 1] = { id = RIGHT_BUTTONS[i],
+            rect = { x = row.x + row.w - i * bw, y = row.y, w = bw, h = row.h } }
     end
     return list
 end
@@ -166,15 +162,13 @@ function Layout:hit(x, y, flipped)
     end
     local board = r.board
     x = clamp(x, board.x, board.x + board.w - 1)
-    y = clamp(y, r.titlebar.y, r.buttons.y + r.buttons.h - 1)
+    y = clamp(y, board.y, r.buttons.y + r.buttons.h - 1)
     for _, button in ipairs(self:buttons()) do
         if inside(button.rect, x, y) then
             return { zone = "button", button = button.id }
         end
     end
-    if inside(r.titlebar, x, y) then
-        return { zone = "titlebar" }
-    elseif inside(board, x, y) then
+    if inside(board, x, y) then
         return { zone = "board", square = square_at(board, self.square, x, y, flipped) }
     end
     return { zone = "button" }
