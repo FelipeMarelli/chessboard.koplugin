@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (15 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). La ventana se mueve arrastrando su botón de mover, el primero de la fila de abajo; salta al lugar nuevo al soltar (H04). En el tablero se juega con dos toques, pieza y destino, solo jugadas legales, con marcas al estilo de lichess y un indicador de turno, de mate y de ahogado (H07); hasta H08, un peón que corona se convierte en dama. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. H03, H04 y H07 se probaron también en una Kindle Paperwhite. No hay reconocimiento de posiciones.
+Estado (15 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). La ventana se mueve arrastrando su botón de mover, el primero de la fila de abajo; salta al lugar nuevo al soltar (H04). El botón de tamaño cambia la fila de abajo por la del editor de tamaño: volver, achicar y agrandar, de a 1 mm de casilla, entre casillas de 4 mm y el mayor tablero que entra (H05). En el tablero se juega con dos toques, pieza y destino, solo jugadas legales, con marcas al estilo de lichess y un indicador de turno, de mate y de ahogado (H07); hasta H08, un peón que corona se convierte en dama. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. H03, H04 y H07 se probaron también en una Kindle Paperwhite. No hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -187,6 +187,7 @@ Abre el libro en la página `CHESSBOOK_PAGE`, inyecta toques, comprueba el resul
 
 - `h03` (por defecto): abrir, girar, tocar dentro y fuera de la ventana, abrir el menú del lector, tamaño mínimo, cerrar.
 - `h04`: mover la ventana arrastrando el botón de mover, de las formas en que KOReader reporta un arrastre; la marca del botón; arrastres desde otros lugares que no la mueven; soltar fuera de la pantalla; pasar de página fuera de la ventana.
+- `h05`: abrir la fila de tamaño, achicar y agrandar hasta los límites (con el botón del límite deshabilitado), volver a la fila principal, y ver la principal al cerrar y abrir.
 - `h07`: jugar con dos toques (también con el tablero girado), captura al paso, captura, enroque, mate, ahogado, jaque y coronación.
 
 Las corridas comparten `emu-data/`: hay que correrlas de a una.
@@ -216,7 +217,8 @@ El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y 
 - Probar el reconocimiento por plantillas sobre los recortes reales del PDF y el DjVu.
 - Medir en la Kindle cuánto tarda dibujar las piezas la primera vez, y probar que tocar un link con la ventana abierta lo sigue (H03). Los restos al abrir la ventana se resolvieron con un destello en la zona de la ventana.
 - Resolver la reconstrucción de jugadas desde el texto. En el experimento previo se resolvió el 90 % de la línea principal del Nunn y el 57 % del Kasparov, y "resuelta" solo significa que la jugada es legal en alguna posición candidata, no que sea la correcta. Los riesgos son el anclaje de la posición inicial, los errores en cascada y las diferencias entre editoriales.
-- Ajustar en la Kindle los grises de las marcas del tablero (H07): la última jugada en la casilla clara (0xCC) queda a dos tonos de la casilla oscura (0xAA), y el indicador de turno en la esquina mide 2,5 mm.
+- Ajustar en la Kindle el indicador de turno en la esquina, que mide 2,5 mm (H07).
+- Probar en la Kindle el editor de tamaño (H05): si el paso de 1 mm de casilla es cómodo, y si un botón deshabilitado (aclarado al 60 %) se distingue.
 - Medir en la Kindle cuánto tarda generar las jugadas legales y escribir la notación (`chess/rules.lua`).
 
 ## Licencia
@@ -230,5 +232,5 @@ AGPL-3.0, la misma que KOReader. Ver `LICENSE`.
 | `chessbook.koplugin/chess/rules.lua` | `ink_knight/chess.lua` de [Ink Knight](https://github.com/beater-studios/ink_knight.koplugin), commit `601acd2`, © 2026 Beater Studios. Modificado: nombres según el contrato de `docs/arquitectura.md`, lectura estricta de FEN, número de jugada, notación con la letra de pieza aparte, validación de posiciones; se quitó lo propio de las partidas de Ink Knight. | GPL-3.0, solo versión 3 (`chess/LICENSE-GPL-3.0`). Combinable con AGPL-3.0 por la sección 13 de ambas. Los nombres «Ink Knight» y «Beater Studios» no se licencian (sección 7(e)). |
 | `spec/inkknight_rules_spec.lua`, `spec/perft_spec.lua` | `tests/chess_spec.lua` y `tests/perft_spec.lua` de Ink Knight, mismo commit, adaptados. No van en el paquete. | GPL-3.0, solo versión 3. |
 | `chessbook.koplugin/assets/pieces/merida/*.svg` | Piezas Merida de Armando Hernandez Marroquin, tomadas sin cambios de [lichess](https://github.com/lichess-org/lila), commit `8f16c30`, carpeta `public/piece/merida` (detalle en `assets/pieces/merida/README.md`). | GPL-2.0 o posterior según el `COPYING.md` de lichess; se usan bajo GPL-3.0, combinable con AGPL-3.0. |
-| `chessbook.koplugin/assets/icons/*.svg` | [Lucide](https://lucide.dev), paquete `lucide-static` v0.460.0: `arrow-down-up` (girar), `minimize-2` (tamaño), `move` (mover) y `x` (cerrar). Modificado: `stroke="currentColor"` pasa a negro. | ISC (`assets/icons/LICENSE-lucide`); partes de Feather, MIT. Compatibles con AGPL-3.0. |
+| `chessbook.koplugin/assets/icons/*.svg` | [Lucide](https://lucide.dev), paquete `lucide-static` v0.460.0: `arrow-down-up` (girar), `minimize-2` (tamaño), `move` (mover), `x` (cerrar), `arrow-left` (volver), `minus` (achicar) y `plus` (agrandar). Modificado: `stroke="currentColor"` pasa a negro. | ISC (`assets/icons/LICENSE-lucide`); partes de Feather, MIT. Compatibles con AGPL-3.0. |
 | `spec/perft/*.perft` | [scalachess](https://github.com/lichess-org/scalachess), commit `fbb8f2c`, vía Ink Knight. Recopiladas de chessprogramming.org y del motor Ethereal. | MIT (`spec/perft/LICENSE-scalachess`). |
