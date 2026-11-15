@@ -244,3 +244,74 @@ test("a new screen size places the window again, inside the screen", function()
     eq(layout:rects().window, new(840, 632):rects().window)
     eq(layout:isOpen(), true)
 end)
+
+-- Coordinates outside the board ---------------------------------------------------------------
+
+local function with_gutter(w, h)
+    local sizes = {}
+    for k, v in pairs(SIZES) do sizes[k] = v end
+    sizes.gutter = 2.5
+    local layout = Layout.new{ screen_w = w, screen_h = h, px_per_mm = PX_PER_MM, sizes = sizes }
+    layout:setOpen(true)
+    return layout
+end
+
+test("C7: without gutters each label is centred in its own square", function()
+    local layout = new(632, 840)
+    eq(layout:rects().files, nil); eq(layout:rects().ranks, nil)
+    for _, flipped in ipairs({ false, true }) do
+        for _, label in ipairs(layout:labels(flipped)) do
+            eq(label.rect, layout:squareRect(label.square, flipped))
+        end
+    end
+end)
+
+test("C7: with gutters, ranks go in a strip left of the board and files in one under it",
+    function()
+        for _, size in ipairs(SCREENS) do
+            local layout = with_gutter(size[1], size[2])
+            local r = layout:rects()
+            local g = 15 -- 2.5 mm at 150 dpi
+            eq(r.ranks, { x = r.board.x - g, y = r.board.y, w = g, h = r.board.h })
+            eq(r.files, { x = r.board.x, y = r.board.y + r.board.h, w = r.board.w, h = g })
+            eq(r.buttons.y, r.files.y + g)
+            eq(r.buttons.x, r.ranks.x); eq(r.buttons.w, r.board.w + g)
+            for _, part in ipairs({ "ranks", "files", "board", "buttons" }) do
+                assert(contains(r.window, r[part]), part)
+            end
+            for _, flipped in ipairs({ false, true }) do
+                for _, label in ipairs(layout:labels(flipped)) do
+                    local sq = layout:squareRect(label.square, flipped)
+                    local strip = label.kind == "file" and r.files or r.ranks
+                    assert(contains(strip, label.rect))
+                    if label.kind == "file" then
+                        eq(label.rect.x, sq.x); eq(label.rect.w, sq.w)
+                    else
+                        eq(label.rect.y, sq.y); eq(label.rect.h, sq.h)
+                    end
+                end
+            end
+        end
+    end)
+
+test("C7: the board keeps its size near 60 % when the gutters are added", function()
+    eq(with_gutter(632, 840):squareSize(), new(632, 840):squareSize())
+end)
+
+test("C10: a tap on a gutter is the window's but not a square", function()
+    local layout = with_gutter(632, 840)
+    local r = layout:rects()
+    eq(layout:hit(r.ranks.x + 2, r.ranks.y + 50, false), { zone = "board" })
+    eq(layout:hit(r.files.x + 50, r.files.y + 2, false), { zone = "board" })
+    for square = 1, 64 do
+        local x, y = center(layout:squareRect(square, true))
+        eq(layout:hit(x, y, true), { zone = "board", square = square })
+    end
+    local w = r.window
+    for y = w.y, w.y + w.h - 1, 3 do
+        for x = w.x, w.x + w.w - 1, 3 do
+            assert(layout:hit(x, y, false), "nothing at " .. x .. "," .. y)
+        end
+    end
+    eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "flip" })
+end)

@@ -25,7 +25,9 @@ local function clamp(value, low, high)
 end
 
 -- A layout for a screen. sizes, in millimetres: row (height of the button row under the board),
--- button (width of a button), border, margin (to the screen edge), min_square.
+-- button (width of a button), border, margin (to the screen edge), min_square, and gutter (the
+-- strips left of and under the board where the coordinates go; 0 or nil to put them on the
+-- squares).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local ppm = args.px_per_mm
@@ -36,6 +38,7 @@ function Layout.new(args)
         border = px(sizes.border, ppm),
         margin = px(sizes.margin, ppm),
         min_square = px(sizes.min_square, ppm),
+        gutter = (sizes.gutter or 0) > 0 and px(sizes.gutter, ppm) or 0,
     }
     self.open = false
     self:setScreen(args.screen_w, args.screen_h)
@@ -46,8 +49,8 @@ end
 function Layout:defaultSquare()
     local p = self.px
     local wanted = math.floor(BOARD_SHARE * math.min(self.screen_w, self.screen_h) / FILES)
-    local room_w = self.screen_w - 2 * (p.margin + p.border)
-    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.row
+    local room_w = self.screen_w - 2 * (p.margin + p.border) - p.gutter
+    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.gutter - p.row
     local fits = math.floor(math.min(room_w, room_h) / FILES)
     return math.max(p.min_square, math.min(wanted, fits))
 end
@@ -65,7 +68,7 @@ end
 function Layout:windowSize()
     local p = self.px
     local side = FILES * self.square
-    return side + 2 * p.border, side + p.row + 2 * p.border
+    return side + p.gutter + 2 * p.border, side + p.gutter + p.row + 2 * p.border
 end
 
 function Layout:setOpen(open)
@@ -85,11 +88,17 @@ function Layout:rects()
     local w, h = self:windowSize()
     local side = FILES * self.square
     local left, top = self.x + p.border, self.y + p.border
-    return {
+    local g = p.gutter
+    local rects = {
         window = { x = self.x, y = self.y, w = w, h = h },
-        board = { x = left, y = top, w = side, h = side },
-        buttons = { x = left, y = top + side, w = side, h = p.row },
+        board = { x = left + g, y = top, w = side, h = side },
+        buttons = { x = left, y = top + side + g, w = side + g, h = p.row },
     }
+    if g > 0 then
+        rects.ranks = { x = left, y = top, w = g, h = side }
+        rects.files = { x = left + g, y = top + side, w = side, h = g }
+    end
+    return rects
 end
 
 -- Every button of the row with its id and its rect, from left to right.
@@ -145,6 +154,24 @@ function Layout.labelSquares(flipped)
     return list
 end
 
+-- Each coordinate label with its square, its kind and the rect it is centred in: the gutter cell
+-- next to the square when there are gutters, else the square itself.
+function Layout:labels(flipped)
+    local r = self:rects()
+    local list = Layout.labelSquares(flipped)
+    for _, label in ipairs(list) do
+        local sq = self:squareRect(label.square, flipped)
+        if not r.files then
+            label.rect = sq
+        elseif label.kind == "file" then
+            label.rect = { x = sq.x, y = r.files.y, w = sq.w, h = r.files.h }
+        else
+            label.rect = { x = r.ranks.x, y = sq.y, w = r.ranks.w, h = sq.h }
+        end
+    end
+    return list
+end
+
 local function square_at(board, square, x, y, flipped)
     local col, row = math.floor((x - board.x) / square), math.floor((y - board.y) / square)
     if flipped then
@@ -154,14 +181,15 @@ local function square_at(board, square, x, y, flipped)
 end
 
 -- Which part of the window a point falls on, or nil when the window is closed or the point is
--- outside it. The thin border counts as the part next to it.
+-- outside it. The thin border counts as the part next to it, and the gutters as the board,
+-- without a square.
 function Layout:hit(x, y, flipped)
     local r = self:rects()
     if not (self.open and inside(r.window, x, y)) then
         return nil
     end
     local board = r.board
-    x = clamp(x, board.x, board.x + board.w - 1)
+    x = clamp(x, r.buttons.x, board.x + board.w - 1)
     y = clamp(y, board.y, r.buttons.y + r.buttons.h - 1)
     for _, button in ipairs(self:buttons()) do
         if inside(button.rect, x, y) then
@@ -170,6 +198,8 @@ function Layout:hit(x, y, flipped)
     end
     if inside(board, x, y) then
         return { zone = "board", square = square_at(board, self.square, x, y, flipped) }
+    elseif y < r.buttons.y then
+        return { zone = "board" }
     end
     return { zone = "button" }
 end
