@@ -13,10 +13,10 @@ local Theme = {}
 -- Window geometry, for model/layout.lua.
 Theme.SIZES = {
     row = 7,        -- height of the button row under the board
-    button = 8,     -- button width
+    button = 7,     -- button width
     border = 0.3,   -- window frame
     margin = 2,     -- gap to the screen edge
-    min_square = 4,
+    min_square = 4.2,
     size_step = 1,  -- how much the side of a square changes with each tap on smaller or bigger
     gutter = 2.5,   -- strips for the coordinates outside the board; 0 puts them on the squares
 }
