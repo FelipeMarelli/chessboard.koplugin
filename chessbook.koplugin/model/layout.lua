@@ -16,7 +16,7 @@ local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
 local BACK_BUTTON = "back"
 local ROWS = {
-    main = { left = { MOVE_BUTTON, "flip", "size" }, right = { "close" } },
+    main = { left = { MOVE_BUTTON, "flip", "size", "reset" }, right = { "close" } },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
 }
 local OPENS = { size = "size" }
