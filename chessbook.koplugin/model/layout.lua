@@ -10,10 +10,10 @@ local FILES = 8
 
 -- Buttons of the row under the board: from the left edge and from the right edge, in order.
 -- "size" is temporary, to try the minimum size on the Kindle until the window can be resized (H05).
-local LEFT_BUTTONS = { "flip", "size" }
-local RIGHT_BUTTONS = { "close" }
--- The one to drag the window by, centred in the room between the two groups.
+-- "move" is the one to drag the window by.
 local MOVE_BUTTON = "move"
+local LEFT_BUTTONS = { "flip", "size", MOVE_BUTTON }
+local RIGHT_BUTTONS = { "close" }
 
 local function px(mm, px_per_mm)
     return math.max(1, math.floor(mm * px_per_mm + 0.5))
@@ -154,10 +154,6 @@ function Layout:buttons()
         list[#list + 1] = { id = id,
             rect = { x = row.x + (i - 1) * bw, y = row.y, w = bw, h = row.h } }
     end
-    local left_end = row.x + #LEFT_BUTTONS * bw
-    local right_start = row.x + row.w - #RIGHT_BUTTONS * bw
-    list[#list + 1] = { id = MOVE_BUTTON, rect = { x = left_end
-        + math.floor((right_start - left_end - bw) / 2), y = row.y, w = bw, h = row.h } }
     for i = #RIGHT_BUTTONS, 1, -1 do
         list[#list + 1] = { id = RIGHT_BUTTONS[i],
             rect = { x = row.x + row.w - i * bw, y = row.y, w = bw, h = row.h } }

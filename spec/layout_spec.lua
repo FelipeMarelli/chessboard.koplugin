@@ -207,8 +207,8 @@ test("C10: taps on the buttons and between them", function()
     local layout = new(632, 840)
     eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
     eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
-    local size = layout:buttonRect("size")
-    eq(layout:hit(size.x + size.w + 1, size.y + 1), { zone = "button" })
+    local move = layout:buttonRect("move")
+    eq(layout:hit(move.x + move.w + 1, move.y + 1), { zone = "button" })
 end)
 
 test("C10: a tap outside the window, or with the window closed, is not the window's", function()
@@ -276,19 +276,14 @@ local function overlap(a, b)
     return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
 end
 
-test("H04 C1: the move button sits in the middle of the room between the other buttons",
-    function()
-        for _, size in ipairs(SCREENS) do
-            local layout = new(size[1], size[2])
-            local move = layout:buttonRect("move")
-            local left, right = layout:buttonRect("size"), layout:buttonRect("close")
-            local gap_left = move.x - (left.x + left.w)
-            local gap_right = right.x - (move.x + move.w)
-            assert(gap_left >= 0 and gap_right >= 0 and math.abs(gap_left - gap_right) <= 1,
-                gap_left .. " " .. gap_right)
-            eq(layout:hit(center(move)), { zone = "button", button = "move" })
-        end
-    end)
+test("H04 C1: the move button sits right after the size button, on the same grid", function()
+    for _, size in ipairs(SCREENS) do
+        local layout = new(size[1], size[2])
+        local move, before = layout:buttonRect("move"), layout:buttonRect("size")
+        eq(move, { x = before.x + before.w, y = before.y, w = before.w, h = before.h })
+        eq(layout:hit(center(move)), { zone = "button", button = "move" })
+    end
+end)
 
 test("H04 C1: with the window at its minimum size the buttons do not overlap", function()
     -- The sizes of ui/theme.lua.
