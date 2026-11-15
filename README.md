@@ -54,7 +54,7 @@ No copiar: el texto que se desplaza solo (malo para el refresco de tinta) ni el 
 
 ## Libros de muestra
 
-Están en la raíz del proyecto. Son los archivos de prueba; no modificarlos.
+Están en `example-books/`. Son los archivos de prueba; no modificarlos.
 
 | Libro | Formato | Qué trae |
 |---|---|---|
@@ -145,7 +145,7 @@ vendor/
   koreader-emu/         KOReader v2026.07.1 para Linux x86_64 (emulador)
   koreader-src/         fuentes de KOReader (commit 4184b73), solo para consulta
   koreader-base-src/    fuentes de koreader-base, solo para consulta
-*.epub *.pdf *.djvu     libros de muestra
+example-books/          libros de muestra (no se versionan)
 ```
 
 El plugin está enlazado con un symlink en `vendor/koreader-emu/lib/koreader/plugins/chessbook.koplugin`, así que los cambios en `chessbook.koplugin/` se ven al reiniciar el emulador.
@@ -183,7 +183,7 @@ Los conteos de `spec/perft_spec.lua` corren hasta 20 000 secuencias por posició
 A mano:
 
 ```sh
-./run-emu.sh "The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+./run-emu.sh "example-books/The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 ```
 
 El tablero se abre y se cierra desde el menú del lector: pestaña de herramientas → «More tools» → «Chess board» (con KOReader en castellano, «Tablero de ajedrez»). Con el mouse se toca como con el dedo.
@@ -193,8 +193,8 @@ El tamaño de la ventana del emulador se cambia con `EMULATE_READER_W`, `EMULATE
 ### Prueba de interfaz
 
 ```sh
-CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 ./run-emu.sh "$PWD/The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
-EMULATE_READER_W=840 EMULATE_READER_H=632 CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 ./run-emu.sh "$PWD/<libro>"
+CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 ./run-emu.sh "$PWD/example-books/The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
+EMULATE_READER_W=840 EMULATE_READER_H=632 CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 ./run-emu.sh "$PWD/example-books/<libro>"
 ```
 
 Abre el libro en la página `CHESSBOOK_PAGE`, inyecta toques, comprueba el resultado y cierra el emulador con código distinto de cero si algo falla. Deja en `emu-data/chessbook/` el informe `selftest.txt` y capturas `<escenario>_<v|h>_NN_<paso>.png` (`v` vertical, `h` horizontal). Hay que mirar las capturas: la prueba no juzga cómo se ve.
