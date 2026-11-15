@@ -1,7 +1,5 @@
--- What the reader does with the board and what has to be drawn for it.
---
--- For now it only shows the position of a game and turns the board round; selecting and moving
--- pieces come with later stories.
+-- What the reader does with the board and what has to be drawn for it: selecting a piece, moving
+-- it with a second tap, and the marks that go with that.
 local Rules = require("chess/rules")
 
 local Session = {}
@@ -19,25 +17,147 @@ function Session:flipped()
     return self.is_flipped
 end
 
+local function select(self, sq, moves)
+    self.selected, self.moves = sq, moves
+end
+
+local function clear_selection(self)
+    select(self, nil, nil)
+end
+
+local function color_of(piece)
+    return piece:match("%u") and "w" or "b"
+end
+
+-- The legal moves of the piece on a square, when it is one of the side to move and has any.
+local function movable(position, sq)
+    local piece = Rules.pieceAt(position, sq)
+    if not piece or color_of(piece) ~= Rules.turn(position) then
+        return nil
+    end
+    local moves = Rules.legalMovesFrom(position, sq)
+    return #moves > 0 and moves or nil
+end
+
+-- The selected piece's move to a square, if it has one. A promotion has one move per piece; the
+-- first stands for them all.
+local function move_to(self, sq)
+    for _, move in ipairs(self.moves or {}) do
+        if move.to == sq then
+            return move
+        end
+    end
+end
+
+-- What tapSquare and choosePromotion answer.
+local function answer(changed, played, needs_promotion)
+    return { changed = changed, played = played, needs_promotion = needs_promotion or false }
+end
+
+local function play(self, move)
+    clear_selection(self)
+    self.pending = nil
+    assert(self.game:play(move))
+    return answer(true, move)
+end
+
+-- A tap on a square of the board. It selects a piece of the side to move, plays the selected
+-- one to a legal target, or clears the selection. A move that promotes waits for the piece: see
+-- choosePromotion.
+function Session:tapSquare(sq)
+    if self.pending then
+        return answer(false)
+    end
+    local move = move_to(self, sq)
+    if move and move.promotion then
+        clear_selection(self)
+        self.pending = { from = move.from, to = move.to }
+        return answer(true, nil, true)
+    elseif move then
+        return play(self, move)
+    end
+    local moves = sq ~= self.selected and movable(self.game:position(), sq)
+    if moves then
+        select(self, sq, moves)
+        return answer(true)
+    elseif self.selected then
+        clear_selection(self)
+        return answer(true)
+    end
+    return answer(false)
+end
+
+-- Completes a pending promotion with a piece: "q", "r", "b" or "n".
+function Session:choosePromotion(letter)
+    local pending = self.pending
+    if not pending then
+        return answer(false)
+    end
+    return play(self, { from = pending.from, to = pending.to, promotion = letter })
+end
+
 -- a1 is dark.
 local function is_light(sq)
     return (Rules.fileOf(sq) + Rules.rankOf(sq)) % 2 == 1
+end
+
+-- En passant takes a pawn that is not on the target square.
+local function is_capture(position, move)
+    return Rules.pieceAt(position, move.to) ~= nil
+        or (Rules.pieceAt(position, move.from):lower() == "p" and move.to == position.passant)
+end
+
+local function mark(squares, sq, name)
+    squares[sq].marks[name] = true
+end
+
+local function mark_selection(squares, position, selected, moves)
+    if not selected then
+        return
+    end
+    mark(squares, selected, "selected")
+    for _, move in ipairs(moves) do
+        mark(squares, move.to, is_capture(position, move) and "capture" or "target")
+    end
+end
+
+local function mark_last_move(squares, last)
+    if last then
+        mark(squares, last.move.from, "last_move")
+        mark(squares, last.move.to, "last_move")
+    end
+end
+
+local function mark_check(squares, position)
+    if Rules.isCheck(position) then
+        mark(squares, Rules.kingSquare(position, Rules.turn(position)), "check")
+    end
+end
+
+local function promotion_view(pending, position)
+    if pending then
+        return { square = Rules.squareName(pending.to), color = Rules.turn(position) }
+    end
 end
 
 -- What there is to draw: each square with its piece, its marks and whether it is a light one,
 -- whose turn it is, how the game stands, its last move, and which buttons can be used.
 function Session:view()
     local position = self.game:position()
+    local last_move = self.game:lastMove()
     local squares = {}
     for sq = 1, 64 do
         squares[sq] = { piece = Rules.pieceAt(position, sq), marks = {}, light = is_light(sq) }
     end
+    mark_last_move(squares, last_move)
+    mark_check(squares, position)
+    mark_selection(squares, position, self.selected, self.moves)
     return {
         squares = squares,
         turn = Rules.turn(position),
         status = Rules.status(position),
-        last_move = self.game:lastMove(),
-        promotion = nil,
+        last_move = last_move,
+        promotion = promotion_view(self.pending, position),
         flipped = self.is_flipped,
         buttons = { close = true, flip = true },
     }
