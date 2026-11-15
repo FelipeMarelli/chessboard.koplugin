@@ -244,7 +244,8 @@ local function h03(t, plugin)
         t.page_before = plugin.ui:getCurrentPage()
         t.position_before = reading_position(plugin.ui)
         t:tapRect(layout:squareRect(29, false))
-        t:tapRect(layout:rects().buttons) -- between the buttons
+        local size = layout:buttonRect("size")
+        t:tap(size.x + size.w + 2, size.y + size.h / 2) -- between the buttons
     end)
     step(function()
         local now = reading_position(plugin.ui)
@@ -340,8 +341,8 @@ local function h04(t, plugin)
     local steps = {}
     local function step(fn) steps[#steps + 1] = fn end
     local function row_point()
-        local row = layout:rects().buttons
-        return { x = row.x + row.w / 2, y = row.y + row.h / 2 }
+        local move = layout:buttonRect("move")
+        return { x = move.x + move.w / 2, y = move.y + move.h / 2 }
     end
     -- Checks that the drag just done moved the window by dx, dy, repainting it once.
     local function moved(name, from, dx, dy)
@@ -409,14 +410,21 @@ local function h04(t, plugin)
         local sq = layout:squareRect(29, false)
         local p = { x = sq.x + sq.w / 2, y = sq.y + sq.h / 2 }
         t:drag(p, { x = p.x - 150, y = p.y - 150 }, "pan_release")
+        local close = layout:buttonRect("close")
+        p = { x = close.x + close.w / 2, y = close.y + close.h / 2 }
+        t:drag(p, { x = p.x - 150, y = p.y - 150 }, "swipe")
+        local size = layout:buttonRect("size")
+        p = { x = size.x + size.w + 2, y = size.y + size.h / 2 } -- between the buttons
+        t:drag(p, { x = p.x - 150, y = p.y - 150 }, "hold")
     end)
     step(function()
         local w = layout:rects().window
-        t:check("a drag from the board does not move the window", window_at(layout, t.from.x,
-            t.from.y), w.x .. "," .. w.y)
-        t:check("a drag from the board repaints nothing", #t.repaints == 0, #t.repaints)
-        t:check("a drag from the board does not reach the reader", t.reader_calls() == 0,
+        t:check("drags from the board, another button or between them do not move the window",
+            window_at(layout, t.from.x, t.from.y), w.x .. "," .. w.y)
+        t:check("drags from elsewhere repaint nothing", #t.repaints == 0, #t.repaints)
+        t:check("drags from elsewhere do not reach the reader", t.reader_calls() == 0,
             t.reader_calls())
+        t:check("the window is still open", layout:isOpen())
         -- To the corner of the screen: the window would go past the right and bottom edges.
         local p = row_point()
         drag_by(Screen:getWidth() - 1 - p.x, Screen:getHeight() - 1 - p.y, "pan_release")
@@ -431,7 +439,7 @@ local function h04(t, plugin)
             w.x .. "," .. w.y)
         t.from = w
         t.repaints = {}
-        t:tapRect(layout:rects().buttons)
+        t:tapRect(layout:buttonRect("move"))
     end)
     step(function()
         t:check("a short tap does not move the window", window_at(layout, t.from.x, t.from.y))
