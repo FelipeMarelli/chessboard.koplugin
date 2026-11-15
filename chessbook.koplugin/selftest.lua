@@ -20,13 +20,49 @@ local STEP_SECONDS = 0.6
 local SelfTest = {}
 SelfTest.__index = SelfTest
 
+-- "h" or "v", for the names of the images.
+local function orientation()
+    return Screen:getWidth() > Screen:getHeight() and "h" or "v"
+end
+
 function SelfTest:shot(name)
     -- Paint what is pending first: setDirty only paints on a later turn of the event loop.
     UIManager:forceRePaint()
     self.shots = self.shots + 1
-    local orientation = Screen:getWidth() > Screen:getHeight() and "h" or "v"
     Screen.bb:writePNG(string.format("%s/%s_%s_%02d_%s.png", self.dir, self.scenario,
-        orientation, self.shots, name))
+        orientation(), self.shots, name))
+end
+
+-- Saves an image made by a scenario as <name>_<h or v>.png in the folder of the captures, and
+-- frees it.
+function SelfTest:saveImage(bb, name)
+    bb:writePNG(string.format("%s/%s_%s.png", self.dir, name, orientation()))
+    bb:free()
+end
+
+-- Sheets of captures of the window side by side, under a caption each, to compare variants.
+local SHEET_COLUMNS, SHEET_CAPTION = 3, 30
+
+-- A blank sheet with room for count captures of up to w by h pixels.
+local function new_sheet(count, w, h)
+    local Blitbuffer = require("ffi/blitbuffer")
+    local cell_w, cell_h = w + 20, h + SHEET_CAPTION
+    local rows = math.ceil(count / SHEET_COLUMNS)
+    local bb = Blitbuffer.new(SHEET_COLUMNS * cell_w, rows * cell_h, Screen.bb:getType())
+    bb:fill(Blitbuffer.COLOR_WHITE)
+    return { bb = bb, cell_w = cell_w, cell_h = cell_h }
+end
+
+-- Puts what the screen shows in rect in the i-th place of the sheet, under a caption.
+local function add_to_sheet(sheet, i, caption, rect)
+    local Font = require("ui/font")
+    local TextWidget = require("ui/widget/textwidget")
+    local x = ((i - 1) % SHEET_COLUMNS) * sheet.cell_w
+    local y = math.floor((i - 1) / SHEET_COLUMNS) * sheet.cell_h
+    local text = TextWidget:new{ text = caption, face = Font:getFace("cfont", 16), bold = true }
+    text:paintTo(sheet.bb, x + 4, y)
+    text:free()
+    sheet.bb:blitFrom(Screen.bb, x, y + SHEET_CAPTION, rect.x, rect.y, rect.w, rect.h)
 end
 
 local function center(rect)
@@ -684,151 +720,129 @@ local function h07(t, plugin)
     return steps
 end
 
--- Ways of drawing the coordinate labels, to compare them side by side. gutter in mm (0: on the
--- squares); grays from 0 (black) to 255 (white).
-local LABEL_VARIANTS = {
-    { name = "A", gutter = 0, share = 0.24, bold = false, on_light = 0x66, on_dark = 0xFF },
-    { name = "G", gutter = 2.5, bold = false, ink = 0x00, paper = 0xFF },
-    { name = "H (now)", gutter = 2.5, bold = true, ink = 0x00, paper = 0xFF },
-    { name = "I", gutter = 2, bold = false, ink = 0x55, paper = 0xFF },
-    { name = "J", gutter = 3, bold = false, ink = 0x00, paper = 0xDD },
-    { name = "K", gutter = 3, bold = true, ink = 0xFF, paper = 0x00 },
+-- Ways of showing the last move, to compare them side by side. Grays from 0 (black) to 255
+-- (white); sizes are shares of the square side.
+local function gray(value)
+    return require("ffi/blitbuffer").Color8(value)
+end
+
+local function part(s, share)
+    return math.max(1, math.floor(s * share + 0.5))
+end
+
+local function frame(width, value)
+    return function(bb, r, s)
+        bb:paintInnerBorder(r.x, r.y, r.w, r.h, part(s, width), gray(value))
+    end
+end
+
+-- Diagonal stripes, blended with the square by alpha (0 to 1).
+local function stripes(width, alpha)
+    return function(bb, r, s)
+        bb:hatchRect(r.x, r.y, r.w, r.h, part(s, width), gray(0x00), alpha)
+    end
+end
+
+-- An L along the two sides of each corner.
+local function brackets(length, width, value)
+    return function(bb, r, s)
+        local l, w, c = part(s, length), part(s, width), gray(value)
+        for _, x in ipairs({ r.x, r.x + r.w - l }) do
+            for _, y in ipairs({ r.y, r.y + r.h - w }) do bb:paintRect(x, y, l, w, c) end
+        end
+        for _, x in ipairs({ r.x, r.x + r.w - w }) do
+            for _, y in ipairs({ r.y, r.y + r.h - l }) do bb:paintRect(x, y, w, l, c) end
+        end
+    end
+end
+
+local function ring(radius, width, value)
+    return function(bb, r, s)
+        bb:paintCircle(r.x + math.floor(r.w / 2), r.y + math.floor(r.h / 2), part(s, radius),
+            gray(value), part(s, width))
+    end
+end
+
+-- tint: the grays of the two squares, on a light square and on a dark one; nil leaves them as
+-- they are. from and to: what is drawn on the square the piece left and on the one it went to.
+local LAST_MOVE_VARIANTS = {
+    { name = "A (ahora) tinte", tint = { 0xCC, 0x88 } },
+    { name = "B tinte fuerte", tint = { 0xBB, 0x77 } },
+    { name = "C aclarar", tint = { 0xFF, 0xDD } },
+    { name = "D borde fino negro", from = frame(0.04, 0x00), to = frame(0.04, 0x00) },
+    { name = "E borde fino gris", from = frame(0.05, 0x55), to = frame(0.05, 0x55) },
+    { name = "F borde fino + tinte", tint = { 0xCC, 0x88 }, from = frame(0.04, 0x00),
+        to = frame(0.04, 0x00) },
+    { name = "G rayado", from = stripes(0.06, 0.3), to = stripes(0.06, 0.3) },
+    { name = "H esquinas en L", from = brackets(0.3, 0.05, 0x00),
+        to = brackets(0.3, 0.05, 0x00) },
+    { name = "I aro en origen, borde en destino", from = ring(0.2, 0.05, 0x00),
+        to = frame(0.04, 0x00) },
 }
 
-local function layout_for(plugin, gutter)
-    local Layout = require("model/layout")
+-- Plays 1.e4 e5 2.Nf3 and selects the knight on b8, then paints the window with each way of
+-- showing the last move (g1 to f3) and puts them all in one image. The selected knight and its
+-- targets show next to it, to tell the marks apart.
+local function marks(t, plugin)
+    local Rules = require("chess/rules")
     local Theme = require("ui/theme")
-    local sizes = {}
-    for k, v in pairs(Theme.SIZES) do sizes[k] = v end
-    sizes.gutter = gutter
-    local layout = Layout.new{ screen_w = Screen:getWidth(), screen_h = Screen:getHeight(),
-        px_per_mm = Theme.pxPerMm(), sizes = sizes }
-    layout:setOpen(true)
-    return layout
-end
-
-local function copy(t)
-    local c = {}
-    for k, v in pairs(t) do c[k] = v end
-    return c
-end
-
--- Paints the window with each label variant and puts them all in one image.
-local function labels(t, plugin)
-    local Blitbuffer = require("ffi/blitbuffer")
-    local Font = require("ui/font")
-    local TextWidget = require("ui/widget/textwidget")
-    local Theme = require("ui/theme")
-    local original = { label = copy(Theme.LABEL), gray = copy(Theme.GRAY),
-        layout = plugin.layout }
-    local layouts, cell_w, cell_h = {}, 0, 0
-    local columns, caption = 3, 30
-    for i, variant in ipairs(LABEL_VARIANTS) do
-        layouts[i] = layout_for(plugin, variant.gutter)
-        local w = layouts[i]:rects().window
-        cell_w, cell_h = math.max(cell_w, w.w + 20), math.max(cell_h, w.h + caption)
+    local layout, session = plugin.layout, plugin.session
+    local original = { light = Theme.MARK.last_move_on_light, dark = Theme.MARK.last_move_on_dark }
+    local w = layout:rects().window
+    local sheet = new_sheet(#LAST_MOVE_VARIANTS, w.w, w.h)
+    local function square(name)
+        local sq = Rules.squareFromName(name)
+        return sq, layout:squareRect(sq, session:flipped())
     end
-    local rows = math.ceil(#LABEL_VARIANTS / columns)
-    local grid = Blitbuffer.new(columns * cell_w, rows * cell_h, Screen.bb:getType())
-    grid:fill(Blitbuffer.COLOR_WHITE)
-    local function use(label, gray, layout)
-        for k, v in pairs(label) do Theme.LABEL[k] = v end
-        for k, v in pairs(gray) do Theme.GRAY[k] = v end
-        local before = plugin.layout:rects()
-        plugin.layout, plugin.window.layout = layout, layout
-        plugin.window:refresh(layout:dirtyRect(before))
+    local function tint(light, dark)
+        Theme.MARK.last_move_on_light, Theme.MARK.last_move_on_dark = light, dark
+    end
+    -- Draws on a square of the screen, under its piece: the piece is put back on top.
+    local function draw_under_piece(name, paint)
+        local sq, r = square(name)
+        paint(Screen.bb, r, layout:squareSize())
+        local piece = session:view().squares[sq].piece
+        if piece then
+            local image = Theme.piece(piece, layout:squareSize())
+            Screen.bb:alphablitFrom(image, r.x, r.y, 0, 0, image:getWidth(), image:getHeight())
+        end
     end
     local steps = {}
-    for i, variant in ipairs(LABEL_VARIANTS) do
+    go_to_page(steps, plugin)
+    steps[#steps + 1] = function()
+        for _, name in ipairs({ "e2", "e4", "e7", "e5", "g1", "f3", "b8" }) do
+            session:tapSquare((square(name)))
+        end
+        plugin:toggle()
+    end
+    for i, variant in ipairs(LAST_MOVE_VARIANTS) do
         steps[#steps + 1] = function()
-            local label, gray = copy(original.label), copy(original.gray)
-            label.bold = variant.bold
-            label.share = variant.share or label.share
-            if variant.on_light then
-                label.on_light = Blitbuffer.Color8(variant.on_light)
-                label.on_dark = Blitbuffer.Color8(variant.on_dark)
+            local t_light, t_dark = Theme.GRAY.light_square, Theme.GRAY.dark_square
+            if variant.tint then
+                t_light, t_dark = gray(variant.tint[1]), gray(variant.tint[2])
             end
-            if variant.ink then
-                label.on_gutter = Blitbuffer.Color8(variant.ink)
-                gray.gutter = Blitbuffer.Color8(variant.paper)
-            end
-            use(label, gray, layouts[i])
+            tint(t_light, t_dark)
+            plugin.window:refresh(layout:dirtyRect())
             UIManager:forceRePaint()
-            local w = layouts[i]:rects().window
-            local x, y = ((i - 1) % columns) * cell_w, math.floor((i - 1) / columns) * cell_h
-            local text = TextWidget:new{ text = variant.name, face = Font:getFace("cfont", 16),
-                bold = true }
-            text:paintTo(grid, x + 4, y)
-            text:free()
-            grid:blitFrom(Screen.bb, x, y + caption, w.x, w.y, w.w, w.h)
-        end
-    end
-    steps[#steps + 1] = function()
-        use(original.label, original.gray, original.layout)
-        local orientation = Screen:getWidth() > Screen:getHeight() and "h" or "v"
-        grid:writePNG(string.format("%s/labels_%s.png", t.dir, orientation))
-        grid:free()
-        t:check("label variants saved", true)
-    end
-    return steps
-end
-
--- Square sides in mm to compare as the minimum size of the window.
-local MINIMUM_SIZES = { 2.5, 3, 3.5, 4, 4.5, 5 }
-
--- Paints the window with each minimum square size over the same page, to compare them with the
--- text and the diagrams of the book.
-local function sizes(t, plugin)
-    local Blitbuffer = require("ffi/blitbuffer")
-    local Font = require("ui/font")
-    local Layout = require("model/layout")
-    local TextWidget = require("ui/widget/textwidget")
-    local Theme = require("ui/theme")
-    local original = plugin.layout
-    local sheet
-    local x, y, row_h, gap, caption = 10, 60, 0, 10, 22
-    local steps = {}
-    steps[#steps + 1] = function()
-        plugin.window:setOpen(false)
-        UIManager:forceRePaint()
-        sheet = Blitbuffer.new(Screen:getWidth(), Screen:getHeight(), Screen.bb:getType())
-        sheet:blitFrom(Screen.bb, 0, 0, 0, 0, Screen:getWidth(), Screen:getHeight())
-    end
-    for _, mm in ipairs(MINIMUM_SIZES) do
-        steps[#steps + 1] = function()
-            local sizes_mm = copy(Theme.SIZES)
-            sizes_mm.min_square = mm
-            local min_px = Theme.px(mm)
-            local side = math.ceil(8 * min_px / 0.6) + 1
-            local layout = Layout.new{ screen_w = side,
-                screen_h = side + 2 * Theme.px(Theme.SIZES.row),
-                px_per_mm = Theme.pxPerMm(), sizes = sizes_mm }
-            layout:setOpen(true)
-            t:use(plugin, layout)
-            local w = layout:rects().window
-            if x + w.w > Screen:getWidth() then
-                x, y, row_h = 10, y + row_h + gap, 0
+            if variant.from then
+                draw_under_piece("g1", variant.from)
+                draw_under_piece("f3", variant.to)
             end
-            local text = TextWidget:new{ text = string.format("%s mm (%d px)", mm,
-                layout:squareSize()), face = Font:getFace("cfont", 14), bold = true }
-            sheet:paintRect(x, y, text:getSize().w + 4, caption, Blitbuffer.COLOR_WHITE)
-            text:paintTo(sheet, x + 2, y)
-            text:free()
-            sheet:blitFrom(Screen.bb, x, y + caption, w.x, w.y, w.w, w.h)
-            x, row_h = x + w.w + gap, math.max(row_h, w.h + caption)
+            add_to_sheet(sheet, i, variant.name, layout:rects().window)
         end
     end
     steps[#steps + 1] = function()
-        t:use(plugin, original)
-        local orientation = Screen:getWidth() > Screen:getHeight() and "h" or "v"
-        sheet:writePNG(string.format("%s/sizes_%s.png", t.dir, orientation))
-        sheet:free()
-        t:check("minimum sizes saved", true)
+        tint(original.light, original.dark)
+        plugin.window:refresh(layout:dirtyRect())
+        t:saveImage(sheet.bb, "marks")
+        t:check("last move variants saved", true)
     end
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h07 = h07, labels = labels, sizes = sizes }
+local SCENARIOS = {
+    h03 = h03, h04 = h04, h07 = h07, marks = marks,
+}
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
