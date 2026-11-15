@@ -46,8 +46,8 @@ test("C9: flipping turns the board round, and again turns it back", function()
     eq(session:flipped(), false)
 end)
 
-test("C2: close and flip can always be used", function()
-    eq(Session.new(assert(Game.new())):view().buttons, { close = true, flip = true })
+test("C2: close, flip and reset can always be used", function()
+    eq(Session.new(assert(Game.new())):view().buttons, { close = true, flip = true, reset = true })
 end)
 
 -- H07
@@ -221,4 +221,53 @@ test("H07: choosing a piece with no promotion pending does nothing", function()
     local session = session_at()
     eq(session:choosePromotion("q"), { changed = false, needs_promotion = false })
     eq(session:view().turn, "w")
+end)
+
+-- Reset button: back to the usual start position, dropping the moves.
+
+-- The game is the usual start position with no moves, and nothing is chosen or marked.
+local function assert_start(session)
+    eq(session.game:serialize(), { start = Rules.START_FEN, moves = {}, cursor = 0 })
+    local view = session:view()
+    eq(view.turn, "w"); eq(view.last_move, nil); eq(view.promotion, nil)
+    eq(marked(session, "selected"), {}); eq(marked(session, "last_move"), {})
+end
+
+test("Reset: after some moves, back to the start position with no moves", function()
+    local session = session_at()
+    tap(session, "e2", "e4", "g8", "f6", "g1", "f3")
+    eq(session:reset(), true)
+    assert_start(session)
+end)
+
+test("Reset: a game from another position starts again from the usual one", function()
+    local session = session_at(AFTER_E4_D5)
+    eq(session:reset(), true)
+    assert_start(session)
+end)
+
+test("Reset: moves ahead of the cursor go too", function()
+    local session = session_at()
+    tap(session, "e2", "e4")
+    session.game:toStart()
+    eq(session:reset(), true)
+    eq(session.game:canForward(), false)
+    assert_start(session)
+end)
+
+test("Reset: drops the selection and a pending promotion", function()
+    local selected = session_at()
+    tap(selected, "e2")
+    eq(selected:reset(), true)
+    assert_start(selected)
+    local promoting = session_at(PROMOTION)
+    tap(promoting, "a7", "a8")
+    eq(promoting:reset(), true)
+    assert_start(promoting)
+end)
+
+test("Reset: at the start position with no moves, nothing changes", function()
+    local session = session_at()
+    eq(session:reset(), false)
+    assert_start(session)
 end)

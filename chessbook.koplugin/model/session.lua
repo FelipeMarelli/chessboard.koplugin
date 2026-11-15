@@ -54,9 +54,14 @@ local function answer(changed, played, needs_promotion)
     return { changed = changed, played = played, needs_promotion = needs_promotion or false }
 end
 
-local function play(self, move)
+-- Drops the selected piece and the promotion waiting for its piece, if any.
+local function forget_choice(self)
     clear_selection(self)
     self.pending = nil
+end
+
+local function play(self, move)
+    forget_choice(self)
     assert(self.game:play(move))
     return answer(true, move)
 end
@@ -94,6 +99,24 @@ function Session:choosePromotion(letter)
         return answer(false)
     end
     return play(self, { from = pending.from, to = pending.to, promotion = letter })
+end
+
+-- True when a reset would change nothing: the usual start position, no moves, nothing chosen.
+local function is_fresh(self)
+    local saved = self.game:serialize()
+    return saved.start == Rules.START_FEN and #saved.moves == 0 and not self.selected
+        and not self.pending
+end
+
+-- Starts again from the usual start position, dropping every move, the selection and a pending
+-- promotion. Returns whether anything changed.
+function Session:reset()
+    if is_fresh(self) then
+        return false
+    end
+    forget_choice(self)
+    assert(self.game:reset())
+    return true
 end
 
 -- a1 is dark.
@@ -159,7 +182,7 @@ function Session:view()
         last_move = last_move,
         promotion = promotion_view(self.pending, position),
         flipped = self.is_flipped,
-        buttons = { close = true, flip = true },
+        buttons = { close = true, flip = true, reset = true },
     }
 end
 
