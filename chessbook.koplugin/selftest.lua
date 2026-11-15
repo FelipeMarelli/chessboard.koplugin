@@ -58,9 +58,9 @@ function SelfTest:watchRepaints()
     UIManager.setDirty = function(manager, widget, refresh, region, ...)
         if region then
             self.repaints[#self.repaints + 1] = { x = region.x, y = region.y, w = region.w,
-                h = region.h }
+                h = region.h, refresh = refresh }
         else
-            self.repaints[#self.repaints + 1] = { full = true }
+            self.repaints[#self.repaints + 1] = { full = true, refresh = refresh }
         end
         return original(manager, widget, refresh, region, ...)
     end
@@ -164,6 +164,8 @@ local function h03(t, plugin)
         local window = layout:rects().window
         t:check("open repaints only the window", #t.repaints == 1
             and same_rect(t.repaints[1], window))
+        t:check("open flashes, to clear the ghost of the text under it",
+            t.repaints[1] and t.repaints[1].refresh == "flashui", t.repaints[1] and t.repaints[1].refresh)
         t.repaints = {}
         t:tapRect(layout:buttonRect("flip"))
     end)
@@ -172,6 +174,8 @@ local function h03(t, plugin)
         t:check("flip turns the board", session:flipped())
         t:check("flip repaints only the window", #t.repaints == 1
             and same_rect(t.repaints[1], layout:rects().window))
+        t:check("flip does not flash", t.repaints[1] and t.repaints[1].refresh == "ui",
+            t.repaints[1] and t.repaints[1].refresh)
         t:tapRect(layout:buttonRect("flip"))
     end)
     step(function()
@@ -218,6 +222,7 @@ local function h03(t, plugin)
         t:use(plugin, t.full_layout)
     end)
     step(function()
+        t.repaints = {}
         t:tapRect(plugin.layout:buttonRect("size"))
     end)
     step(function()
@@ -226,12 +231,17 @@ local function h03(t, plugin)
         t:check("the temporary size button makes the window minimum",
             plugin.layout:isSmall() and plugin.layout:squareSize() == plugin.layout.px.min_square,
             plugin.layout:squareSize())
+        t:check("shrinking does not flash", t.repaints[1] and t.repaints[1].refresh == "ui",
+            t.repaints[1] and t.repaints[1].refresh)
+        t.repaints = {}
         t:tapRect(plugin.layout:buttonRect("size"))
     end)
     step(function()
         UIManager:forceRePaint()
         t:check("and again back to the default size", not plugin.layout:isSmall(),
             plugin.layout:squareSize())
+        t:check("growing flashes", t.repaints[1] and t.repaints[1].refresh == "flashui",
+            t.repaints[1] and t.repaints[1].refresh)
     end)
     step(function()
         t.repaints = {}
@@ -243,6 +253,8 @@ local function h03(t, plugin)
         t:check("close closes", not layout:isOpen())
         t:check("close repaints only the window", #t.repaints == 1
             and same_rect(t.repaints[1], window))
+        t:check("close does not flash", t.repaints[1] and t.repaints[1].refresh == "ui",
+            t.repaints[1] and t.repaints[1].refresh)
         local diff = differences(t.page_pixels, grab(window))
         t:check("the page is clean after closing", diff == 0, diff .. " pixels differ")
     end)
