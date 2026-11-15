@@ -46,7 +46,8 @@ end
 -- The gestures a drag is made of, with the reader and Gestures plugin zones that the window has
 -- to come before, so that a drag that starts on the window does not turn the page or select text.
 local DRAG_OVERRIDES = {
-    hold = { "readerhighlight_hold", "readerfooter_hold", "hold_top_left_corner",
+    touch = { "inertial_scrolling_touch" },
+    hold ={ "readerhighlight_hold", "readerfooter_hold", "hold_top_left_corner",
         "hold_top_right_corner", "hold_bottom_left_corner", "hold_bottom_right_corner" },
     hold_pan = { "readerhighlight_hold_pan" },
     hold_release = { "readerhighlight_hold_release" },

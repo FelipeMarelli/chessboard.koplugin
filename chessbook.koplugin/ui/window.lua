@@ -3,10 +3,13 @@
 -- It is a view module of the reader, not a widget shown by UIManager, so that taps outside it
 -- still reach the reader.
 local Board = require("ui/board")
+local Device = require("device")
 local Geom = require("ui/geometry")
 local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
 local logger = require("logger")
+
+local Screen = Device.screen
 
 local Window = {}
 Window.__index = Window
@@ -70,6 +73,8 @@ end
 
 -- True when the tap was on the window, so that the reader does not get it.
 function Window:onTap(ges)
+    -- A tap is a finger lifted where it went down: it ends the touch that started it.
+    self:drop(ges.pos, self.layout:pressedButton())
     local hit = self.layout:hit(ges.pos.x, ges.pos.y, self.session:flipped())
     if not hit then
         return false
@@ -82,14 +87,19 @@ function Window:onTap(ges)
     return true
 end
 
--- Drags. KOReader splits one drag into several gestures: "hold" when the finger rests before
--- moving, then "hold_pan" and "hold_release"; else "pan" while it moves, and "swipe" (or
--- "multiswipe", if it turned) or "pan_release" when it is lifted, depending on how quick it was.
+-- Drags. KOReader splits one drag into several gestures: "touch" as soon as the finger goes down;
+-- "hold" when it rests before moving, then "hold_pan" and "hold_release"; else "pan" while it
+-- moves, and "swipe" (or "multiswipe", if it turned) or "pan_release" when it is lifted, depending
+-- on how quick it was. A finger lifted without moving makes a "tap" instead.
 -- The window keeps every gesture of a drag that started on it, so that none reaches the reader.
+-- The drag starts at the touch, and not at the first "pan", which only comes after the finger has
+-- moved some millimetres: so the move button is marked as soon as the finger is on it.
 
 -- Where the finger went down, as the name of the field of the gesture that has it, for the
 -- gestures that can start a drag. A swipe reports its start as its position.
-local START_FIELD = { hold = "pos", pan = "start_pos", swipe = "pos", multiswipe = "pos" }
+local START_FIELD = {
+    touch = "pos", hold = "pos", pan = "start_pos", swipe = "pos", multiswipe = "pos",
+}
 
 -- Where the finger was lifted, for the gestures that end a drag.
 local LIFT_FIELD = {
@@ -123,19 +133,20 @@ function Window:onDrag(ges)
     if lift then
         self:drop(lift, marked)
     elseif pressed ~= marked then
-        self:refresh(self.layout:buttonRect(pressed or marked))
+        self:repaintButton(pressed or marked)
     end
     return true
 end
 
--- Ends the drag with the finger lifted at pos. A window that moved is repainted whole, in the old
--- place and the new one; one that did not only loses the mark of the button it was held by.
+-- Ends the drag with the finger lifted at pos, if there is one. A window that moved is repainted
+-- whole, in the old place and the new one; one that did not only loses the mark of the button it
+-- was held by.
 function Window:drop(pos, marked)
     local before = self.layout:rects()
     if self.layout:endDrag(pos.x, pos.y) then
         self:refresh(self.layout:dirtyRect(before), true)
     elseif marked then
-        self:refresh(self.layout:buttonRect(marked))
+        self:repaintButton(marked)
     end
 end
 
@@ -153,6 +164,25 @@ local function paint_pressed(bb, rect)
     bb:paintBorder(rect.x + inset, rect.y + inset, rect.w - 2 * inset, rect.h - 2 * inset,
         Theme.px(p.width), Theme.GRAY.frame, Theme.px(p.radius),
         G_reader_settings:nilOrTrue("anti_alias_ui"))
+end
+
+-- One button of the row, whole: its background, its icon and, if it is held down, its mark.
+local function paint_button(bb, id, rect, pressed)
+    bb:paintRect(rect.x, rect.y, rect.w, rect.h, Theme.GRAY.row)
+    paint_icon(bb, id, rect)
+    if pressed then
+        paint_pressed(bb, rect)
+    end
+end
+
+-- Paints one button straight on the screen and shows it at once, without painting the page again:
+-- the way KOReader's own buttons show a press (Button:_doFeedbackHighlight). A whole repaint would
+-- make the mark wait for the page. The button lies on the window, so nothing of the page is in it.
+function Window:repaintButton(id)
+    local rect = self.layout:buttonRect(id)
+    paint_button(Screen.bb, id, rect, self.layout:pressedButton() == id)
+    UIManager:setDirty(nil, "fast", Geom:new(rect))
+    UIManager:forceRePaint()
 end
 
 local function paint_frame(bb, rects)
@@ -177,10 +207,7 @@ function Window:paintTo(bb)
     paint_frame(bb, rects)
     local pressed = self.layout:pressedButton()
     for _, button in ipairs(self.layout:buttons()) do
-        paint_icon(bb, button.id, button.rect)
-        if button.id == pressed then
-            paint_pressed(bb, button.rect)
-        end
+        paint_button(bb, button.id, button.rect, button.id == pressed)
     end
     Board.paint(bb, self.layout, self.session:view())
 end
