@@ -157,7 +157,64 @@ local function h03(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03 }
+-- Ways of drawing the coordinate labels, to compare them side by side.
+local LABEL_VARIANTS = {
+    { name = "A", share = 0.24, bold = false, on_light = 0x66, on_dark = 0xFF },
+    { name = "B", share = 0.30, bold = true, on_light = 0x55, on_dark = 0xFF },
+    { name = "C", share = 0.30, bold = true, on_light = 0x00, on_dark = 0xFF },
+    { name = "D", share = 0.30, bold = true, on_light = 0xAA, on_dark = 0xEE },
+    { name = "E", share = 0.26, bold = false, on_light = 0x00, on_dark = 0x00 },
+    { name = "F", share = 0.30, bold = true, on_light = 0x55, on_dark = 0xFF,
+        file_corner = "bottom_left" },
+}
+
+-- Paints the window with each label variant and puts them all in one image.
+local function labels(t, plugin)
+    local Blitbuffer = require("ffi/blitbuffer")
+    local Font = require("ui/font")
+    local TextWidget = require("ui/widget/textwidget")
+    local Theme = require("ui/theme")
+    local layout = plugin.layout
+    local original = {}
+    for k, v in pairs(Theme.LABEL) do original[k] = v end
+    local steps, grid = {}, nil
+    local columns, caption = 3, 30
+    steps[1] = function() plugin:toggle() end
+    for i, variant in ipairs(LABEL_VARIANTS) do
+        steps[#steps + 1] = function()
+            for k, v in pairs(original) do Theme.LABEL[k] = v end
+            Theme.LABEL.share, Theme.LABEL.bold = variant.share, variant.bold
+            Theme.LABEL.on_light = Blitbuffer.Color8(variant.on_light)
+            Theme.LABEL.on_dark = Blitbuffer.Color8(variant.on_dark)
+            Theme.LABEL.file_corner = variant.file_corner or original.file_corner
+            plugin.window:refresh(layout:dirtyRect())
+            UIManager:forceRePaint()
+            local w = layout:rects().window
+            local cell_w, cell_h = w.w + 20, w.h + caption
+            if not grid then
+                local rows = math.ceil(#LABEL_VARIANTS / columns)
+                grid = Blitbuffer.new(columns * cell_w, rows * cell_h, Screen.bb:getType())
+                grid:fill(Blitbuffer.COLOR_WHITE)
+            end
+            local x, y = ((i - 1) % columns) * cell_w, math.floor((i - 1) / columns) * cell_h
+            local text = TextWidget:new{ text = variant.name, face = Font:getFace("cfont", 16),
+                bold = true }
+            text:paintTo(grid, x + 4, y)
+            text:free()
+            grid:blitFrom(Screen.bb, x, y + caption, w.x, w.y, w.w, w.h)
+        end
+    end
+    steps[#steps + 1] = function()
+        for k, v in pairs(original) do Theme.LABEL[k] = v end
+        local orientation = Screen:getWidth() > Screen:getHeight() and "h" or "v"
+        grid:writePNG(string.format("%s/labels_%s.png", t.dir, orientation))
+        grid:free()
+        t:check("label variants saved", true)
+    end
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, labels = labels }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
