@@ -16,7 +16,7 @@ Theme.SIZES = {
     button = 9,     -- button width
     border = 0.3,   -- window frame
     margin = 2,     -- gap to the screen edge
-    min_square = 5,
+    min_square = 4,
     gutter = 2.5,   -- strips for the coordinates outside the board; 0 puts them on the squares
 }
 
