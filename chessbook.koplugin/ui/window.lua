@@ -36,6 +36,11 @@ local ACTIONS = {
         self.session:flip()
         self:refresh(self.layout:dirtyRect())
     end,
+    size = function(self)
+        local before = self.layout:rects()
+        self.layout:toggleSmall()
+        self:refresh(self.layout:dirtyRect(before))
+    end,
 }
 
 -- True when the tap was on the window, so that the reader does not get it.
