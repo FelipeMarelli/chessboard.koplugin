@@ -560,3 +560,15 @@ test("H04 C1: a drag from anywhere on the window but the move button is the wind
         eq(layout:rects().window, r.window, "point " .. i)
     end
 end)
+
+-- H07: where the turn is shown --------------------------------------------------------------
+
+test("H07 C8: the corner where the coordinate strips meet is left for whose turn it is",
+    function()
+        for _, size in ipairs(SCREENS) do
+            local r = with_gutter(size[1], size[2]):rects()
+            eq(r.status, { x = r.ranks.x, y = r.files.y, w = r.ranks.w, h = r.files.h })
+            assert(contains(r.window, r.status))
+        end
+        eq(new(632, 840):rects().status, nil)
+    end)
