@@ -64,8 +64,15 @@ function SelfTest:gesture(ges)
     UIManager:sendEvent(Event:new("Gesture", ges))
 end
 
+-- The finger goes down at p. KOReader reports it before any other gesture of the finger.
+function SelfTest:touch(p)
+    self:gesture({ ges = "touch", pos = point(p) })
+end
+
 function SelfTest:tap(x, y)
-    self:gesture({ ges = "tap", pos = point({ x = x, y = y }) })
+    local p = { x = x, y = y }
+    self:touch(p)
+    self:gesture({ ges = "tap", pos = point(p) })
 end
 
 function SelfTest:tapRect(rect)
@@ -98,8 +105,9 @@ local LIFTS = {
     multiswipe = quick_lift("multiswipe", "north east"),
 }
 
--- The first part of a drag, the way KOReader reports it: the finger goes down at from and moves
--- through the points of via to to, without being lifted. held: it rested before moving.
+-- The middle of a drag, the way KOReader reports it: the finger, already down at from (see
+-- SelfTest:touch), moves through the points of via to to, without being lifted. held: it rested
+-- before moving.
 function SelfTest:press(from, to, held, via)
     if held then
         self:gesture({ ges = "hold", pos = point(from) })
@@ -121,6 +129,7 @@ end
 
 -- A whole drag from one point to another, through the points of via. lift: as for SelfTest:lift.
 function SelfTest:drag(from, to, lift, via)
+    self:touch(from)
     self:press(from, to, lift == "hold", via)
     self:lift(from, to, lift)
 end
@@ -380,7 +389,7 @@ end
 local READER_DRAG_ZONES = {
     "paging_pan", "paging_pan_release", "paging_swipe", "rolling_pan", "rolling_pan_release",
     "rolling_swipe", "readerhighlight_hold", "readerhighlight_hold_pan",
-    "readerhighlight_hold_release", "multiswipe",
+    "readerhighlight_hold_release", "multiswipe", "inertial_scrolling_touch",
 }
 
 local function window_at(layout, place)
@@ -400,16 +409,24 @@ local function h04(t, plugin)
     local function move_button()
         return center(layout:buttonRect("move"))
     end
-    -- Before a gesture: remember where the window and its move button are, and forget the
-    -- repaints so far.
+    -- Before a gesture: remember where the window and its move button are and how the button
+    -- looks, and forget the repaints so far.
     local function mark()
         t.from = layout:rects().window
         t.button = layout:buttonRect("move")
+        t.unpressed = grab(t.button)
         t.repaints = {}
     end
     local function repainted(i, rect, refresh)
         local r = t.repaints[i]
         return r ~= nil and same_rect(r, rect) and r.refresh == refresh
+    end
+    -- The i-th repaint was the quick one of the move button alone, to mark it or clear it.
+    local function button_repainted(i)
+        return repainted(i, t.button, "fast")
+    end
+    local function button_changed()
+        return differences(grab(t.button), t.unpressed)
     end
     local function drag_by(dx, dy, lift, via)
         mark()
@@ -426,11 +443,22 @@ local function h04(t, plugin)
         t:check(name .. " moves the window", window_at(layout, offset(t.from, dx, dy)),
             place_text(t.from) .. " -> " .. place_text(layout:rects().window))
         t:check(name .. " marks the move button, then repaints the old and new place with a flash",
-            #t.repaints == 2 and repainted(1, t.button, "ui")
+            #t.repaints == 2 and button_repainted(1)
             and repainted(2, layout:dirtyRect({ window = t.from }), "flashui"), #t.repaints)
         reader_untouched(name)
         t:check(name .. " does not move the reading", reading_position(plugin.ui) == t.position,
             reading_position(plugin.ui))
+    end
+    -- Checks that the finger, down on the move button since mark() and lifted where it went
+    -- down, marked the button and cleared it again without moving the window.
+    local function pressed_in_place(name)
+        t:check(name .. " does not move the window", window_at(layout, t.from),
+            place_text(layout:rects().window))
+        t:check(name .. " marks the move button and clears it, repainting only the button",
+            #t.repaints == 2 and button_repainted(1) and button_repainted(2), #t.repaints)
+        t:check(name .. " leaves the move button as before", button_changed() == 0,
+            button_changed() .. " pixels differ")
+        reader_untouched(name)
     end
     -- Checks that what was done since mark() left the window alone.
     local function stayed(name)
@@ -450,30 +478,27 @@ local function h04(t, plugin)
     end)
     step(function()
         t:shot("open")
-        -- Rest the finger on the move button and move it a little, without lifting it.
+        -- The finger goes down on the move button, before KOReader knows whether it is a drag.
         mark()
-        t.unpressed = grab(t.button)
         t.held_at = move_button()
+        t:touch(t.held_at)
+        -- No forceRePaint from here on: the mark must be on the screen without a whole repaint.
+        t:check("touching the move button marks it at once, repainting only the button",
+            #t.repaints == 1 and button_repainted(1), #t.repaints)
+        t:check("the mark is drawn on the move button", button_changed() > 0,
+            button_changed() .. " pixels differ")
+        -- Then it rests and moves a little, without being lifted.
         t:press(t.held_at, offset(t.held_at, 0, -20), true)
     end)
     step(function()
-        UIManager:forceRePaint()
         t:shot("pressed")
-        t:check("holding the move button marks it, repainting only the button once",
-            #t.repaints == 1 and repainted(1, t.button, "ui"), #t.repaints)
-        local diff = differences(grab(t.button), t.unpressed)
-        t:check("the mark is drawn on the move button", diff > 0, diff .. " pixels differ")
+        t:check("the mark is not repainted while the finger rests and moves",
+            #t.repaints == 1, #t.repaints)
         t:check("the window does not move before the finger is lifted", window_at(layout, t.from))
         t:lift(t.held_at, t.held_at, "hold")
     end)
     step(function()
-        UIManager:forceRePaint()
-        t:check("lifted where it went down, the window stays", window_at(layout, t.from))
-        t:check("lifted, the mark goes, repainting only the button again",
-            #t.repaints == 2 and repainted(2, t.button, "ui"), #t.repaints)
-        local diff = differences(grab(t.button), t.unpressed)
-        t:check("the move button looks as before", diff == 0, diff .. " pixels differ")
-        reader_untouched("holding the move button")
+        pressed_in_place("holding the move button and lifting it there")
         -- Slow drag up, with the finger leaving the window on the way.
         drag_by(-40, -150, "pan_release", { { x = 2, y = 400 }, { x = 5, y = 5 } })
     end)
@@ -523,7 +548,7 @@ local function h04(t, plugin)
         t:tapRect(layout:buttonRect("move"))
     end)
     step(function()
-        stayed("a short tap on the move button")
+        pressed_in_place("a short tap on the move button")
         -- A quick drag off the window is the reader's: it turns the page.
         local y = layout:rects().window.y / 2
         t:drag({ x = Screen:getWidth() * 0.8, y = y }, { x = Screen:getWidth() * 0.2, y = y },
