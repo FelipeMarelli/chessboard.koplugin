@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (14 de noviembre de 2026): hay una prueba de concepto funcionando en el emulador de KOReader. Todavía no se probó en la Kindle real y no hay lógica de ajedrez (piezas, jugadas, reconocimiento de posiciones).
+Estado (14 de noviembre de 2026): hay una prueba de concepto funcionando en el emulador de KOReader y el módulo de reglas del ajedrez (`chess/rules.lua`, historia H01) con sus pruebas. Las reglas todavía no se usan en la interfaz. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -125,6 +125,9 @@ Verificado con toques sintéticos en el emulador, a 632×840 (media escala de un
 
 ```
 chessbook.koplugin/     el plugin (_meta.lua, main.lua)
+  chess/rules.lua       reglas: posición, jugadas legales, FEN, notación
+spec/                   pruebas de la lógica pura (run.lua las corre todas)
+  perft/                posiciones con conteos de jugadas conocidos
 run-emu.sh              lanza el emulador con el plugin
 emu-data/               datos del emulador (configuración, estado, capturas)
   run_pdf/ run_djvu/ run_nunn/ run_kan/ run_kasp/   resultados de la prueba
@@ -138,6 +141,18 @@ vendor/
 El plugin está enlazado con un symlink en `vendor/koreader-emu/lib/koreader/plugins/chessbook.koplugin`, así que los cambios en `chessbook.koplugin/` se ven al reiniciar el emulador.
 
 ## Cómo correrlo
+
+### Pruebas de la lógica
+
+```sh
+(cd vendor/koreader-emu/lib/koreader && ./luajit "$OLDPWD/spec/run.lua")
+```
+
+Corre todos los `spec/*_spec.lua` con el LuaJIT del emulador y sale con código distinto de cero si alguna prueba falla. Se le pueden pasar nombres de archivo para correr solo esos. Los módulos se cargan sin acceso a KOReader, así que un `require` de KOReader en `chess/` o `model/` hace fallar la prueba.
+
+Los conteos de `spec/perft_spec.lua` corren hasta 20 000 secuencias por posición. `PERFT_LIMIT=10000000` los corre a fondo; `CHESS960_EVERY` y `CHESS960_LIMIT` controlan cuántas de las 960 posiciones de Chess960 se prueban y hasta dónde.
+
+### Emulador
 
 A mano:
 
@@ -197,8 +212,17 @@ El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y 
 - Probar el plugin en la Kindle: rendimiento y refresco de pantalla.
 - Probar el reconocimiento por plantillas sobre los recortes reales del PDF y el DjVu.
 - Verificar el origen y la licencia de las piezas Merida y de la textura de madera (historia H03).
+- Resolver la reconstrucción de jugadas desde el texto. En el experimento previo se resolvió el 90 % de la línea principal del Nunn y el 57 % del Kasparov, y "resuelta" solo significa que la jugada es legal en alguna posición candidata, no que sea la correcta. Los riesgos son el anclaje de la posición inicial, los errores en cascada y las diferencias entre editoriales.
+- Medir en la Kindle cuánto tarda generar las jugadas legales y escribir la notación (`chess/rules.lua`).
 
 ## Licencia
 
 AGPL-3.0, la misma que KOReader. Ver `LICENSE`.
-- Resolver la reconstrucción de jugadas desde el texto. En el experimento previo se resolvió el 90 % de la línea principal del Nunn y el 57 % del Kasparov, y "resuelta" solo significa que la jugada es legal en alguna posición candidata, no que sea la correcta. Los riesgos son el anclaje de la posición inicial, los errores en cascada y las diferencias entre editoriales.
+
+### Código y datos de terceros
+
+| Qué | Origen | Licencia |
+|---|---|---|
+| `chessbook.koplugin/chess/rules.lua` | `ink_knight/chess.lua` de [Ink Knight](https://github.com/beater-studios/ink_knight.koplugin), commit `601acd2`, © 2026 Beater Studios. Modificado: nombres según el contrato de `docs/arquitectura.md`, lectura estricta de FEN, número de jugada, notación con la letra de pieza aparte, validación de posiciones; se quitó lo propio de las partidas de Ink Knight. | GPL-3.0, solo versión 3 (`chess/LICENSE-GPL-3.0`). Combinable con AGPL-3.0 por la sección 13 de ambas. Los nombres «Ink Knight» y «Beater Studios» no se licencian (sección 7(e)). |
+| `spec/inkknight_rules_spec.lua`, `spec/perft_spec.lua` | `tests/chess_spec.lua` y `tests/perft_spec.lua` de Ink Knight, mismo commit, adaptados. No van en el paquete. | GPL-3.0, solo versión 3. |
+| `spec/perft/*.perft` | [scalachess](https://github.com/lichess-org/scalachess), commit `fbb8f2c`, vía Ink Knight. Recopiladas de chessprogramming.org y del motor Ethereal. | MIT (`spec/perft/LICENSE-scalachess`). |
