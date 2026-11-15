@@ -69,32 +69,36 @@ end
 -- "multiswipe", if it turned) or "pan_release" when it is lifted, depending on how quick it was.
 -- The window keeps every gesture of a drag that started on it, so that none reaches the reader.
 
--- Where the finger went down, for the gestures that can start a drag.
-local START = {
-    hold = function(ges) return ges.pos end,
-    pan = function(ges) return ges.start_pos end,
-    swipe = function(ges) return ges.pos end,
-    multiswipe = function(ges) return ges.pos end,
+-- Where the finger went down, as the name of the field of the gesture that has it, for the
+-- gestures that can start a drag. A swipe reports its start as its position.
+local START_FIELD = { hold = "pos", pan = "start_pos", swipe = "pos", multiswipe = "pos" }
+
+-- Where the finger was lifted, for the gestures that end a drag.
+local LIFT_FIELD = {
+    swipe = "end_pos", multiswipe = "end_pos", pan_release = "pos", hold_release = "pos",
 }
 
--- Where the finger is lifted, for the gestures that end a drag.
-local LIFT = {
-    swipe = function(ges) return ges.end_pos end,
-    multiswipe = function(ges) return ges.end_pos end,
-    pan_release = function(ges) return ges.pos end,
-    hold_release = function(ges) return ges.pos end,
-}
+local function point_of(ges, fields)
+    local field = fields[ges.ges]
+    return field and ges[field]
+end
+
+-- True when the gesture is part of a drag that started on the window: one it starts, or one going
+-- on.
+function Window:ownsDrag(ges)
+    local start = point_of(ges, START_FIELD)
+    if start then
+        return self.layout:startDrag(start.x, start.y, self.session:flipped())
+    end
+    return self.layout:isDragging()
+end
 
 -- True when the gesture belongs to a drag of the window.
 function Window:onDrag(ges)
-    local layout = self.layout
-    local start = START[ges.ges] and START[ges.ges](ges)
-    local mine = start and layout:startDrag(start.x, start.y, self.session:flipped())
-        or (not start and layout:isDragging())
-    if not mine then
+    if not self:ownsDrag(ges) then
         return false
     end
-    local lift = LIFT[ges.ges] and LIFT[ges.ges](ges)
+    local lift = point_of(ges, LIFT_FIELD)
     if lift then
         self:drop(lift)
     end

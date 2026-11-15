@@ -60,6 +60,18 @@ local DRAG_OVERRIDES = {
     multiswipe = { "multiswipe" },
 }
 
+-- A reader touch zone over the whole screen for one gesture, that comes before the given zones.
+-- The window lets through what is not on it.
+local function touch_zone(ges, overrides, handler)
+    return {
+        id = "chessbook_" .. ges,
+        ges = ges,
+        screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 },
+        overrides = overrides,
+        handler = handler,
+    }
+end
+
 local ChessBook = WidgetContainer:extend{
     name = "chessbook",
     is_doc_only = true,
@@ -89,24 +101,9 @@ end
 function ChessBook:onReaderReady()
     self.window = Window.new(self.view, self.layout, self.session)
     self.view:registerViewModule("chessbook", self)
-    local full_screen = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 }
-    local zones = {
-        {
-            id = "chessbook_tap",
-            ges = "tap",
-            screen_zone = full_screen,
-            overrides = TAP_OVERRIDES,
-            handler = function(ges) return self:onTap(ges) end,
-        },
-    }
+    local zones = { touch_zone("tap", TAP_OVERRIDES, function(ges) return self:onTap(ges) end) }
     for ges, overrides in pairs(DRAG_OVERRIDES) do
-        zones[#zones + 1] = {
-            id = "chessbook_" .. ges,
-            ges = ges,
-            screen_zone = full_screen,
-            overrides = overrides,
-            handler = function(g) return self:onDrag(g) end,
-        }
+        zones[#zones + 1] = touch_zone(ges, overrides, function(g) return self:onDrag(g) end)
     end
     self.ui:registerTouchZones(zones)
     if os.getenv("CHESSBOOK_SELFTEST") then
