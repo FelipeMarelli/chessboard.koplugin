@@ -9,10 +9,7 @@ local Theme = require("ui/theme")
 local Board = {}
 
 local function square_color(info)
-    local gray, mark = Theme.GRAY, Theme.MARK
-    if info.marks.last_move then
-        return info.light and mark.last_move_on_light or mark.last_move_on_dark
-    end
+    local gray = Theme.GRAY
     return info.light and gray.light_square or gray.dark_square
 end
 
@@ -45,8 +42,11 @@ local function paint_corners(bb, r, leg, color)
     end
 end
 
--- How each mark but last_move is drawn on a square of side s, in the order they are drawn.
+-- How each mark is drawn on a square of side s, in the order they are drawn.
 local MARKS = {
+    { name = "last_move", paint = function(bb, r, s, m)
+        bb:paintInnerBorder(r.x, r.y, r.w, r.h, share(s, m.last_move_width), m.last_move)
+    end },
     { name = "check", paint = function(bb, r, s, m)
         paint_disc(bb, r, share(s, m.check_radius), m.check)
     end },
