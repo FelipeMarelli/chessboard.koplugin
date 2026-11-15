@@ -127,7 +127,7 @@ local function h03(t, plugin)
         t:check("flip again turns it back", not session:flipped())
         t.page_before = plugin.ui:getCurrentPage()
         t:tapRect(layout:squareRect(29, false))
-        t:tapRect(layout:rects().titlebar)
+        t:tapRect(layout:rects().buttons) -- between the buttons
     end)
     step(function()
         t:check("taps inside do not turn the page",

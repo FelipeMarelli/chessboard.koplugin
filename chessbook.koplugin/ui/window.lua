@@ -66,8 +66,7 @@ local function paint_frame(bb, rects)
     local gray = Theme.GRAY
     local w = rects.window
     bb:paintRect(w.x, w.y, w.w, w.h, gray.frame)
-    local bar, row = rects.titlebar, rects.buttons
-    bb:paintRect(bar.x, bar.y, bar.w, bar.h, gray.bar)
+    local row = rects.buttons
     bb:paintRect(row.x, row.y, row.w, row.h, gray.row)
 end
 

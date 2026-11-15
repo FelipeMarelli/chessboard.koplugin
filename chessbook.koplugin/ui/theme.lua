@@ -12,8 +12,7 @@ local Theme = {}
 
 -- Window geometry, for model/layout.lua.
 Theme.SIZES = {
-    bar = 7,        -- top bar height
-    row = 9,        -- button row height
+    row = 7,        -- height of the button row under the board
     button = 9,     -- button width
     border = 0.3,   -- window frame
     margin = 2,     -- gap to the screen edge
@@ -29,7 +28,6 @@ end
 
 Theme.GRAY = {
     frame = gray(0x00),
-    bar = gray(0xFF),
     row = gray(0xFF),
     separator = gray(0x88),
     light_square = gray(0xEE),
