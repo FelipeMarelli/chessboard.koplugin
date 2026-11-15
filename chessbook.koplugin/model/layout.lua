@@ -8,12 +8,22 @@ Layout.__index = Layout
 local BOARD_SHARE = 0.6 -- of the short side of the screen, on first open
 local FILES = 8
 
--- Buttons of the row under the board: from the left edge and from the right edge, in order.
--- "size" is temporary, to try the minimum size on the Kindle until the window can be resized (H05).
--- "move" is the one to drag the window by.
+-- The rows of buttons under the board, by name. Each has its buttons from the left edge and from
+-- the right edge, in order. The main row shows first; a button of OPENS shows another row instead
+-- of acting, and the back button of any row shows the main one again. "move" is the one to drag
+-- the window by.
+local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
-local LEFT_BUTTONS = { MOVE_BUTTON, "flip", "size" }
-local RIGHT_BUTTONS = { "close" }
+local BACK_BUTTON = "back"
+local ROWS = {
+    main = { left = { MOVE_BUTTON, "flip", "size" }, right = { "close" } },
+    size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
+}
+local OPENS = { size = "size" }
+
+-- Buttons that resize the board, with how many steps each takes. Each is disabled at the limit it
+-- goes towards.
+local RESIZES = { smaller = -1, bigger = 1 }
 
 local function px(mm, px_per_mm)
     return math.max(1, math.floor(mm * px_per_mm + 0.5))
@@ -28,9 +38,9 @@ local function clamp(value, low, high)
 end
 
 -- A layout for a screen. sizes, in millimetres: row (height of the button row under the board),
--- button (width of a button), border, margin (to the screen edge), min_square, and gutter (the
--- strips left of and under the board where the coordinates go; 0 or nil to put them on the
--- squares).
+-- button (width of a button), border, margin (to the screen edge), min_square, size_step (how much
+-- the side of a square changes with each step of resize), and gutter (the strips left of and
+-- under the board where the coordinates go; 0 or nil to put them on the squares).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local ppm = args.px_per_mm
@@ -41,32 +51,45 @@ function Layout.new(args)
         border = px(sizes.border, ppm),
         margin = px(sizes.margin, ppm),
         min_square = px(sizes.min_square, ppm),
+        size_step = px(sizes.size_step, ppm),
         gutter = (sizes.gutter or 0) > 0 and px(sizes.gutter, ppm) or 0,
     }
     self.open = false
+    self.row = MAIN_ROW
     self:setScreen(args.screen_w, args.screen_h)
     return self
 end
 
--- The biggest square size that fits the screen, near the share of the short side asked for.
-function Layout:defaultSquare()
+-- The biggest square size that fits the screen with the controls, and never under the minimum.
+function Layout:maxSquare()
     local p = self.px
-    local wanted = math.floor(BOARD_SHARE * math.min(self.screen_w, self.screen_h) / FILES)
     local room_w = self.screen_w - 2 * (p.margin + p.border) - p.gutter
     local room_h = self.screen_h - 2 * (p.margin + p.border) - p.gutter - p.row
-    local fits = math.floor(math.min(room_w, room_h) / FILES)
-    return math.max(p.min_square, math.min(wanted, fits))
+    return math.max(p.min_square, math.floor(math.min(room_w, room_h) / FILES))
 end
 
--- Sets the screen size. The same size keeps the window where it is; a new one (the screen turned)
--- puts it back in the default place, until each orientation keeps its own (H14).
+-- A square size within the limits: the minimum and the biggest that fits.
+function Layout:fittedSquare(size)
+    return clamp(size, self.px.min_square, self:maxSquare())
+end
+
+-- The square size the window opens with: near the share of the short side asked for.
+function Layout:defaultSquare()
+    return self:fittedSquare(
+        math.floor(BOARD_SHARE * math.min(self.screen_w, self.screen_h) / FILES))
+end
+
+-- Sets the screen size. The same size keeps the window where it is, and its size; a new one (the
+-- screen turned) puts it back in the default place and size, until each orientation keeps its own
+-- (H14).
 function Layout:setScreen(screen_w, screen_h)
     local same = screen_w == self.screen_w and screen_h == self.screen_h
     self.screen_w, self.screen_h = screen_w, screen_h
-    self.square = self.small and self.px.min_square or self:defaultSquare()
     if same then
+        self.square = self:fittedSquare(self.square)
         self:moveTo(self.x, self.y)
     else
+        self.square = self:defaultSquare()
         self:placeDefault()
         self.drag = nil
     end
@@ -108,29 +131,62 @@ function Layout:windowSize()
     return side + p.gutter + 2 * p.border, side + p.gutter + p.row + 2 * p.border
 end
 
+-- Opening or closing the window drops the drag and shows the main row.
 function Layout:setOpen(open)
     self.open = open and true or false
     self.drag = nil
+    self.row = MAIN_ROW
 end
 
 function Layout:isOpen()
     return self.open
 end
 
--- Temporary, until H05: switches between the default size and the minimum one, in the default
--- place.
-function Layout:toggleSmall()
-    self.small = not self.small
-    self:setScreen(self.screen_w, self.screen_h)
-    self:placeDefault()
-end
-
-function Layout:isSmall()
-    return self.small and true or false
-end
-
 function Layout:squareSize()
     return self.square
+end
+
+-- The square size after some steps of resize (negative to shrink), within the limits.
+function Layout:resizedSquare(steps)
+    return self:fittedSquare(self.square + steps * self.px.size_step)
+end
+
+-- True when some steps of resize would change the size: false at the limit they go towards.
+function Layout:canResize(steps)
+    return self:resizedSquare(steps) ~= self.square
+end
+
+-- Grows (steps > 0) or shrinks the board by some steps, up to its limits. The top left corner
+-- stays, unless the window would go off the screen. True when the size changed.
+function Layout:resize(steps)
+    if not self:canResize(steps) then
+        return false
+    end
+    self.square = self:resizedSquare(steps)
+    self:moveTo(self.x, self.y)
+    return true
+end
+
+-- The name of the row of buttons shown.
+function Layout:shownRow()
+    return self.row
+end
+
+-- Shows a row of buttons by its name.
+function Layout:showRow(name)
+    assert(ROWS[name], "no such row")
+    self.row = name
+end
+
+-- The name of the row a button shows when tapped, or nil when the button acts instead.
+function Layout.rowOpenedBy(id)
+    return OPENS[id] or (id == BACK_BUTTON and MAIN_ROW or nil)
+end
+
+-- False for a button that would do nothing now, such as shrinking a board at its minimum.
+function Layout:isEnabled(id)
+    local steps = RESIZES[id]
+    return steps == nil or self:canResize(steps)
 end
 
 function Layout:rects()
@@ -153,28 +209,38 @@ function Layout:rects()
     return rects
 end
 
--- Every button of the row with its id and its rect, from left to right.
+-- Every button of the row shown, with its id, its rect and whether it is enabled, from left to
+-- right.
 function Layout:buttons()
     local row = self:rects().buttons
     local list = {}
     local bw = self.px.button
-    for i, id in ipairs(LEFT_BUTTONS) do
-        list[#list + 1] = { id = id,
-            rect = { x = row.x + (i - 1) * bw, y = row.y, w = bw, h = row.h } }
+    local function add(id, x)
+        list[#list + 1] = { id = id, enabled = self:isEnabled(id),
+            rect = { x = x, y = row.y, w = bw, h = row.h } }
     end
-    for i = #RIGHT_BUTTONS, 1, -1 do
-        list[#list + 1] = { id = RIGHT_BUTTONS[i],
-            rect = { x = row.x + row.w - i * bw, y = row.y, w = bw, h = row.h } }
+    local left, right = ROWS[self.row].left, ROWS[self.row].right
+    for i, id in ipairs(left) do
+        add(id, row.x + (i - 1) * bw)
+    end
+    for i = #right, 1, -1 do
+        add(right[i], row.x + row.w - i * bw)
     end
     return list
 end
 
-function Layout:buttonRect(id)
+-- One button of the row shown, as buttons() gives it, or nil when the row has no such button.
+function Layout:button(id)
     for _, button in ipairs(self:buttons()) do
         if button.id == id then
-            return button.rect
+            return button
         end
     end
+end
+
+function Layout:buttonRect(id)
+    local button = self:button(id)
+    return button and button.rect
 end
 
 -- The column and row on screen (0 to 7, from the top left) of a square.
@@ -234,7 +300,8 @@ end
 
 -- Which part of the window a point falls on, or nil when the window is closed or the point is
 -- outside it. The thin border counts as the part next to it, and the gutters as the board,
--- without a square.
+-- without a square. A disabled button is like the row between buttons; one that shows another
+-- row says which, in opens.
 function Layout:hit(x, y, flipped)
     local r = self:rects()
     if not (self.open and inside(r.window, x, y)) then
@@ -244,8 +311,8 @@ function Layout:hit(x, y, flipped)
     x = clamp(x, r.buttons.x, board.x + board.w - 1)
     y = clamp(y, board.y, r.buttons.y + r.buttons.h - 1)
     for _, button in ipairs(self:buttons()) do
-        if inside(button.rect, x, y) then
-            return { zone = "button", button = button.id }
+        if inside(button.rect, x, y) and button.enabled then
+            return { zone = "button", button = button.id, opens = Layout.rowOpenedBy(button.id) }
         end
     end
     if inside(board, x, y) then

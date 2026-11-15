@@ -6,7 +6,7 @@ local eq, test = Helper.eq, Helper.test
 
 local sq = Rules.squareFromName
 
-local SIZES = { row = 7, button = 9, border = 0.3, margin = 2, min_square = 5 }
+local SIZES = { row = 7, button = 9, border = 0.3, margin = 2, min_square = 5, size_step = 1 }
 local PX_PER_MM = 150 / 25.4
 
 local function new(w, h, open)
@@ -74,40 +74,34 @@ test("C2: the board and a row of buttons under it, inside the window", function(
     eq(r.titlebar, nil)
 end)
 
-test("C2: move, flip and size from the left of the row, and close at the right", function()
-    local layout = new(632, 840)
-    local row = layout:rects().buttons
+local function ids_of(layout)
     local ids = {}
     for _, button in ipairs(layout:buttons()) do
         ids[#ids + 1] = button.id
+    end
+    return ids
+end
+
+-- Every button of the row shown is inside the row and 7 mm or more on each side.
+local function assert_buttons_fit(layout, px_per_mm)
+    local row = layout:rects().buttons
+    for _, button in ipairs(layout:buttons()) do
         assert(contains(row, button.rect), button.id)
-        assert(button.rect.w >= 7 * PX_PER_MM - 1 and button.rect.h >= 7 * PX_PER_MM - 1,
+        assert(button.rect.w >= 7 * px_per_mm - 1 and button.rect.h >= 7 * px_per_mm - 1,
             "button smaller than 7 mm: " .. button.id)
     end
-    eq(ids, { "move", "flip", "size", "close" })
+end
+
+test("C2: move, flip and size from the left of the row, and close at the right", function()
+    local layout = new(632, 840)
+    local row = layout:rects().buttons
+    assert_buttons_fit(layout, PX_PER_MM)
+    eq(ids_of(layout), { "move", "flip", "size", "close" })
     eq(layout:buttonRect("move").x, row.x)
     eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
     eq(layout:buttonRect("move"), layout:buttons()[1].rect)
     eq(layout:buttonRect("nothing"), nil)
 end)
-
-test("temporary size button: switches to the minimum square and back, centred at the bottom",
-    function()
-        for _, size in ipairs({ { 632, 840 }, { 840, 632 } }) do
-            local w, h = size[1], size[2]
-            local layout = new(w, h)
-            local default = layout:rects().window
-            eq(layout:isSmall(), false)
-            layout:toggleSmall()
-            eq(layout:isSmall(), true)
-            eq(layout:squareSize(), layout.px.min_square)
-            local small = layout:rects().window
-            assert(math.abs(2 * small.x + small.w - w) <= 1, "not centred")
-            eq(small.y + small.h, default.y + default.h)
-            layout:toggleSmall()
-            eq(layout:rects().window, default)
-        end
-    end)
 
 -- 6. Square board, equal squares ----------------------------------------------------------------
 
@@ -286,19 +280,43 @@ test("H04 C1: the move button is the first of the row, on the same grid as the o
     end
 end)
 
-test("H04 C1: with the window at its minimum size the buttons do not overlap", function()
-    -- The sizes of ui/theme.lua.
-    local sizes = { row = 7, button = 8, border = 0.3, margin = 2, min_square = 4, gutter = 2.5 }
+-- Shrinks or grows the board as far as it goes.
+local function smallest(layout)
+    while layout:resize(-1) do end
+    return layout
+end
+
+local function biggest(layout)
+    while layout:resize(1) do end
+    return layout
+end
+
+-- Layouts with the sizes of ui/theme.lua, at their minimum size, on the emulator and on a screen
+-- of twice the density.
+local function smallest_with_theme_sizes()
+    local sizes = { row = 7, button = 8, border = 0.3, margin = 2, min_square = 4, gutter = 2.5,
+        size_step = 1 }
+    local list = {}
     for _, size in ipairs({ { 632, 840 }, { 1272, 1696 } }) do
         local layout = Layout.new{ screen_w = size[1], screen_h = size[2],
             px_per_mm = size[1] / 632 * PX_PER_MM, sizes = sizes }
-        layout:toggleSmall()
-        local list = layout:buttons()
-        for i = 1, #list do
-            for j = i + 1, #list do
-                assert(not overlap(list[i].rect, list[j].rect), list[i].id .. " " .. list[j].id)
-            end
+        layout:setOpen(true)
+        list[#list + 1] = smallest(layout)
+    end
+    return list
+end
+
+local function assert_apart(list)
+    for i = 1, #list do
+        for j = i + 1, #list do
+            assert(not overlap(list[i].rect, list[j].rect), list[i].id .. " " .. list[j].id)
         end
+    end
+end
+
+test("H04 C1: with the window at its minimum size the buttons do not overlap", function()
+    for _, layout in ipairs(smallest_with_theme_sizes()) do
+        assert_apart(layout:buttons())
     end
 end)
 
@@ -572,3 +590,153 @@ test("H07 C8: the corner where the coordinate strips meet is left for whose turn
         end
         eq(new(632, 840):rects().status, nil)
     end)
+
+-- H05: resizing the window --------------------------------------------------------------------
+
+local function tap_button(layout, id)
+    return layout:hit(center(layout:buttonRect(id)))
+end
+
+local STEP = 6 -- 1 mm at 150 dpi
+
+test("H05 C1: the size button shows the size row: back, smaller and bigger", function()
+    local layout = new(632, 840)
+    eq(layout:shownRow(), "main")
+    eq(tap_button(layout, "size"), { zone = "button", button = "size", opens = "size" })
+    layout:showRow("size")
+    eq(ids_of(layout), { "back", "smaller", "bigger" })
+    eq(layout:buttonRect("back").x, layout:rects().buttons.x)
+    eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
+    eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
+    layout:showRow("main")
+    eq(ids_of(layout), { "move", "flip", "size", "close" })
+end)
+
+test("H05 C2: only the buttons that show a row open one, and back always opens the main row",
+    function()
+        eq(Layout.rowOpenedBy("size"), "size")
+        eq(Layout.rowOpenedBy("back"), "main")
+        for _, id in ipairs({ "move", "flip", "close", "smaller", "bigger", "nothing" }) do
+            eq(Layout.rowOpenedBy(id), nil, id)
+        end
+        assert(not pcall(Layout.showRow, new(632, 840), "nothing"), "an unknown row was shown")
+    end)
+
+test("H05 C3: each step changes the side of the squares by the size step, and the corner stays",
+    function()
+        local layout = new(632, 840)
+        layout:moveTo(100, 100)
+        local square = layout:squareSize()
+        eq(layout:resize(-1), true)
+        eq(layout:squareSize(), square - STEP)
+        eq(layout:resize(1), true)
+        eq(layout:resize(1), true)
+        eq(layout:squareSize(), square + STEP)
+        eq(layout:rects().window.x, 100); eq(layout:rects().window.y, 100)
+    end)
+
+test("H05 C4: the board stays square and the row keeps its height", function()
+    local layout = new(632, 840)
+    local row_h = layout:rects().buttons.h
+    for _, steps in ipairs({ -1, -1, 1, 1, 1 }) do
+        layout:resize(steps)
+        local r = layout:rects()
+        eq(r.board.w, r.board.h)
+        eq(r.board.w, 8 * layout:squareSize())
+        eq(r.buttons.h, row_h)
+    end
+end)
+
+test("H05 C5: the board goes from squares of the minimum size to the biggest that fits", function()
+    for _, size in ipairs(SCREENS) do
+        local layout = smallest(new(size[1], size[2]))
+        eq(layout:squareSize(), layout.px.min_square)
+        eq(layout:canResize(-1), false)
+        biggest(layout)
+        local screen = { x = 0, y = 0, w = size[1], h = size[2] }
+        if size[1] >= 300 and size[2] >= 300 then
+            assert(contains(screen, layout:rects().window), "the biggest does not fit")
+        end
+        eq(layout:squareSize(), layout:maxSquare())
+        eq(layout:canResize(1), false)
+    end
+end)
+
+test("H05 C5: the biggest board leaves the margin on its tighter side and no room for more",
+    function()
+        local layout = new(632, 840)
+        biggest(layout)
+        local w = layout:rects().window
+        assert(632 - w.w >= 2 * MARGIN, "no margin")
+        assert(632 - w.w - 8 < 2 * MARGIN, "room for a square one pixel bigger")
+    end)
+
+test("H05 C5: at a limit its button is disabled, and a tap on it is the row's, not the button's",
+    function()
+        local layout = smallest(new(632, 840))
+        layout:showRow("size")
+        eq(layout:isEnabled("smaller"), false)
+        eq(layout:isEnabled("bigger"), true)
+        eq(layout:button("smaller"), { id = "smaller", enabled = false,
+            rect = layout:buttonRect("smaller") })
+        eq(layout:button("smaller"), layout:buttons()[2])
+        eq(layout:button("move"), nil)
+        eq(tap_button(layout, "smaller"), { zone = "button" })
+        eq(layout:resize(-1), false)
+        biggest(layout)
+        eq(layout:isEnabled("smaller"), true)
+        eq(layout:isEnabled("bigger"), false)
+        eq(tap_button(layout, "bigger"), { zone = "button" })
+        eq(layout:isEnabled("back"), true)
+    end)
+
+test("H05 C6: grown against an edge, the window moves back inside the screen", function()
+    local layout = new(632, 840)
+    layout:moveTo(632, 840)
+    local before = layout:rects().window
+    eq(before.x + before.w, 632 - MARGIN)
+    layout:resize(1)
+    local after = layout:rects().window
+    eq(after.x + after.w, 632 - MARGIN)
+    eq(after.y + after.h, 840 - MARGIN)
+    eq(after.x, before.x - 8 * STEP)
+end)
+
+test("H05 C6: the region to repaint after a resize covers the window before and after", function()
+    local layout = new(632, 840)
+    local before = layout:rects()
+    layout:resize(-1)
+    eq(layout:dirtyRect(before), before.window)
+    before = layout:rects()
+    layout:resize(1)
+    eq(layout:dirtyRect(before), layout:rects().window)
+end)
+
+test("H05 C7: at the minimum size the buttons of every row fit, 7 mm or more and apart",
+    function()
+        for _, layout in ipairs(smallest_with_theme_sizes()) do
+            for _, row in ipairs({ "main", "size" }) do
+                layout:showRow(row)
+                assert_buttons_fit(layout, layout.screen_w / 632 * PX_PER_MM)
+                assert_apart(layout:buttons())
+            end
+        end
+    end)
+
+test("H05 C8: closing and opening the window shows the main row again", function()
+    local layout = new(632, 840)
+    layout:showRow("size")
+    layout:setOpen(false)
+    layout:setOpen(true)
+    eq(layout:shownRow(), "main")
+end)
+
+test("H05: the same screen keeps the size, and a new one gives the default size", function()
+    local layout = new(632, 840)
+    layout:resize(-1)
+    local square = layout:squareSize()
+    layout:setScreen(632, 840)
+    eq(layout:squareSize(), square)
+    layout:setScreen(840, 632)
+    eq(layout:squareSize(), new(840, 632):squareSize())
+end)
