@@ -40,6 +40,50 @@ function SelfTest:tapRect(rect)
     self:tap(rect.x + rect.w / 2, rect.y + rect.h / 2)
 end
 
+local function point(p)
+    return Geom:new{ x = math.floor(p.x), y = math.floor(p.y), w = 0, h = 0 }
+end
+
+local function direction(from, to)
+    local dx, dy = to.x - from.x, to.y - from.y
+    if math.abs(dx) > math.abs(dy) then
+        return dx > 0 and "east" or "west"
+    end
+    return dy > 0 and "south" or "north"
+end
+
+function SelfTest:gesture(ges)
+    ges.time = 0
+    UIManager:sendEvent(Event:new("Gesture", ges))
+end
+
+-- A drag from one point to another the way KOReader reports it, through the points of via. lift:
+-- "pan_release" (a slow drag), "swipe" or "multiswipe" (quick ones) or "hold" (the finger
+-- rested before moving).
+function SelfTest:drag(from, to, lift, via)
+    local path = {}
+    for _, p in ipairs(via or {}) do path[#path + 1] = p end
+    path[#path + 1] = to
+    local start = point(from)
+    if lift == "hold" then
+        self:gesture({ ges = "hold", pos = start })
+    end
+    for _, p in ipairs(path) do
+        self:gesture({ ges = lift == "hold" and "hold_pan" or "pan", start_pos = start,
+            pos = point(p), relative = { x = p.x - from.x, y = p.y - from.y },
+            direction = direction(from, p), distance = math.abs(p.x - from.x) + math.abs(p.y - from.y) })
+    end
+    if lift == "hold" then
+        self:gesture({ ges = "hold_release", pos = point(to) })
+    elseif lift == "pan_release" then
+        self:gesture({ ges = "pan_release", pos = point(to) })
+    else
+        self:gesture({ ges = lift, pos = start, end_pos = point(to), direction = direction(from, to),
+            multiswipe_directions = lift == "multiswipe" and "north east" or nil,
+            distance = math.abs(to.x - from.x) + math.abs(to.y - from.y) })
+    end
+end
+
 function SelfTest:check(name, ok, detail)
     local line = string.format("%s %s %s%s", ok and "PASS" or "FAIL", self.scenario, name,
         detail and (" (" .. tostring(detail) .. ")") or "")
@@ -112,6 +156,23 @@ local function grab(rect)
         end
     end
     return copy
+end
+
+-- How many pixels of a rect, leaving out those inside hole, differ between a copy of the screen
+-- and the screen now.
+local function changed_outside(copy, rect, hole)
+    local count = 0
+    for y = rect.y, rect.y + rect.h - 1 do
+        for x = rect.x, rect.x + rect.w - 1 do
+            local in_hole = x >= hole.x and x < hole.x + hole.w and y >= hole.y
+                and y < hole.y + hole.h
+            if not in_hole and copy:getPixel(x, y):getColor8().a
+                    ~= Screen.bb:getPixel(x, y):getColor8().a then
+                count = count + 1
+            end
+        end
+    end
+    return count
 end
 
 local function differences(a, b)
@@ -261,6 +322,135 @@ local function h03(t, plugin)
     return steps
 end
 
+-- Reader zones a drag on the window must not reach.
+local READER_DRAG_ZONES = {
+    "paging_pan", "paging_pan_release", "paging_swipe", "rolling_pan", "rolling_pan_release",
+    "rolling_swipe", "readerhighlight_hold", "readerhighlight_hold_pan",
+    "readerhighlight_hold_release", "multiswipe",
+}
+
+local function window_at(layout, x, y)
+    local w = layout:rects().window
+    return w.x == x and w.y == y
+end
+
+-- H04: drag the window around, in the ways KOReader reports a drag.
+local function h04(t, plugin)
+    local layout = plugin.layout
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
+    local function row_point()
+        local row = layout:rects().buttons
+        return { x = row.x + row.w / 2, y = row.y + row.h / 2 }
+    end
+    -- Checks that the drag just done moved the window by dx, dy, repainting it once.
+    local function moved(name, from, dx, dy)
+        UIManager:forceRePaint()
+        local now = layout:rects().window
+        t:check(name .. " moves the window", window_at(layout, from.x + dx, from.y + dy),
+            string.format("%d,%d -> %d,%d", from.x, from.y, now.x, now.y))
+        t:check(name .. " repaints once, old and new place, with a flash", #t.repaints == 1
+            and same_rect(t.repaints[1], layout:dirtyRect({ window = from }))
+            and t.repaints[1].refresh == "flashui", #t.repaints)
+        t:check(name .. " does not reach the reader", t.reader_calls() == 0, t.reader_calls())
+        t:check(name .. " does not move the reading", reading_position(plugin.ui) == t.position,
+            reading_position(plugin.ui))
+    end
+    local function drag_by(dx, dy, lift, via)
+        t.from = layout:rects().window
+        t.repaints = {}
+        local p = row_point()
+        t:drag(p, { x = p.x + dx, y = p.y + dy }, lift, via)
+    end
+    local page = tonumber(os.getenv("CHESSBOOK_PAGE") or "")
+    if page then
+        step(function() plugin.ui:handleEvent(Event:new("GotoPage", page)) end)
+    end
+    step(function()
+        UIManager:forceRePaint()
+        t.page = Screen.bb:copy()
+        t.position = reading_position(plugin.ui)
+        local counters = {}
+        for _, id in ipairs(READER_DRAG_ZONES) do
+            counters[#counters + 1] = t:countCalls(plugin.ui, id)
+        end
+        t.reader_calls = function()
+            local sum = 0
+            for _, count in ipairs(counters) do sum = sum + count() end
+            return sum
+        end
+        t:watchRepaints()
+        plugin:toggle()
+    end)
+    step(function()
+        t:shot("open")
+        -- Slow drag up, with the finger leaving the window on the way.
+        drag_by(-40, -150, "pan_release", { { x = 2, y = 400 }, { x = 5, y = 5 } })
+    end)
+    step(function()
+        moved("a slow drag", t.from, -40, -150)
+        t:shot("moved")
+        local diff = changed_outside(t.page, t.from, layout:rects().window)
+        t:check("the page where the window was is clean", diff == 0, diff .. " pixels differ")
+        drag_by(30, 60, "swipe")
+    end)
+    step(function()
+        moved("a quick drag", t.from, 30, 60)
+        drag_by(-20, 40, "multiswipe", { { x = 300, y = 10 } })
+    end)
+    step(function()
+        moved("a quick drag that turns", t.from, -20, 40)
+        drag_by(25, -60, "hold")
+    end)
+    step(function()
+        moved("a drag after resting the finger", t.from, 25, -60)
+        t.from = layout:rects().window
+        t.repaints = {}
+        local sq = layout:squareRect(29, false)
+        local p = { x = sq.x + sq.w / 2, y = sq.y + sq.h / 2 }
+        t:drag(p, { x = p.x - 150, y = p.y - 150 }, "pan_release")
+    end)
+    step(function()
+        local w = layout:rects().window
+        t:check("a drag from the board does not move the window", window_at(layout, t.from.x,
+            t.from.y), w.x .. "," .. w.y)
+        t:check("a drag from the board repaints nothing", #t.repaints == 0, #t.repaints)
+        t:check("a drag from the board does not reach the reader", t.reader_calls() == 0,
+            t.reader_calls())
+        -- To the corner of the screen: the window would go past the right and bottom edges.
+        local p = row_point()
+        drag_by(Screen:getWidth() - 1 - p.x, Screen:getHeight() - 1 - p.y, "pan_release")
+    end)
+    step(function()
+        UIManager:forceRePaint()
+        t:shot("edge")
+        local w = layout:rects().window
+        local margin = layout.px.margin
+        t:check("dropped off the screen, the window rests against the edge",
+            w.x + w.w == Screen:getWidth() - margin and w.y + w.h == Screen:getHeight() - margin,
+            w.x .. "," .. w.y)
+        t.from = w
+        t.repaints = {}
+        t:tapRect(layout:rects().buttons)
+    end)
+    step(function()
+        t:check("a short tap does not move the window", window_at(layout, t.from.x, t.from.y))
+        t:check("a short tap repaints nothing", #t.repaints == 0, #t.repaints)
+        -- A quick drag off the window is the reader's: it turns the page.
+        local y = layout:rects().window.y / 2
+        t:drag({ x = Screen:getWidth() * 0.8, y = y }, { x = Screen:getWidth() * 0.2, y = y },
+            "swipe")
+    end)
+    step(function()
+        local now = reading_position(plugin.ui)
+        t:check("a drag off the window still turns the page", now ~= t.position,
+            t.position .. " -> " .. now)
+        t.page:free()
+        plugin.window:setOpen(false)
+    end)
+    return steps
+end
+
 -- Ways of drawing the coordinate labels, to compare them side by side. gutter in mm (0: on the
 -- squares); grays from 0 (black) to 255 (white).
 local LABEL_VARIANTS = {
@@ -405,7 +595,7 @@ local function sizes(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, labels = labels, sizes = sizes }
+local SCENARIOS = { h03 = h03, h04 = h04, labels = labels, sizes = sizes }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
