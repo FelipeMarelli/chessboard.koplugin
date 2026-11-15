@@ -37,9 +37,9 @@ local function center(rect)
     return { x = rect.x + rect.w / 2, y = rect.y + rect.h / 2 }
 end
 
--- A point of the button row that is on no button: just right of the move button.
+-- A point of the button row that is on no button: just right of the last button on the left.
 local function between_buttons(layout)
-    local last_left = layout:buttonRect("size")
+    local last_left = layout:buttonRect("reset")
     return { x = last_left.x + last_left.w + 2, y = last_left.y + last_left.h / 2 }
 end
 
@@ -554,6 +554,15 @@ local function h04(t, plugin)
     return steps
 end
 
+-- Taps squares of the board by name, one after another, forgetting the repaints so far.
+local function tap_squares(t, plugin, ...)
+    local Rules = require("chess/rules")
+    t.repaints = {}
+    for _, name in ipairs({ ... }) do
+        t:tapRect(plugin.layout:squareRect(Rules.squareFromName(name), plugin.session:flipped()))
+    end
+end
+
 -- H07: play moves with two taps, and the marks that go with them.
 local function h07(t, plugin)
     local Rules = require("chess/rules")
@@ -566,12 +575,8 @@ local function h07(t, plugin)
     local function has(name, mark)
         return info(name).marks[mark] == true
     end
-    -- Taps squares by name, one after another, forgetting the repaints so far.
     local function tap(...)
-        t.repaints = {}
-        for _, name in ipairs({ ... }) do
-            t:tapRect(layout:squareRect(Rules.squareFromName(name), session:flipped()))
-        end
+        tap_squares(t, plugin, ...)
     end
     -- Checks that each of n taps repainted the window once, without a flash.
     local function repainted(name, n)
@@ -764,7 +769,41 @@ local function h05(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07 }
+-- The reset button: back to the start position, dropping the moves and the selection.
+local function reset(t, plugin)
+    local Rules = require("chess/rules")
+    local layout, session = plugin.layout, plugin.session
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
+    local function tap_reset()
+        t.repaints = {}
+        t:tapRect(layout:buttonRect("reset"))
+    end
+    go_to_page(steps, plugin)
+    step(function()
+        t:watchRepaints()
+        plugin:toggle()
+    end)
+    step(function()
+        tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1")
+        t:shot("played")
+        tap_reset()
+        t:shot("reset")
+        local saved = session.game:serialize()
+        t:check("reset goes back to the start position, with no moves",
+            saved.start == Rules.START_FEN and #saved.moves == 0, #saved.moves)
+        t:check("and drops the selection",
+            next(session:view().squares[Rules.squareFromName("g1")].marks) == nil)
+        t:repaintedOnce("reset repaints the window once, without a flash", layout:rects().window,
+            "ui")
+        tap_reset()
+        t:check("at the start position reset repaints nothing", #t.repaints == 0, #t.repaints)
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
