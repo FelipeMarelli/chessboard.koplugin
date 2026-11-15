@@ -20,7 +20,6 @@ Theme.SIZES = {
 }
 
 Theme.ICON = 5          -- icon side, mm
-Theme.LABEL_SHARE = 0.24 -- coordinate labels, as a share of the square
 
 local function gray(value)
     return Blitbuffer.Color8(value)
@@ -29,11 +28,19 @@ end
 Theme.GRAY = {
     frame = gray(0x00),
     row = gray(0xFF),
-    separator = gray(0x88),
     light_square = gray(0xEE),
     dark_square = gray(0xAA),
-    label_on_light = gray(0x66),
-    label_on_dark = gray(0xFF),
+}
+
+-- Coordinate labels. share: text height as a share of the square. file_corner and rank_corner:
+-- "top_left", "top_right", "bottom_left" or "bottom_right" of their square.
+Theme.LABEL = {
+    share = 0.24,
+    bold = false,
+    on_light = gray(0x66),
+    on_dark = gray(0xFF),
+    file_corner = "bottom_right",
+    rank_corner = "top_left",
 }
 
 function Theme.pxPerMm()
