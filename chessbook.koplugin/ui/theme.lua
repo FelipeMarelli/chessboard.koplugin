@@ -17,10 +17,14 @@ Theme.SIZES = {
     border = 0.3,   -- window frame
     margin = 2,     -- gap to the screen edge
     min_square = 4,
+    size_step = 1,  -- how much the side of a square changes with each tap on smaller or bigger
     gutter = 2.5,   -- strips for the coordinates outside the board; 0 puts them on the squares
 }
 
 Theme.ICON = 5          -- icon side, mm
+
+-- A disabled button is drawn over with white by this share, so that its icon looks lighter.
+Theme.DISABLED = 0.6
 
 -- The border that marks a button held down, in mm: as thick as the strokes of the icons, inside
 -- the button by inset, with rounded corners like theirs.

@@ -37,18 +37,30 @@ function Window:toggle()
     self:setOpen(not self.layout:isOpen())
 end
 
+-- Grows (steps > 0) or shrinks the board. The window is repainted where it was and where it is,
+-- with a flash when it grows over the page.
+local function resize(self, steps)
+    local before = self.layout:rects()
+    if self.layout:resize(steps) then
+        self:refresh(self.layout:dirtyRect(before), steps > 0)
+    end
+end
+
 local ACTIONS = {
     close = function(self) self:setOpen(false) end,
     flip = function(self)
         self.session:flip()
         self:refresh(self.layout:dirtyRect())
     end,
-    size = function(self)
-        local before = self.layout:rects()
-        self.layout:toggleSmall()
-        self:refresh(self.layout:dirtyRect(before), not self.layout:isSmall())
-    end,
+    smaller = function(self) resize(self, -1) end,
+    bigger = function(self) resize(self, 1) end,
 }
+
+-- Shows another row of buttons in place of the one shown; only the row is repainted.
+local function show_row(self, name)
+    self.layout:showRow(name)
+    self:refresh(self.layout:rects().buttons)
+end
 
 -- A tap on a square of the board. Until the promotion picker comes (H08), a pawn that reaches
 -- the last rank becomes a queen.
@@ -81,6 +93,8 @@ function Window:onTap(ges)
     end
     if hit.square then
         self:run("square", tap_square, hit.square)
+    elseif hit.opens then
+        self:run(hit.button, show_row, hit.opens)
     elseif ACTIONS[hit.button] then
         self:run(hit.button, ACTIONS[hit.button])
     end
@@ -166,10 +180,15 @@ local function paint_pressed(bb, rect)
         G_reader_settings:nilOrTrue("anti_alias_ui"))
 end
 
--- One button of the row, whole: its background, its icon and, if it is held down, its mark.
-local function paint_button(bb, id, rect, pressed)
+-- One button of the row, whole: its background, its icon, lighter if it is disabled, and, if it
+-- is held down, its mark.
+local function paint_button(bb, button, pressed)
+    local rect = button.rect
     bb:paintRect(rect.x, rect.y, rect.w, rect.h, Theme.GRAY.row)
-    paint_icon(bb, id, rect)
+    paint_icon(bb, button.id, rect)
+    if not button.enabled then
+        bb:lightenRect(rect.x, rect.y, rect.w, rect.h, Theme.DISABLED)
+    end
     if pressed then
         paint_pressed(bb, rect)
     end
@@ -179,9 +198,9 @@ end
 -- the way KOReader's own buttons show a press (Button:_doFeedbackHighlight). A whole repaint would
 -- make the mark wait for the page. The button lies on the window, so nothing of the page is in it.
 function Window:repaintButton(id)
-    local rect = self.layout:buttonRect(id)
-    paint_button(Screen.bb, id, rect, self.layout:pressedButton() == id)
-    UIManager:setDirty(nil, "fast", Geom:new(rect))
+    local button = self.layout:button(id)
+    paint_button(Screen.bb, button, self.layout:pressedButton() == id)
+    UIManager:setDirty(nil, "fast", Geom:new(button.rect))
     UIManager:forceRePaint()
 end
 
@@ -207,7 +226,7 @@ function Window:paintTo(bb)
     paint_frame(bb, rects)
     local pressed = self.layout:pressedButton()
     for _, button in ipairs(self.layout:buttons()) do
-        paint_button(bb, button.id, button.rect, button.id == pressed)
+        paint_button(bb, button, button.id == pressed)
     end
     Board.paint(bb, self.layout, self.session:view())
 end
