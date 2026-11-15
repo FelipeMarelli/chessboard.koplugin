@@ -1,4 +1,5 @@
--- Paints the board: squares, coordinate labels and pieces, from the session view.
+-- Paints the board: squares, marks, coordinate labels, pieces and whose turn it is, from the
+-- session view.
 local Font = require("ui/font")
 local Rules = require("chess/rules")
 local Screen = require("device").screen
@@ -7,18 +8,84 @@ local Theme = require("ui/theme")
 
 local Board = {}
 
+local function square_color(info)
+    local gray, mark = Theme.GRAY, Theme.MARK
+    if info.marks.last_move then
+        return info.light and mark.last_move_on_light or mark.last_move_on_dark
+    end
+    return info.light and gray.light_square or gray.dark_square
+end
+
 local function paint_squares(bb, layout, view)
-    local gray = Theme.GRAY
     for sq = 1, 64 do
         local r = layout:squareRect(sq, view.flipped)
-        local color = view.squares[sq].light and gray.light_square or gray.dark_square
-        bb:paintRect(r.x, r.y, r.w, r.h, color)
+        bb:paintRect(r.x, r.y, r.w, r.h, square_color(view.squares[sq]))
+    end
+end
+
+-- A part of a length in pixels, at least one.
+local function share(length, part)
+    return math.max(1, math.floor(length * part + 0.5))
+end
+
+-- A disc centred in a rect, or a ring when a line width is given.
+local function paint_disc(bb, r, radius, color, width)
+    bb:paintCircle(r.x + math.floor(r.w / 2), r.y + math.floor(r.h / 2), radius, color, width)
+end
+
+-- A right triangle in each corner of a square, legs along its sides.
+local function paint_corners(bb, r, leg, color)
+    for i = 0, leg - 1 do
+        local w = leg - i
+        local top, bottom = r.y + i, r.y + r.h - 1 - i
+        bb:paintRect(r.x, top, w, 1, color)
+        bb:paintRect(r.x + r.w - w, top, w, 1, color)
+        bb:paintRect(r.x, bottom, w, 1, color)
+        bb:paintRect(r.x + r.w - w, bottom, w, 1, color)
+    end
+end
+
+-- How each mark but last_move is drawn on a square of side s, in the order they are drawn.
+local MARKS = {
+    { name = "check", paint = function(bb, r, s, m)
+        paint_disc(bb, r, share(s, m.check_radius), m.check)
+    end },
+    { name = "selected", paint = function(bb, r, s, m)
+        bb:paintInnerBorder(r.x, r.y, r.w, r.h, share(s, m.selected_width), m.selected)
+    end },
+    { name = "target", paint = function(bb, r, s, m)
+        paint_disc(bb, r, share(s, m.target_radius), m.target)
+    end },
+    { name = "capture", paint = function(bb, r, s, m)
+        paint_corners(bb, r, share(s, m.capture_leg), m.capture)
+    end },
+}
+
+local function paint_marks(bb, layout, view)
+    local s = layout:squareSize()
+    for sq = 1, 64 do
+        local marks = view.squares[sq].marks
+        for _, mark in ipairs(MARKS) do
+            if marks[mark.name] then
+                mark.paint(bb, layout:squareRect(sq, view.flipped), s, Theme.MARK)
+            end
+        end
     end
 end
 
 -- Font:getFace scales the size it gets with the screen; this asks for a size in pixels.
 local function face_of_px(size_px)
     return Font:getFace("cfont", size_px * 100 / Screen:scaleBySize(100))
+end
+
+-- A text of a height in pixels. The caller frees it.
+local function text_of(text, size_px, color, bold)
+    return TextWidget:new{
+        text = text,
+        face = face_of_px(math.max(6, size_px)),
+        bold = bold,
+        fgcolor = color,
+    }
 end
 
 -- Where a text of a size goes in a corner of a square.
@@ -38,19 +105,14 @@ local function paint_labels(bb, layout, view)
     local style = Theme.LABEL
     local gutters = layout:rects().files ~= nil
     local s = gutters and layout:rects().files.h or layout:squareSize()
-    local share = gutters and style.gutter_share or style.share
-    local face = face_of_px(math.max(6, math.floor(s * share)))
+    local size_px = math.floor(s * (gutters and style.gutter_share or style.share))
     local pad = math.max(1, math.floor(s / 20))
     for _, label in ipairs(layout:labels(view.flipped)) do
         local name = Rules.squareName(label.square)
         local is_file = label.kind == "file"
         local color = view.squares[label.square].light and style.on_light or style.on_dark
-        local text = TextWidget:new{
-            text = is_file and name:sub(1, 1) or name:sub(2, 2),
-            face = face,
-            bold = style.bold,
-            fgcolor = gutters and style.on_gutter or color,
-        }
+        local text = text_of(is_file and name:sub(1, 1) or name:sub(2, 2), size_px,
+            gutters and style.on_gutter or color, style.bold)
         if gutters then
             text:paintTo(bb, centred(label.rect, text:getSize()))
         else
@@ -73,10 +135,35 @@ local function paint_pieces(bb, layout, view)
     end
 end
 
+-- The symbol shown instead of the turn when the game is over.
+local ENDINGS = { checkmate = "#", stalemate = "½" }
+
+-- In the corner where the coordinate strips meet: a ring when White moves, a disc when Black
+-- does, or the symbol of how the game ended.
+local function paint_status(bb, layout, view)
+    local r = layout:rects().status
+    if not r then
+        return
+    end
+    local style = Theme.STATUS
+    local ending = ENDINGS[view.status]
+    if ending then
+        local text = text_of(ending, math.floor(r.h * style.text_share), style.color, true)
+        text:paintTo(bb, centred(r, text:getSize()))
+        text:free()
+    else
+        local radius = share(r.h, style.radius)
+        paint_disc(bb, r, radius, style.color,
+            view.turn == "w" and share(r.h, style.ring_width) or radius)
+    end
+end
+
 function Board.paint(bb, layout, view)
     paint_squares(bb, layout, view)
+    paint_marks(bb, layout, view)
     paint_labels(bb, layout, view)
     paint_pieces(bb, layout, view)
+    paint_status(bb, layout, view)
 end
 
 return Board

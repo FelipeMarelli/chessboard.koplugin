@@ -38,6 +38,32 @@ Theme.GRAY = {
     gutter = gray(0xFF),
 }
 
+-- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.
+-- last_move tints the whole square, a shade darker than its own gray; the others differ in shape:
+-- a frame for the selected piece, a dot for a move to an empty square, corners for a capture and
+-- a disc behind a king in check.
+Theme.MARK = {
+    last_move_on_light = gray(0xCC),
+    last_move_on_dark = gray(0x88),
+    selected = gray(0x33),
+    selected_width = 0.08,
+    target = gray(0x55),
+    target_radius = 0.15,
+    capture = gray(0x55),
+    capture_leg = 0.28,
+    check = gray(0x55),
+    check_radius = 0.48,
+}
+
+-- Whose turn it is, in the corner where the coordinate strips meet: a ring when White moves,
+-- a disc when Black does, and a symbol when the game is over. Sizes are shares of the corner.
+Theme.STATUS = {
+    color = gray(0x00),
+    radius = 0.3,
+    ring_width = 0.12,
+    text_share = 0.8,
+}
+
 -- Coordinate labels. share: text height as a share of the square; gutter_share: as a share of
 -- the gutter, when there is one. file_corner and rank_corner: "top_left", "top_right",
 -- "bottom_left" or "bottom_right" of their square.
