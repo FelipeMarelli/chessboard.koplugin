@@ -35,8 +35,8 @@ end
 
 -- A point of the button row that is on no button: just right of the move button.
 local function between_buttons(layout)
-    local move = layout:buttonRect("move")
-    return { x = move.x + move.w + 2, y = move.y + move.h / 2 }
+    local last_left = layout:buttonRect("size")
+    return { x = last_left.x + last_left.w + 2, y = last_left.y + last_left.h / 2 }
 end
 
 local function point(p)

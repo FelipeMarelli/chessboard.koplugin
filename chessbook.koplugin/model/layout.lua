@@ -12,7 +12,7 @@ local FILES = 8
 -- "size" is temporary, to try the minimum size on the Kindle until the window can be resized (H05).
 -- "move" is the one to drag the window by.
 local MOVE_BUTTON = "move"
-local LEFT_BUTTONS = { "flip", "size", MOVE_BUTTON }
+local LEFT_BUTTONS = { MOVE_BUTTON, "flip", "size" }
 local RIGHT_BUTTONS = { "close" }
 
 local function px(mm, px_per_mm)
