@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (14 de noviembre de 2026): hay una prueba de concepto funcionando en el emulador de KOReader y el módulo de reglas del ajedrez (`chess/rules.lua`, historia H01) con sus pruebas. Las reglas todavía no se usan en la interfaz. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
+Estado (14 de noviembre de 2026): el plugin arranca de cero. Por ahora tiene el módulo de reglas del ajedrez (`chess/rules.lua`, historia H01) con sus pruebas, y todavía no muestra nada en pantalla. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -74,9 +74,11 @@ Tenía que responder dos preguntas de viabilidad:
 
 Las dos dan **sí**, en PDF, DjVu y EPUB.
 
-### Qué hace el plugin
+El código ya no está en el plugin: se guardó en `docs/poc/` como base del nivel L1 y como ejemplo de API de KOReader. Cómo volver a correrlo está en `docs/poc/README.md`.
 
-`chessbook.koplugin` agrega la entrada "Chess board panel" al menú del lector (sección de herramientas). Al activarla:
+### Qué hacía el plugin
+
+`chessbook.koplugin` agregaba la entrada "Chess board panel" al menú del lector (sección de herramientas). Al activarla:
 
 - Dibuja en la mitad inferior de la pantalla un tablero 8×8 vacío, un botón "Capturar", un botón "X" y una zona de estado.
 - Tocar una casilla la marca y muestra su nombre.
@@ -128,6 +130,8 @@ chessbook.koplugin/     el plugin (_meta.lua, main.lua)
   chess/rules.lua       reglas: posición, jugadas legales, FEN, notación
 spec/                   pruebas de la lógica pura (run.lua las corre todas)
   perft/                posiciones con conteos de jugadas conocidos
+docs/                   historias, arquitectura
+  poc/                  prueba de concepto de panel y captura (fuera del plugin)
 run-emu.sh              lanza el emulador con el plugin
 emu-data/               datos del emulador (configuración, estado, capturas)
   run_pdf/ run_djvu/ run_nunn/ run_kan/ run_kasp/   resultados de la prueba
@@ -160,33 +164,9 @@ A mano:
 ./run-emu.sh "The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
 ```
 
-Abrir el menú superior del lector, ir a la sección de herramientas y activar "Chess board panel".
+Por ahora el plugin se carga pero no muestra nada: la ventana con el tablero llega con la historia H03, y con ella la prueba automática de interfaz (`CHESSBOOK_SELFTEST=1`).
 
 El tamaño de la ventana se cambia con `EMULATE_READER_W`, `EMULATE_READER_H` y `EMULATE_READER_DPI` (por defecto 632, 840 y 150).
-
-Prueba automática, sin tocar la ventana:
-
-```sh
-CHESSBOOK_SELFTEST=1 CHESSBOOK_PAGE=30 CHESSBOOK_TAPS="0.75,0.72" \
-  ./run-emu.sh "$PWD/The Petroff (Gambit Chess) (Lasha Janjgava) (z-library.sk, 1lib.sk, z-lib.sk).pdf"
-```
-
-- `CHESSBOOK_PAGE`: página a la que ir.
-- `CHESSBOOK_TAPS`: toques de captura, como fracciones de pantalla `x,y` separadas por `;`.
-
-La prueba abre el panel, toca la casilla e4, comprueba que un toque fuera del panel pasa de página, hace las capturas pedidas y cierra. Deja capturas de pantalla (`shot_NN_*.png`), los recortes y `log.txt` en `emu-data/chessbook/`. La ruta del libro tiene que ser absoluta.
-
-Toques usados en la prueba:
-
-| Libro | Página | Toques |
-|---|---|---|
-| Petroff (PDF) | 30 | `0.75,0.72` (diagrama) |
-| Closed Sicilian (DjVu) | 40 | `0.27,0.87` (diagrama) |
-| Nunn (EPUB) | 100 | `0.5,0.5` (diagrama); `0.14,0.745` y `0.3,0.83` (jugadas) |
-| Kan (EPUB) | 40 | `0.5,0.25` (diagrama); `0.5,0.6` y `0.4,0.8` (texto y jugada) |
-| Kasparov (EPUB) | 80 | `0.5,0.25` (texto); `0.5,0.5` (diagrama) |
-
-En los EPUB el número de página depende del tamaño de pantalla y de la fuente.
 
 ## Publicación en Storefront
 
