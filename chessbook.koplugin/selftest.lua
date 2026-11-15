@@ -92,6 +92,21 @@ local function same_rect(a, b)
     return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h
 end
 
+-- Where the reader is. For EPUB, the position in the text. For PDF and DjVu, the top page and
+-- the part of it on screen: in continuous scroll mode (the emulator uses it in landscape) a
+-- forward tap scrolls the view, and the page number may stay the same.
+local function reading_position(ui)
+    if ui.rolling then
+        return "pos " .. tostring(ui.document:getCurrentPos())
+    end
+    local view = ui.view
+    local state = view.page_scroll and view.page_states[1]
+    if state then
+        return string.format("page %d y %d", state.page, state.visible_area.y)
+    end
+    return string.format("page %d y %d", ui:getCurrentPage(), view.visible_area.y)
+end
+
 -- H03: open, flip, tap inside and outside, close.
 local function h03(t, plugin)
     local layout, session = plugin.layout, plugin.session
@@ -126,19 +141,21 @@ local function h03(t, plugin)
     step(function()
         t:check("flip again turns it back", not session:flipped())
         t.page_before = plugin.ui:getCurrentPage()
+        t.position_before = reading_position(plugin.ui)
         t:tapRect(layout:squareRect(29, false))
         t:tapRect(layout:rects().buttons) -- between the buttons
     end)
     step(function()
-        t:check("taps inside do not turn the page",
-            plugin.ui:getCurrentPage() == t.page_before, plugin.ui:getCurrentPage())
+        local now = reading_position(plugin.ui)
+        t:check("taps inside do not move the reading", now == t.position_before, now)
         -- Right of the page, below the top band that opens the reader menu.
         t:tap(Screen:getWidth() * 0.9, Screen:getHeight() * 0.25)
     end)
     step(function()
-        local now = plugin.ui:getCurrentPage()
-        t:check("a tap outside turns the page", now ~= t.page_before,
-            t.page_before .. " -> " .. now)
+        t:shot("outside")
+        local now = reading_position(plugin.ui)
+        t:check("a tap outside moves the reading forward", now ~= t.position_before,
+            t.position_before .. " -> " .. now)
         plugin.ui:handleEvent(Event:new("GotoPage", t.page_before))
     end)
     step(function()
