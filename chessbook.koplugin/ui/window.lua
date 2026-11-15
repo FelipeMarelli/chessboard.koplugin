@@ -64,6 +64,50 @@ function Window:onTap(ges)
     return true
 end
 
+-- Drags. KOReader splits one drag into several gestures: "hold" when the finger rests before
+-- moving, then "hold_pan" and "hold_release"; else "pan" while it moves, and "swipe" (or
+-- "multiswipe", if it turned) or "pan_release" when it is lifted, depending on how quick it was.
+-- The window keeps every gesture of a drag that started on it, so that none reaches the reader.
+
+-- Where the finger went down, for the gestures that can start a drag.
+local START = {
+    hold = function(ges) return ges.pos end,
+    pan = function(ges) return ges.start_pos end,
+    swipe = function(ges) return ges.pos end,
+    multiswipe = function(ges) return ges.pos end,
+}
+
+-- Where the finger is lifted, for the gestures that end a drag.
+local LIFT = {
+    swipe = function(ges) return ges.end_pos end,
+    multiswipe = function(ges) return ges.end_pos end,
+    pan_release = function(ges) return ges.pos end,
+    hold_release = function(ges) return ges.pos end,
+}
+
+-- True when the gesture belongs to a drag of the window.
+function Window:onDrag(ges)
+    local layout = self.layout
+    local start = START[ges.ges] and START[ges.ges](ges)
+    local mine = start and layout:startDrag(start.x, start.y, self.session:flipped())
+        or (not start and layout:isDragging())
+    if not mine then
+        return false
+    end
+    local lift = LIFT[ges.ges] and LIFT[ges.ges](ges)
+    if lift then
+        self:drop(lift)
+    end
+    return true
+end
+
+function Window:drop(pos)
+    local before = self.layout:rects()
+    if self.layout:endDrag(pos.x, pos.y) then
+        self:refresh(self.layout:dirtyRect(before), true)
+    end
+end
+
 local function paint_icon(bb, name, rect)
     local icon = Theme.icon(name)
     local w, h = icon:getWidth(), icon:getHeight()
