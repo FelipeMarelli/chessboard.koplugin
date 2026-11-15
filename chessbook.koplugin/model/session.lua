@@ -19,13 +19,18 @@ function Session:flipped()
     return self.is_flipped
 end
 
--- What there is to draw: each square with its piece and marks, whose turn it is, how the game
--- stands, its last move, and which buttons can be used.
+-- a1 is dark.
+local function is_light(sq)
+    return (Rules.fileOf(sq) + Rules.rankOf(sq)) % 2 == 1
+end
+
+-- What there is to draw: each square with its piece, its marks and whether it is a light one,
+-- whose turn it is, how the game stands, its last move, and which buttons can be used.
 function Session:view()
     local position = self.game:position()
     local squares = {}
     for sq = 1, 64 do
-        squares[sq] = { piece = Rules.pieceAt(position, sq), marks = {} }
+        squares[sq] = { piece = Rules.pieceAt(position, sq), marks = {}, light = is_light(sq) }
     end
     return {
         squares = squares,

@@ -9,9 +9,12 @@ local sq = Rules.squareFromName
 
 test("C4: the view of a new game is the start position, square by square", function()
     local view = Session.new(assert(Game.new())):view()
-    eq(view.squares[sq("e1")], { piece = "K", marks = {} })
-    eq(view.squares[sq("d8")], { piece = "q", marks = {} })
-    eq(view.squares[sq("e4")], { marks = {} })
+    eq(view.squares[sq("e1")], { piece = "K", marks = {}, light = false })
+    eq(view.squares[sq("d1")], { piece = "Q", marks = {}, light = true })
+    eq(view.squares[sq("d8")], { piece = "q", marks = {}, light = false })
+    eq(view.squares[sq("e4")], { marks = {}, light = true })
+    eq(view.squares[sq("a1")].light, false); eq(view.squares[sq("h8")].light, false)
+    eq(view.squares[sq("h1")].light, true); eq(view.squares[sq("e5")].light, false)
     local pieces = 0
     for square = 1, 64 do
         assert(view.squares[square], "missing square " .. square)

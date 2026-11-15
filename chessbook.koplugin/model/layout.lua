@@ -136,6 +136,19 @@ function Layout:squareRect(sq, flipped)
     return { x = board.x + col * s, y = board.y + row * s, w = s, h = s }
 end
 
+-- The squares that carry the coordinate labels: the bottom row shows its file and the left column
+-- its rank, whichever way round the board is.
+function Layout.labelSquares(flipped)
+    local list = {}
+    for i = 1, FILES do
+        local bottom = flipped and (FILES * FILES + 1 - i) or i
+        local left = flipped and (FILES * FILES - (i - 1) * FILES) or ((i - 1) * FILES + 1)
+        list[#list + 1] = { square = bottom, kind = "file" }
+        list[#list + 1] = { square = left, kind = "rank" }
+    end
+    return list
+end
+
 local function square_at(board, square, x, y, flipped)
     local col, row = math.floor((x - board.x) / square), math.floor((y - board.y) / square)
     if flipped then

@@ -138,6 +138,37 @@ test("C9: a1 is at the bottom left, and at the top right when the board is flipp
     eq(layout:squareRect(sq("e4"), true), layout:squareRect(sq("d5"), false))
 end)
 
+-- 7. Coordinate labels -------------------------------------------------------------------------
+
+local function labels(flipped)
+    local names = { file = {}, rank = {} }
+    for _, label in ipairs(Layout.labelSquares(flipped)) do
+        names[label.kind][#names[label.kind] + 1] = Rules.squareName(label.square)
+    end
+    table.sort(names.file); table.sort(names.rank)
+    return names
+end
+
+test("C7: files go on the bottom row and ranks on the left column, and follow the flip",
+    function()
+        eq(labels(false), { file = { "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1" },
+            rank = { "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8" } })
+        eq(labels(true), { file = { "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8" },
+            rank = { "h1", "h2", "h3", "h4", "h5", "h6", "h7", "h8" } })
+        local layout = new(632, 840)
+        local board = layout:rects().board
+        for _, flipped in ipairs({ false, true }) do
+            for _, label in ipairs(Layout.labelSquares(flipped)) do
+                local rect = layout:squareRect(label.square, flipped)
+                if label.kind == "file" then
+                    eq(rect.y + rect.h, board.y + board.h)
+                else
+                    eq(rect.x, board.x)
+                end
+            end
+        end
+    end)
+
 -- 10. Taps -------------------------------------------------------------------------------------
 
 test("C10: a tap on a square gives that square, with the board either way round", function()
