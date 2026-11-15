@@ -56,14 +56,41 @@ function Layout:defaultSquare()
     return math.max(p.min_square, math.min(wanted, fits))
 end
 
--- Places the window for a screen size: centred, at the bottom. Later stories keep the place the
--- reader chose; for now there is only the default one.
+-- Sets the screen size. The same size keeps the window where it is; a new one (the screen turned)
+-- puts it back in the default place, until each orientation keeps its own (H14).
 function Layout:setScreen(screen_w, screen_h)
+    local same = screen_w == self.screen_w and screen_h == self.screen_h
     self.screen_w, self.screen_h = screen_w, screen_h
     self.square = self.small and self.px.min_square or self:defaultSquare()
+    if same then
+        self:moveTo(self.x, self.y)
+    else
+        self:placeDefault()
+    end
+end
+
+-- Centred, at the bottom.
+function Layout:placeDefault()
     local w, h = self:windowSize()
-    self.x = math.floor((screen_w - w) / 2)
-    self.y = math.max(0, screen_h - self.px.margin - h)
+    self.x = math.floor((self.screen_w - w) / 2)
+    self.y = math.max(0, self.screen_h - self.px.margin - h)
+end
+
+-- One coordinate of the window, kept on the screen and off its edge by the margin when there is
+-- room for it.
+local function fit(pos, size, screen, margin)
+    if size + 2 * margin > screen then
+        margin = 0
+    end
+    return clamp(math.floor(pos + 0.5), margin, math.max(margin, screen - margin - size))
+end
+
+-- Puts the top left corner of the window at x, y, or at the nearest place that keeps it on the
+-- screen.
+function Layout:moveTo(x, y)
+    local w, h = self:windowSize()
+    self.x = fit(x, w, self.screen_w, self.px.margin)
+    self.y = fit(y, h, self.screen_h, self.px.margin)
 end
 
 function Layout:windowSize()
@@ -85,6 +112,7 @@ end
 function Layout:toggleSmall()
     self.small = not self.small
     self:setScreen(self.screen_w, self.screen_h)
+    self:placeDefault()
 end
 
 function Layout:isSmall()

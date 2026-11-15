@@ -263,6 +263,60 @@ test("a new screen size places the window again, inside the screen", function()
     eq(layout:isOpen(), true)
 end)
 
+test("the same screen size keeps the window where it is", function()
+    local layout = new(632, 840)
+    layout:moveTo(20, 30)
+    layout:setScreen(632, 840)
+    eq(layout:rects().window.x, 20); eq(layout:rects().window.y, 30)
+end)
+
+-- H04. Moving the window -----------------------------------------------------------------------
+
+local MARGIN = 12 -- 2 mm at 150 dpi
+
+test("H04: moveTo puts the top left corner of the window at a point", function()
+    local layout = new(632, 840)
+    local before = layout:rects()
+    layout:moveTo(40, 50)
+    local now = layout:rects()
+    eq(now.window, { x = 40, y = 50, w = before.window.w, h = before.window.h })
+    eq(now.board.x - now.window.x, before.board.x - before.window.x)
+    eq(now.board.y - now.window.y, before.board.y - before.window.y)
+    eq(layout:buttonRect("close").y, now.buttons.y)
+end)
+
+test("H04 C3: moved past an edge, the window rests against that edge, at the margin", function()
+    for _, size in ipairs({ { 632, 840 }, { 840, 632 } }) do
+        local w, h = size[1], size[2]
+        local layout = new(w, h)
+        local win = layout:rects().window
+        layout:moveTo(-500, -500)
+        eq(layout:rects().window.x, MARGIN); eq(layout:rects().window.y, MARGIN)
+        layout:moveTo(5000, 5000)
+        eq(layout:rects().window.x, w - MARGIN - win.w)
+        eq(layout:rects().window.y, h - MARGIN - win.h)
+        layout:moveTo(-1, 100)
+        eq(layout:rects().window.x, MARGIN); eq(layout:rects().window.y, 100)
+        assert(contains({ x = 0, y = 0, w = w, h = h }, layout:rects().window))
+    end
+end)
+
+test("H04 C3: when the margins do not fit, the window rests against the screen edge", function()
+    local layout = new(300, 220)
+    local win = layout:rects().window
+    assert(win.h + 2 * MARGIN > 220, "the window should not fit with margins here")
+    layout:moveTo(5000, 5000)
+    eq(layout:rects().window.y, math.max(0, 220 - win.h))
+    layout:moveTo(-5000, -5000)
+    eq(layout:rects().window.y, 0)
+end)
+
+test("H04: moveTo keeps whole pixels", function()
+    local layout = new(632, 840)
+    layout:moveTo(40.4, 50.6)
+    eq(layout:rects().window.x, 40); eq(layout:rects().window.y, 51)
+end)
+
 -- Coordinates outside the board ---------------------------------------------------------------
 
 local function with_gutter(w, h)
