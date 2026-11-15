@@ -22,6 +22,10 @@ Theme.SIZES = {
 
 Theme.ICON = 5          -- icon side, mm
 
+-- The border that marks a button held down, in mm: as thick as the strokes of the icons, inside
+-- the button by inset, with rounded corners like theirs.
+Theme.PRESSED = { width = 0.4, inset = 0.5, radius = 1.2 }
+
 local function gray(value)
     return Blitbuffer.Color8(value)
 end

@@ -93,22 +93,31 @@ function Window:ownsDrag(ges)
     return self.layout:isDragging()
 end
 
--- True when the gesture belongs to a drag of the window.
+-- True when the gesture belongs to a drag of the window. The button held down to drag it is
+-- marked once, when the drag starts, and not repainted again until the finger is lifted.
 function Window:onDrag(ges)
+    local marked = self.layout:pressedButton()
     if not self:ownsDrag(ges) then
         return false
     end
     local lift = point_of(ges, LIFT_FIELD)
+    local pressed = self.layout:pressedButton()
     if lift then
-        self:drop(lift)
+        self:drop(lift, marked)
+    elseif pressed ~= marked then
+        self:refresh(self.layout:buttonRect(pressed or marked))
     end
     return true
 end
 
-function Window:drop(pos)
+-- Ends the drag with the finger lifted at pos. A window that moved is repainted whole, in the old
+-- place and the new one; one that did not only loses the mark of the button it was held by.
+function Window:drop(pos, marked)
     local before = self.layout:rects()
     if self.layout:endDrag(pos.x, pos.y) then
         self:refresh(self.layout:dirtyRect(before), true)
+    elseif marked then
+        self:refresh(self.layout:buttonRect(marked))
     end
 end
 
@@ -117,6 +126,15 @@ local function paint_icon(bb, name, rect)
     local w, h = icon:getWidth(), icon:getHeight()
     bb:alphablitFrom(icon, rect.x + math.floor((rect.w - w) / 2),
         rect.y + math.floor((rect.h - h) / 2), 0, 0, w, h)
+end
+
+-- A rounded border inside a button, to show that it is held down.
+local function paint_pressed(bb, rect)
+    local p = Theme.PRESSED
+    local inset = Theme.px(p.inset)
+    bb:paintBorder(rect.x + inset, rect.y + inset, rect.w - 2 * inset, rect.h - 2 * inset,
+        Theme.px(p.width), Theme.GRAY.frame, Theme.px(p.radius),
+        G_reader_settings:nilOrTrue("anti_alias_ui"))
 end
 
 local function paint_frame(bb, rects)
@@ -139,8 +157,12 @@ function Window:paintTo(bb)
     end
     local rects = self.layout:rects()
     paint_frame(bb, rects)
+    local pressed = self.layout:pressedButton()
     for _, button in ipairs(self.layout:buttons()) do
         paint_icon(bb, button.id, button.rect)
+        if button.id == pressed then
+            paint_pressed(bb, button.rect)
+        end
     end
     Board.paint(bb, self.layout, self.session:view())
 end
