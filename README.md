@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (15 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). En el tablero se juega con dos toques, pieza y destino, solo jugadas legales, con marcas al estilo de lichess y un indicador de turno, de mate y de ahogado (H07); hasta H08, un peón que corona se convierte en dama. Todavía no se puede mover la ventana. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
+Estado (15 de noviembre de 2026): el plugin tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01), la línea de jugadas con su navegación (`chess/game.lua`, H02) y una ventana flotante con el tablero en la posición inicial, que se abre desde el menú del lector y se puede girar y cerrar (H03). La ventana se mueve arrastrando su botón de mover, el primero de la fila de abajo; salta al lugar nuevo al soltar (H04). En el tablero se juega con dos toques, pieza y destino, solo jugadas legales, con marcas al estilo de lichess y un indicador de turno, de mate y de ahogado (H07); hasta H08, un peón que corona se convierte en dama. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. H03, H04 y H07 se probaron también en una Kindle Paperwhite. No hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -186,9 +186,8 @@ Abre el libro en la página `CHESSBOOK_PAGE`, inyecta toques, comprueba el resul
 `CHESSBOOK_SCENARIO` elige qué se prueba:
 
 - `h03` (por defecto): abrir, girar, tocar dentro y fuera de la ventana, abrir el menú del lector, tamaño mínimo, cerrar.
+- `h04`: mover la ventana arrastrando el botón de mover, de las formas en que KOReader reporta un arrastre; la marca del botón; arrastres desde otros lugares que no la mueven; soltar fuera de la pantalla; pasar de página fuera de la ventana.
 - `h07`: jugar con dos toques (también con el tablero girado), captura al paso, captura, enroque, mate, ahogado, jaque y coronación.
-- `labels`: las variantes de coordenadas que se compararon para H03, en `labels_<v|h>.png`.
-- `sizes`: la ventana con varios tamaños mínimos de casilla sobre la misma página, en `sizes_<v|h>.png`.
 
 Las corridas comparten `emu-data/`: hay que correrlas de a una.
 
