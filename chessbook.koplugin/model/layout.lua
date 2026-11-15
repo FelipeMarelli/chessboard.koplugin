@@ -88,12 +88,18 @@ local function fit(pos, size, screen, margin)
     return clamp(math.floor(pos + 0.5), margin, math.max(margin, screen - margin - size))
 end
 
--- Puts the top left corner of the window at x, y, or at the nearest place that keeps it on the
+-- The window rect with its top left corner at x, y, or at the nearest place that keeps it on the
 -- screen.
-function Layout:moveTo(x, y)
+function Layout:fittedRect(x, y)
     local w, h = self:windowSize()
-    self.x = fit(x, w, self.screen_w, self.px.margin)
-    self.y = fit(y, h, self.screen_h, self.px.margin)
+    local margin = self.px.margin
+    return { x = fit(x, w, self.screen_w, margin), y = fit(y, h, self.screen_h, margin),
+        w = w, h = h }
+end
+
+function Layout:moveTo(x, y)
+    local rect = self:fittedRect(x, y)
+    self.x, self.y = rect.x, rect.y
 end
 
 function Layout:windowSize()
@@ -275,9 +281,7 @@ function Layout:dragRect(x, y)
     if not (d and d.moves) then
         return nil
     end
-    local w, h = self:windowSize()
-    return { x = fit(self.x + x - d.x, w, self.screen_w, self.px.margin),
-        y = fit(self.y + y - d.y, h, self.screen_h, self.px.margin), w = w, h = h }
+    return self:fittedRect(self.x + x - d.x, self.y + y - d.y)
 end
 
 -- Ends the drag with the finger lifted at x, y, and leaves the window there. True when it moved.
@@ -287,7 +291,7 @@ function Layout:endDrag(x, y)
     if not target or (target.x == self.x and target.y == self.y) then
         return false
     end
-    self.x, self.y = target.x, target.y
+    self:moveTo(target.x, target.y)
     return true
 end
 
