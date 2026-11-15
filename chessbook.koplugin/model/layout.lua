@@ -274,6 +274,13 @@ function Layout:isDragging()
     return self.drag ~= nil
 end
 
+-- The id of the button held down to drag the window, so that it can be marked while the finger is
+-- on it; nil when no drag that moves the window is going on.
+function Layout:pressedButton()
+    local d = self.drag
+    return d and d.moves and MOVE_BUTTON or nil
+end
+
 -- Where the window would be if the finger, now at x, y, were lifted: a window rect, kept on the
 -- screen. Nil when no drag that moves the window is going on.
 function Layout:dragRect(x, y)

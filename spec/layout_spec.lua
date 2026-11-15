@@ -378,6 +378,22 @@ test("H04 C1: a drag that starts on a square is the window's but does not move i
     end
 end)
 
+test("H04 C2: the move button is pressed while it drags the window, and only then", function()
+    local layout = new(632, 840)
+    eq(layout:pressedButton(), nil)
+    local x, y = row_point(layout)
+    layout:startDrag(x, y, false)
+    eq(layout:pressedButton(), "move")
+    layout:endDrag(x - 30, y - 30)
+    eq(layout:pressedButton(), nil, "lifted")
+    local square_x, square_y = center(layout:squareRect(sq("e2"), false))
+    layout:startDrag(square_x, square_y, false)
+    eq(layout:pressedButton(), nil, "a drag from the board")
+    layout:startDrag(x, y, false)
+    layout:setOpen(false)
+    eq(layout:pressedButton(), nil, "closed while dragging")
+end)
+
 test("H04: a drag that starts off the window, or with it closed, is not the window's", function()
     local layout = new(632, 840)
     local w = layout:rects().window
