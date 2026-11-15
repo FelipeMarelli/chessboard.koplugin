@@ -17,13 +17,17 @@ function Window.new(view, layout, session)
 end
 
 -- Asks for one repaint of a region of the screen; the page under it is painted again first.
-function Window:refresh(rect)
-    UIManager:setDirty(self.view.dialog, "ui", Geom:new(rect))
+--
+-- A plain "ui" refresh does not flash, but on e-ink it leaves a ghost of the text the window
+-- covers, most visible on the gray squares. When the window covers new text (opening, growing) it
+-- uses "flashui": the region flashes once and the ghost goes. Uncovering text is clean without it.
+function Window:refresh(rect, covers_text)
+    UIManager:setDirty(self.view.dialog, covers_text and "flashui" or "ui", Geom:new(rect))
 end
 
 function Window:setOpen(open)
     self.layout:setOpen(open)
-    self:refresh(self.layout:dirtyRect())
+    self:refresh(self.layout:dirtyRect(), open)
 end
 
 function Window:toggle()
@@ -39,7 +43,7 @@ local ACTIONS = {
     size = function(self)
         local before = self.layout:rects()
         self.layout:toggleSmall()
-        self:refresh(self.layout:dirtyRect(before))
+        self:refresh(self.layout:dirtyRect(before), not self.layout:isSmall())
     end,
 }
 
