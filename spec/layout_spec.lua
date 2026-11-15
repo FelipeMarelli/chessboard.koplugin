@@ -84,12 +84,30 @@ test("C2: flip is at the left of the row and close at the right", function()
         assert(button.rect.w >= 7 * PX_PER_MM - 1 and button.rect.h >= 7 * PX_PER_MM - 1,
             "button smaller than 7 mm: " .. button.id)
     end
-    eq(ids, { "flip", "close" })
+    eq(ids, { "flip", "size", "close" })
     eq(layout:buttonRect("flip").x, row.x)
     eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
     eq(layout:buttonRect("flip"), layout:buttons()[1].rect)
     eq(layout:buttonRect("nothing"), nil)
 end)
+
+test("temporary size button: switches to the minimum square and back, centred at the bottom",
+    function()
+        for _, size in ipairs({ { 632, 840 }, { 840, 632 } }) do
+            local w, h = size[1], size[2]
+            local layout = new(w, h)
+            local default = layout:rects().window
+            eq(layout:isSmall(), false)
+            layout:toggleSmall()
+            eq(layout:isSmall(), true)
+            eq(layout:squareSize(), layout.px.min_square)
+            local small = layout:rects().window
+            assert(math.abs(2 * small.x + small.w - w) <= 1, "not centred")
+            eq(small.y + small.h, default.y + default.h)
+            layout:toggleSmall()
+            eq(layout:rects().window, default)
+        end
+    end)
 
 -- 6. Square board, equal squares ----------------------------------------------------------------
 

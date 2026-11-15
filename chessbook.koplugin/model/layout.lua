@@ -9,7 +9,8 @@ local BOARD_SHARE = 0.6 -- of the short side of the screen, on first open
 local FILES = 8
 
 -- Buttons of the row under the board: from the left edge and from the right edge, in order.
-local LEFT_BUTTONS = { "flip" }
+-- "size" is temporary, to try the minimum size on the Kindle until the window can be resized (H05).
+local LEFT_BUTTONS = { "flip", "size" }
 local RIGHT_BUTTONS = { "close" }
 
 local function px(mm, px_per_mm)
@@ -59,7 +60,7 @@ end
 -- reader chose; for now there is only the default one.
 function Layout:setScreen(screen_w, screen_h)
     self.screen_w, self.screen_h = screen_w, screen_h
-    self.square = self:defaultSquare()
+    self.square = self.small and self.px.min_square or self:defaultSquare()
     local w, h = self:windowSize()
     self.x = math.floor((screen_w - w) / 2)
     self.y = math.max(0, screen_h - self.px.margin - h)
@@ -77,6 +78,17 @@ end
 
 function Layout:isOpen()
     return self.open
+end
+
+-- Temporary, until H05: switches between the default size and the minimum one, in the default
+-- place.
+function Layout:toggleSmall()
+    self.small = not self.small
+    self:setScreen(self.screen_w, self.screen_h)
+end
+
+function Layout:isSmall()
+    return self.small and true or false
 end
 
 function Layout:squareSize()
