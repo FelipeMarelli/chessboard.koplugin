@@ -1,0 +1,215 @@
+-- H03: geometry of the floating window (model/layout.lua).
+local Helper = require("helper")
+local Layout = require("model/layout")
+local Rules = require("chess/rules")
+local eq, test = Helper.eq, Helper.test
+
+local sq = Rules.squareFromName
+
+local SIZES = { bar = 7, row = 9, button = 9, border = 0.3, margin = 2, min_square = 5 }
+local PX_PER_MM = 150 / 25.4
+
+local function new(w, h, open)
+    local layout = Layout.new{ screen_w = w, screen_h = h, px_per_mm = PX_PER_MM, sizes = SIZES }
+    layout:setOpen(open ~= false)
+    return layout
+end
+
+local function is_int(n)
+    return type(n) == "number" and n % 1 == 0
+end
+
+local function center(rect)
+    return rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2)
+end
+
+local function contains(outer, inner)
+    return inner.x >= outer.x and inner.y >= outer.y and inner.x + inner.w <= outer.x + outer.w
+        and inner.y + inner.h <= outer.y + outer.h
+end
+
+local SCREENS = { { 632, 840 }, { 840, 632 }, { 1072, 1448 }, { 1448, 1072 }, { 300, 220 } }
+
+-- 3. First place ------------------------------------------------------------------------------
+
+test("C3: the window starts centred at the bottom, the board near 60 % of the short side",
+    function()
+        for _, size in ipairs({ { 632, 840 }, { 840, 632 }, { 1072, 1448 }, { 1448, 1072 } }) do
+            local w, h = size[1], size[2]
+            local r = new(w, h):rects()
+            local short = math.min(w, h)
+            assert(math.abs(r.board.w - 0.6 * short) <= 8, "board " .. r.board.w)
+            assert(math.abs(2 * r.window.x + r.window.w - w) <= 1, "not centred")
+            local gap = h - (r.window.y + r.window.h)
+            assert(gap >= 0 and gap <= 0.05 * h, "not at the bottom: " .. gap)
+        end
+    end)
+
+test("C3: the exact place on the screens of the UI test", function()
+    eq(new(632, 840):rects().window, { x = 126, y = 354, w = 380, h = 474 })
+    eq(new(840, 632):rects().window, { x = 230, y = 146, w = 380, h = 474 })
+end)
+
+test("C3: on a small screen the window still fits, with squares of the minimum size or more",
+    function()
+        for _, size in ipairs(SCREENS) do
+            local layout = new(size[1], size[2])
+            local r = layout:rects()
+            assert(layout:squareSize() >= 30, "square " .. layout:squareSize())
+            if size[1] >= 300 and size[2] >= 300 then
+                assert(contains({ x = 0, y = 0, w = size[1], h = size[2] }, r.window))
+            end
+        end
+    end)
+
+-- 2. Parts of the window ------------------------------------------------------------------------
+
+test("C2: a top bar, the board and a row of buttons, stacked inside the window", function()
+    local r = new(632, 840):rects()
+    for _, part in ipairs({ "titlebar", "board", "buttons" }) do
+        assert(contains(r.window, r[part]), part)
+    end
+    eq(r.titlebar.y + r.titlebar.h, r.board.y)
+    eq(r.board.y + r.board.h, r.buttons.y)
+    eq(r.titlebar.w, r.board.w); eq(r.buttons.w, r.board.w)
+end)
+
+test("C2: close is on the top bar and flip on the bottom row", function()
+    local layout = new(632, 840)
+    local r = layout:rects()
+    local ids = {}
+    for _, button in ipairs(layout:buttons()) do
+        ids[#ids + 1] = button.id
+        assert(contains(r[button.place], button.rect), button.id)
+        assert(button.rect.w >= 7 * PX_PER_MM - 1 and button.rect.h >= 7 * PX_PER_MM - 1,
+            "button smaller than 7 mm: " .. button.id)
+    end
+    eq(ids, { "close", "flip" })
+    eq(layout:buttons()[1].place, "titlebar"); eq(layout:buttons()[2].place, "buttons")
+    eq(layout:buttonRect("flip"), layout:buttons()[2].rect)
+    eq(layout:buttonRect("nothing"), nil)
+end)
+
+-- 6. Square board, equal squares ----------------------------------------------------------------
+
+test("C6: the board is square and its 64 squares tile it in equal whole pixels", function()
+    for _, size in ipairs(SCREENS) do
+        local layout = new(size[1], size[2])
+        local board = layout:rects().board
+        local s = layout:squareSize()
+        eq(board.w, board.h); eq(board.w, 8 * s)
+        for _, flipped in ipairs({ false, true }) do
+            local seen = {}
+            for square = 1, 64 do
+                local rect = layout:squareRect(square, flipped)
+                assert(is_int(rect.x) and is_int(rect.y) and rect.w == s and rect.h == s)
+                assert(contains(board, rect))
+                local key = rect.x .. "," .. rect.y
+                assert(not seen[key], "two squares at " .. key)
+                seen[key] = true
+            end
+        end
+    end
+end)
+
+test("C6: every rect of the window is in whole pixels", function()
+    for _, size in ipairs(SCREENS) do
+        local layout = new(size[1], size[2])
+        local rects = layout:rects()
+        for name, rect in pairs(rects) do
+            for _, k in ipairs({ "x", "y", "w", "h" }) do
+                assert(is_int(rect[k]), name .. "." .. k)
+            end
+        end
+    end
+end)
+
+-- 9. Flipping ----------------------------------------------------------------------------------
+
+test("C9: a1 is at the bottom left, and at the top right when the board is flipped", function()
+    local layout = new(632, 840)
+    local board = layout:rects().board
+    local s = layout:squareSize()
+    local bottom, right = board.y + board.h - s, board.x + board.w - s
+    eq(layout:squareRect(sq("a1"), false), { x = board.x, y = bottom, w = s, h = s })
+    eq(layout:squareRect(sq("h8"), false), { x = right, y = board.y, w = s, h = s })
+    eq(layout:squareRect(sq("a1"), true), { x = right, y = board.y, w = s, h = s })
+    eq(layout:squareRect(sq("h8"), true), { x = board.x, y = bottom, w = s, h = s })
+    eq(layout:squareRect(sq("e4"), true), layout:squareRect(sq("d5"), false))
+end)
+
+-- 10. Taps -------------------------------------------------------------------------------------
+
+test("C10: a tap on a square gives that square, with the board either way round", function()
+    local layout = new(632, 840)
+    for _, flipped in ipairs({ false, true }) do
+        for square = 1, 64 do
+            local x, y = center(layout:squareRect(square, flipped))
+            eq(layout:hit(x, y, flipped), { zone = "board", square = square })
+            local rect = layout:squareRect(square, flipped)
+            eq(layout:hit(rect.x, rect.y, flipped).square, square)
+            eq(layout:hit(rect.x + rect.w - 1, rect.y + rect.h - 1, flipped).square, square)
+        end
+    end
+end)
+
+test("C10: taps on the buttons and on the bar", function()
+    local layout = new(632, 840)
+    eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
+    eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
+    local bar = layout:rects().titlebar
+    eq(layout:hit(bar.x + 1, bar.y + 1), { zone = "titlebar" })
+    local row = layout:rects().buttons
+    eq(layout:hit(row.x + row.w - 1, row.y + 1), { zone = "button" })
+end)
+
+test("C10: a tap outside the window, or with the window closed, is not the window's", function()
+    local layout = new(632, 840)
+    local w = layout:rects().window
+    for _, point in ipairs({ { 0, 0 }, { w.x - 1, w.y + 10 }, { w.x + w.w, w.y + 10 },
+        { w.x + 10, w.y - 1 }, { w.x + 10, w.y + w.h } }) do
+        eq(layout:hit(point[1], point[2], false), nil)
+    end
+    local x, y = center(w)
+    assert(layout:hit(x, y, false))
+    layout:setOpen(false)
+    eq(layout:isOpen(), false)
+    eq(layout:hit(x, y, false), nil)
+end)
+
+test("C10: every point inside the window, border included, belongs to some part", function()
+    local layout = new(840, 632)
+    local w = layout:rects().window
+    for y = w.y, w.y + w.h - 1 do
+        for x = w.x, w.x + w.w - 1, 7 do
+            assert(layout:hit(x, y, true), "nothing at " .. x .. "," .. y)
+        end
+        assert(layout:hit(w.x + w.w - 1, y, false))
+    end
+    eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "flip" })
+    eq(layout:hit(w.x + w.w - 1, w.y, false), { zone = "button", button = "close" })
+end)
+
+-- 11. Repainting -------------------------------------------------------------------------------
+
+test("C11: the region to repaint is the window, or what covers the old and the new one",
+    function()
+        local layout = new(632, 840)
+        local before = layout:rects()
+        eq(layout:dirtyRect(), before.window)
+        eq(layout:dirtyRect(before), before.window)
+        layout:setScreen(840, 632)
+        local now = layout:rects().window
+        local dirty = layout:dirtyRect(before)
+        assert(contains(dirty, now) and contains(dirty, before.window))
+        eq(dirty, { x = 126, y = 146, w = 484, h = 682 })
+    end)
+
+-- Rotation -------------------------------------------------------------------------------------
+
+test("a new screen size places the window again, inside the screen", function()
+    local layout = new(632, 840)
+    layout:setScreen(840, 632)
+    eq(layout:rects().window, new(840, 632):rects().window)
+    eq(layout:isOpen(), true)
+end)

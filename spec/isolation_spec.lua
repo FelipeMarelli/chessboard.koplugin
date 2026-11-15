@@ -8,6 +8,19 @@ test("KOReader modules cannot be required from the specs", function()
     eq(pcall(require, "device"), false)
 end)
 
-test("chess/rules loads without KOReader", function()
-    eq(type(require("chess/rules")), "table")
+test("every module of chess/ and model/ loads without KOReader", function()
+    local plugin = Helper.dir .. "/../chessbook.koplugin"
+    local count = 0
+    for _, folder in ipairs({ "chess", "model" }) do
+        local list = assert(io.popen('ls -1 "' .. plugin .. "/" .. folder .. '"'))
+        for name in list:lines() do
+            local module = name:match("^(.+)%.lua$")
+            if module then
+                eq(type(require(folder .. "/" .. module)), "table")
+                count = count + 1
+            end
+        end
+        list:close()
+    end
+    assert(count >= 3, "found only " .. count .. " modules")
 end)
