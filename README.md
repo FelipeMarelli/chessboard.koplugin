@@ -2,7 +2,7 @@
 
 Plugin de KOReader para leer libros de ajedrez en una Kindle con jailbreak: un tablero interactivo que se usa **dentro del libro**, sin salir de la página.
 
-Estado (14 de noviembre de 2026): el plugin arranca de cero. Por ahora tiene el módulo de reglas del ajedrez (`chess/rules.lua`, historia H01) con sus pruebas, y todavía no muestra nada en pantalla. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
+Estado (14 de noviembre de 2026): el plugin arranca de cero. Por ahora tiene, con sus pruebas, las reglas del ajedrez (`chess/rules.lua`, historia H01) y la línea de jugadas con su navegación (`chess/game.lua`, H02). Todavía no muestra nada en pantalla. La prueba de concepto de panel y captura, que funcionó en el emulador, quedó guardada en `docs/poc/`. Nada se probó en la Kindle real, y no hay reconocimiento de posiciones.
 
 Lo que sigue por desarrollar está en `docs/historias.md` (historias de usuario del tablero flotante) y `docs/arquitectura.md` (decisiones técnicas, arquitectura y reglas de estilo).
 
@@ -128,6 +128,7 @@ Verificado con toques sintéticos en el emulador, a 632×840 (media escala de un
 ```
 chessbook.koplugin/     el plugin (_meta.lua, main.lua)
   chess/rules.lua       reglas: posición, jugadas legales, FEN, notación
+  chess/game.lua        línea de jugadas: árbol, cursor, guardado
 spec/                   pruebas de la lógica pura (run.lua las corre todas)
   perft/                posiciones con conteos de jugadas conocidos
 docs/                   historias, arquitectura
