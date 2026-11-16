@@ -71,11 +71,11 @@ local ACTIONS = {
     forward = function(self) repaint_if(self, self.session:navigate("forward")) end,
     smaller = function(self) resize(self, -1) end,
     bigger = function(self) resize(self, 1) end,
-    clear = function(self) repaint_if(self, self.session:clearBoard().changed) end,
-    color = function(self) repaint_if(self, self.session:toggleColor().changed) end,
+    clear = function(self) repaint_if(self, self.session:clearBoard()) end,
+    color = function(self) repaint_if(self, self.session:toggleColor()) end,
 }
 for id, letter in pairs(PIECE_BUTTONS) do
-    ACTIONS[id] = function(self) repaint_if(self, self.session:choosePiece(letter).changed) end
+    ACTIONS[id] = function(self) repaint_if(self, self.session:choosePiece(letter)) end
 end
 
 -- What showing a row does to the session: the edit row starts editing the start position, and
