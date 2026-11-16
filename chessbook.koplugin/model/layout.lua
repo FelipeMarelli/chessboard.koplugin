@@ -16,10 +16,12 @@ local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
 local BACK_BUTTON = "back"
 local ROWS = {
-    main = { left = { MOVE_BUTTON, "flip", "size", "reset" }, right = { "close" } },
+    main = { left = { MOVE_BUTTON, "flip", "size", "reset", "edit" }, right = { "close" } },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
+    edit = { left = { BACK_BUTTON, "clear", "color", "king", "queen", "rook", "bishop", "knight",
+        "pawn" }, right = {} },
 }
-local OPENS = { size = "size" }
+local OPENS = { size = "size", edit = "edit" }
 
 -- Buttons that resize the board, with how many steps each takes. Each is disabled at the limit it
 -- goes towards.
@@ -210,16 +212,16 @@ function Layout:rects()
 end
 
 -- Every button of the row shown, with its id, its rect and whether it is enabled, from left to
--- right.
+-- right. When they do not all fit in the row at their usual width, they are narrowed until they do.
 function Layout:buttons()
     local row = self:rects().buttons
     local list = {}
-    local bw = self.px.button
+    local left, right = ROWS[self.row].left, ROWS[self.row].right
+    local bw = math.min(self.px.button, math.floor(row.w / (#left + #right)))
     local function add(id, x)
         list[#list + 1] = { id = id, enabled = self:isEnabled(id),
             rect = { x = x, y = row.y, w = bw, h = row.h } }
     end
-    local left, right = ROWS[self.row].left, ROWS[self.row].right
     for i, id in ipairs(left) do
         add(id, row.x + (i - 1) * bw)
     end

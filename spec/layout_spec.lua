@@ -82,21 +82,26 @@ local function ids_of(layout)
     return ids
 end
 
--- Every button of the row shown is inside the row and 7 mm or more on each side.
+-- Every button of the row shown is inside the row and 7 mm or more on each side; narrower only
+-- when the row has no room for them all at 7 mm, and then all of the same width.
 local function assert_buttons_fit(layout, px_per_mm)
     local row = layout:rects().buttons
-    for _, button in ipairs(layout:buttons()) do
+    local buttons = layout:buttons()
+    local seven = 7 * px_per_mm - 1
+    local room = row.w >= #buttons * seven
+    for _, button in ipairs(buttons) do
         assert(contains(row, button.rect), button.id)
-        assert(button.rect.w >= 7 * px_per_mm - 1 and button.rect.h >= 7 * px_per_mm - 1,
-            "button smaller than 7 mm: " .. button.id)
+        assert(button.rect.h >= seven, "button lower than 7 mm: " .. button.id)
+        assert(button.rect.w >= seven or (not room and button.rect.w == buttons[1].rect.w),
+            "button narrower than 7 mm: " .. button.id)
     end
 end
 
-test("C2: move, flip, size and reset from the left of the row, and close at the right", function()
+test("C2: move, flip, size, reset and edit from the left of the row, and close at the right", function()
     local layout = new(632, 840)
     local row = layout:rects().buttons
     assert_buttons_fit(layout, PX_PER_MM)
-    eq(ids_of(layout), { "move", "flip", "size", "reset", "close" })
+    eq(ids_of(layout), { "move", "flip", "size", "reset", "edit", "close" })
     eq(layout:buttonRect("move").x, row.x)
     eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
     eq(layout:buttonRect("move"), layout:buttons()[1].rect)
@@ -202,8 +207,8 @@ test("C10: taps on the buttons and between them", function()
     eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
     eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
     eq(layout:hit(center(layout:buttonRect("reset"))), { zone = "button", button = "reset" })
-    local reset = layout:buttonRect("reset")
-    eq(layout:hit(reset.x + reset.w + 1, reset.y + 1), { zone = "button" })
+    local edit = layout:buttonRect("edit")
+    eq(layout:hit(edit.x + edit.w + 1, edit.y + 1), { zone = "button" })
 end)
 
 test("C10: a tap outside the window, or with the window closed, is not the window's", function()
@@ -610,12 +615,13 @@ test("H05 C1: the size button shows the size row: back, smaller and bigger", fun
     eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
     eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
     layout:showRow("main")
-    eq(ids_of(layout), { "move", "flip", "size", "reset", "close" })
+    eq(ids_of(layout), { "move", "flip", "size", "reset", "edit", "close" })
 end)
 
 test("H05 C2: only the buttons that show a row open one, and back always opens the main row",
     function()
         eq(Layout.rowOpenedBy("size"), "size")
+        eq(Layout.rowOpenedBy("edit"), "edit")
         eq(Layout.rowOpenedBy("back"), "main")
         for _, id in ipairs({ "move", "flip", "close", "smaller", "bigger", "nothing" }) do
             eq(Layout.rowOpenedBy(id), nil, id)
@@ -713,10 +719,12 @@ test("H05 C6: the region to repaint after a resize covers the window before and 
     eq(layout:dirtyRect(before), layout:rects().window)
 end)
 
-test("H05 C7: at the minimum size the buttons of every row fit, 7 mm or more and apart",
+-- Felipe changed this criterion on 15 November 2026: when a row has no room for its buttons at
+-- 7 mm they are narrowed, instead of going to two rows.
+test("H05 C7: at the minimum size the buttons of every row fit and are apart, narrowed if need be",
     function()
         for _, layout in ipairs(smallest_with_theme_sizes()) do
-            for _, row in ipairs({ "main", "size" }) do
+            for _, row in ipairs({ "main", "size", "edit" }) do
                 layout:showRow(row)
                 assert_buttons_fit(layout, layout.screen_w / 632 * PX_PER_MM)
                 assert_apart(layout:buttons())
@@ -740,4 +748,13 @@ test("H05: the same screen keeps the size, and a new one gives the default size"
     eq(layout:squareSize(), square)
     layout:setScreen(840, 632)
     eq(layout:squareSize(), new(840, 632):squareSize())
+end)
+
+test("Edit: the edit button shows the edit row: back, clear, color and the six pieces", function()
+    local layout = new(632, 840)
+    eq(tap_button(layout, "edit"), { zone = "button", button = "edit", opens = "edit" })
+    layout:showRow("edit")
+    eq(ids_of(layout), { "back", "clear", "color", "king", "queen", "rook", "bishop", "knight",
+        "pawn" })
+    eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
 end)
