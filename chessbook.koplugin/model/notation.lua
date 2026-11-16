@@ -45,13 +45,15 @@ end
 
 -- The parts of some moves, in order, with a gap between one move and the next:
 -- { { kind = "text", text = "30." }, { kind = "figurine", piece = "B" }, { kind = "gap" }, ... }
-function Notation.parts(moves, numbered)
+-- The parts of the move at index current, if any, carry current = true.
+function Notation.parts(moves, numbered, current)
     local list = {}
     for i, move in ipairs(moves) do
         if i > 1 then
             list[#list + 1] = { kind = "gap" }
         end
         for _, part in ipairs(parts_of(move, numbered, i == 1)) do
+            part.current = i == current or nil
             list[#list + 1] = part
         end
     end
@@ -66,18 +68,36 @@ local function width(parts, width_of)
     return total
 end
 
--- The parts of the most recent moves that fit in room, as wide as width_of says each part is. The
--- last move is always there, even when it does not fit whole.
-function Notation.fit(moves, numbered, width_of, room)
-    local best = {}
-    for first = #moves, 1, -1 do
-        local parts = Notation.parts({ unpack(moves, first) }, numbered)
-        if first < #moves and width(parts, width_of) > room then
-            break
-        end
-        best = parts
+-- The parts of the moves from first to last, the one at index current of all of them marked.
+local function parts_between(moves, numbered, current, first, last)
+    return Notation.parts({ unpack(moves, first, last) }, numbered, current - first + 1)
+end
+
+-- The earliest move from which the moves up to last fit in room; last itself when not even it fits.
+local function first_fitting(moves, numbered, current, width_of, room, last)
+    local first = last
+    while first > 1
+        and width(parts_between(moves, numbered, current, first - 1, last), width_of) <= room do
+        first = first - 1
     end
-    return best
+    return first
+end
+
+-- The parts of the moves of a line that fit in room, as wide as width_of says each part is.
+-- current is the index of the move that led to the position shown (0 at the start of the line;
+-- the last one when nil): it is marked, and always there, even when it does not fit whole. The
+-- moves shown end with the line when they can; else they start with the current one (with the
+-- first one, at the start).
+function Notation.fit(moves, numbered, width_of, room, current)
+    current = current or #moves
+    local anchor = math.max(current, 1)
+    for last = #moves, anchor, -1 do
+        local first = first_fitting(moves, numbered, current, width_of, room, last)
+        if first <= anchor or last == anchor then
+            return parts_between(moves, numbered, current, first, last)
+        end
+    end
+    return {}
 end
 
 return Notation

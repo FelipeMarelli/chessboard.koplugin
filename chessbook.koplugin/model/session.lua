@@ -304,11 +304,17 @@ end
 -- The most moves the strip under the board can show: more than fit in the widest window.
 local NOTATION_MOVES = 16
 
--- The last moves up to the position shown, for the strip under the board (see model/notation.lua),
--- with move numbers only when the game started from the usual position.
+-- The moves of the line around the position shown, for the strip under the board (see
+-- model/notation.lua): the last ones up to it and the next ones, current the index of the one
+-- that led to it (0 at the start), with move numbers only when the game started from the usual
+-- position.
 local function notation_of(game)
-    return { moves = game:recentMoves(NOTATION_MOVES),
-        numbered = game:startFen() == Rules.START_FEN }
+    local moves = game:recentMoves(NOTATION_MOVES)
+    local current = #moves
+    for _, move in ipairs(game:nextMoves(NOTATION_MOVES)) do
+        moves[#moves + 1] = move
+    end
+    return { moves = moves, current = current, numbered = game:startFen() == Rules.START_FEN }
 end
 
 -- While editing: the pieces put so far, the chosen color as the side to move, no marks and no
@@ -322,7 +328,7 @@ local function edit_view(self)
         status = "ongoing",
         flipped = self.is_flipped,
         edit = { color = editor:turn(), piece = piece and piece:lower() },
-        notation = { moves = {}, numbered = false },
+        notation = { moves = {}, current = 0, numbered = false },
         buttons = {},
     }
 end

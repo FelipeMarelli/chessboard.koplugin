@@ -80,6 +80,37 @@ test("C1: only the most recent moves that fit", function()
     eq(show(Notation.fit(moves, true, width_of, 15)), "2.[N]f3 [N]c6")
 end)
 
+-- The parts of the current move, as one text.
+local function current_of(parts)
+    local marked = {}
+    for _, part in ipairs(parts) do
+        if part.current then
+            marked[#marked + 1] = part
+        end
+    end
+    return show(marked)
+end
+
+test("C1: the move that led to the position shown is marked", function()
+    local moves = moves_of(nil, "e2e4", "e7e5", "g1f3")
+    eq(current_of(Notation.parts(moves, true, 3)), "2.[N]f3")
+    eq(current_of(Notation.parts(moves, true, 2)), "e5")
+    eq(current_of(Notation.parts(moves, true, 0)), "")
+end)
+
+-- Felipe, 16 November 2026: going back keeps the line in the strip.
+test("C1: the line ends the strip while the current move fits; else the strip starts with it",
+    function()
+        local moves = moves_of(nil, "e2e4", "e7e5", "g1f3", "b8c6")
+        -- "1…e5 2.[N]f3 [N]c6" is 16 wide; "1.e4 e5" 7.
+        eq(show(Notation.fit(moves, true, width_of, 16, 2)), "1…e5 2.[N]f3 [N]c6")
+        eq(show(Notation.fit(moves, true, width_of, 16, 1)), "1.e4 e5 2.[N]f3")
+        eq(current_of(Notation.fit(moves, true, width_of, 16, 1)), "1.e4")
+        eq(show(Notation.fit(moves, true, width_of, 16, 0)), "1.e4 e5 2.[N]f3")
+        eq(current_of(Notation.fit(moves, true, width_of, 16, 0)), "")
+        eq(show(Notation.fit(moves, true, width_of, 1, 2)), "1…e5")
+    end)
+
 test("C7: the last move is there even when it does not fit whole", function()
     local moves = moves_of(nil, "e2e4", "e7e5", "g1f3")
     eq(show(Notation.fit(moves, true, width_of, 1)), "2.[N]f3")
