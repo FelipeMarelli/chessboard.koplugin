@@ -187,12 +187,16 @@ function SelfTest:countAllCalls(ui, zone_ids)
     return function() return calls end
 end
 
--- Adds a first step that goes to the page in CHESSBOOK_PAGE, when it is set.
-local function go_to_page(steps, plugin)
+-- The steps of a scenario and the function that adds one. The first one goes to the page in
+-- CHESSBOOK_PAGE, when it is set.
+local function new_steps(plugin)
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
     local page = tonumber(os.getenv("CHESSBOOK_PAGE") or "")
     if page then
-        steps[#steps + 1] = function() plugin.ui:handleEvent(Event:new("GotoPage", page)) end
+        step(function() plugin.ui:handleEvent(Event:new("GotoPage", page)) end)
     end
+    return steps, step
 end
 
 -- A layout whose board has squares of the minimum size: one for a screen just big enough.
@@ -284,9 +288,7 @@ end
 -- H03: open, flip, tap inside and outside, close.
 local function h03(t, plugin)
     local layout, session = plugin.layout, plugin.session
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
-    go_to_page(steps, plugin)
+    local steps, step = new_steps(plugin)
     step(function()
         t:shot("page")
         t.page_pixels = grab(layout:rects().window)
@@ -300,7 +302,8 @@ local function h03(t, plugin)
         t:check("open repaints only the window", #t.repaints == 1
             and same_rect(t.repaints[1], window))
         t:check("open flashes, to clear the ghost of the text under it",
-            t.repaints[1] and t.repaints[1].refresh == "flashui", t.repaints[1] and t.repaints[1].refresh)
+            t.repaints[1] and t.repaints[1].refresh == "flashui",
+            t.repaints[1] and t.repaints[1].refresh)
         t.repaints = {}
         t:tapRect(layout:buttonRect("flip"))
     end)
@@ -394,8 +397,7 @@ end
 -- H04: drag the window around, in the ways KOReader reports a drag.
 local function h04(t, plugin)
     local layout = plugin.layout
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
+    local steps, step = new_steps(plugin)
     local function move_button()
         return center(layout:buttonRect("move"))
     end
@@ -457,7 +459,6 @@ local function h04(t, plugin)
         t:check(name .. " repaints nothing", #t.repaints == 0, #t.repaints)
         reader_untouched(name)
     end
-    go_to_page(steps, plugin)
     step(function()
         UIManager:forceRePaint()
         t.page = Screen.bb:copy()
@@ -563,20 +564,24 @@ local function tap_squares(t, plugin, ...)
     end
 end
 
+-- Taps buttons of the row shown, by id, one after another, forgetting the repaints so far.
+local function tap_buttons(t, plugin, ...)
+    t.repaints = {}
+    for _, id in ipairs({ ... }) do
+        t:tapRect(plugin.layout:buttonRect(id))
+    end
+end
+
 -- H07: play moves with two taps, and the marks that go with them.
 local function h07(t, plugin)
     local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
+    local steps, step = new_steps(plugin)
     local function info(name)
         return session:view().squares[Rules.squareFromName(name)]
     end
     local function has(name, mark)
         return info(name).marks[mark] == true
-    end
-    local function tap(...)
-        tap_squares(t, plugin, ...)
     end
     -- Checks that each of n taps repainted the window once, without a flash.
     local function repainted(name, n)
@@ -587,7 +592,7 @@ local function h07(t, plugin)
         t:check(name .. " repaints the window once per tap, without a flash", ok, #t.repaints)
     end
     local function played(name, square, piece, ...)
-        tap(...)
+        tap_squares(t, plugin, ...)
         t:check(name, info(square).piece == piece, info(square).piece)
         repainted(name, select("#", ...))
     end
@@ -595,14 +600,13 @@ local function h07(t, plugin)
         assert(session.game:reset(fen))
         plugin.window:refresh(layout:dirtyRect())
     end
-    go_to_page(steps, plugin)
     step(function()
         t:watchRepaints()
         plugin:toggle()
     end)
     step(function()
         t:shot("open")
-        tap("e2")
+        tap_squares(t, plugin, "e2")
         t:shot("selected")
         t:check("a tap on a piece selects it", has("e2", "selected"))
         t:check("and shows its targets", has("e3", "target") and has("e4", "target"))
@@ -613,7 +617,7 @@ local function h07(t, plugin)
         t:shot("played")
         t:check("the last move stays marked", has("e2", "last_move") and has("e4", "last_move"))
         t:check("and it is Black's turn", session:view().turn == "b")
-        tap("e5", "e2")
+        tap_squares(t, plugin, "e5", "e2")
         t:check("taps that change nothing repaint nothing", #t.repaints == 0, #t.repaints)
     end)
     step(function()
@@ -625,7 +629,7 @@ local function h07(t, plugin)
     step(function()
         played("e4-e5", "e5", "P", "e4", "e5")
         played("d7-d5, next to the pawn", "d5", "p", "d7", "d5")
-        tap("e5")
+        tap_squares(t, plugin, "e5")
         t:shot("en_passant")
         t:check("en passant shows as a capture", has("d6", "capture") and has("e6", "target"))
     end)
@@ -636,14 +640,14 @@ local function h07(t, plugin)
         played("a knight", "f3", "N", "g1", "f3")
         played("a knight", "c6", "n", "b8", "c6")
         played("a bishop", "c4", "B", "f1", "c4")
-        tap("e7")
+        tap_squares(t, plugin, "e7")
         t:shot("capture")
         t:check("a capture is told apart from a move to an empty square",
             has("d6", "capture") and has("e6", "target") and has("e5", "target"))
     end)
     step(function()
         played("a capture", "d6", "p", "d6")
-        tap("e1")
+        tap_squares(t, plugin, "e1")
         t:shot("castling")
         t:check("the king can go two squares to castle", has("g1", "target"))
     end)
@@ -682,13 +686,11 @@ end
 -- H05: the size row, shrinking and growing to the limits, and back to the main row.
 local function h05(t, plugin)
     local layout = plugin.layout
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
+    local steps, step = new_steps(plugin)
     -- Taps a button of the row shown, forgetting the repaints so far and remembering the window.
     local function tap(id)
-        t.repaints = {}
         t.before = layout:rects()
-        t:tapRect(layout:buttonRect(id))
+        tap_buttons(t, plugin, id)
     end
     local function corner_kept(name)
         local now = layout:rects().window
@@ -721,7 +723,6 @@ local function h05(t, plugin)
             layout:shownRow())
         t:repaintedOnce(name .. " repaints only the row", layout:rects().buttons, "ui")
     end
-    go_to_page(steps, plugin)
     step(function()
         t:watchRepaints()
         plugin:toggle()
@@ -773,13 +774,7 @@ end
 local function reset(t, plugin)
     local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
-    local function tap_reset()
-        t.repaints = {}
-        t:tapRect(layout:buttonRect("reset"))
-    end
-    go_to_page(steps, plugin)
+    local steps, step = new_steps(plugin)
     step(function()
         t:watchRepaints()
         plugin:toggle()
@@ -787,7 +782,7 @@ local function reset(t, plugin)
     step(function()
         tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1")
         t:shot("played")
-        tap_reset()
+        tap_buttons(t, plugin, "reset")
         t:shot("reset")
         local saved = session.game:serialize()
         t:check("reset goes back to the start position, with no moves",
@@ -796,54 +791,45 @@ local function reset(t, plugin)
             next(session:view().squares[Rules.squareFromName("g1")].marks) == nil)
         t:repaintedOnce("reset repaints the window once, without a flash", layout:rects().window,
             "ui")
-        tap_reset()
+        tap_buttons(t, plugin, "reset")
         t:check("at the start position reset repaints nothing", #t.repaints == 0, #t.repaints)
         plugin:toggle()
     end)
     return steps
 end
 
--- Taps buttons of the row shown, by id, one after another.
-local function tap_buttons(t, layout, ...)
-    for _, id in ipairs({ ... }) do
-        t:tapRect(layout:buttonRect(id))
-    end
-end
-
 -- Editing the start position: the flow Felipe described, then an invalid position.
 local function edit(t, plugin)
     local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
+    local steps, step = new_steps(plugin)
     local function start()
         return session.game:serialize().start
     end
-    go_to_page(steps, plugin)
     step(function()
         plugin:toggle()
         tap_squares(t, plugin, "e2", "e4")
-        tap_buttons(t, layout, "edit")
+        tap_buttons(t, plugin, "edit")
         t:shot("edit-row")
         t:check("the pencil shows the edit row", layout:shownRow() == "edit", layout:shownRow())
         t:check("and goes back to the start position", start() == Rules.START_FEN, start())
-        tap_buttons(t, layout, "clear", "king")
+        tap_buttons(t, plugin, "clear", "king")
         tap_squares(t, plugin, "e1")
-        tap_buttons(t, layout, "pawn")
+        tap_buttons(t, plugin, "pawn")
         tap_squares(t, plugin, "e2")
-        tap_buttons(t, layout, "color", "king")
+        tap_buttons(t, plugin, "color", "king")
         tap_squares(t, plugin, "e8")
         t:shot("black-king")
-        tap_buttons(t, layout, "color")
+        tap_buttons(t, plugin, "color")
         t:shot("placed")
-        tap_buttons(t, layout, "back")
+        tap_buttons(t, plugin, "back")
         t:shot("saved")
         t:check("back shows the main row", layout:shownRow() == "main", layout:shownRow())
         t:check("and the game starts from the edited position, White to move",
             start() == "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", start())
     end)
     step(function()
-        tap_buttons(t, layout, "edit", "clear", "back")
+        tap_buttons(t, plugin, "edit", "clear", "back")
         t:check("an invalid position goes back to the start position", start() == Rules.START_FEN,
             start())
         plugin:toggle()
@@ -854,9 +840,8 @@ end
 -- The arrows: step back and forward along the line, and a new move after going back replaces
 -- the rest of it.
 local function line(t, plugin)
-    local layout, session = plugin.layout, plugin.session
-    local steps = {}
-    local function step(fn) steps[#steps + 1] = fn end
+    local session = plugin.session
+    local steps, step = new_steps(plugin)
     local function moves()
         return table.concat(session.game:serialize().moves, " ")
     end
@@ -864,21 +849,20 @@ local function line(t, plugin)
         local buttons = session:view().buttons
         return buttons.backward, buttons.forward
     end
-    go_to_page(steps, plugin)
     step(function()
         plugin:toggle()
         tap_squares(t, plugin, "e2", "e4", "e7", "e5")
         local backward, forward = can_go()
         t:check("at the end of the line only backward can be used", backward and not forward)
         t:shot("end")
-        tap_buttons(t, layout, "backward", "backward")
+        tap_buttons(t, plugin, "backward", "backward")
         t:shot("start")
         backward, forward = can_go()
         t:check("two steps back is the start, where only forward can be used",
             not backward and forward)
-        tap_buttons(t, layout, "backward")
+        tap_buttons(t, plugin, "backward")
         t:check("backward at the start does nothing", session.game:serialize().cursor == 0)
-        tap_buttons(t, layout, "forward")
+        tap_buttons(t, plugin, "forward")
         t:shot("forward")
         t:check("forward plays e4 again", session:view().last_move.san.text == "e4")
         tap_squares(t, plugin, "c7", "c5")
