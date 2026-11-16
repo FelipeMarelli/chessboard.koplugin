@@ -46,8 +46,9 @@ test("C9: flipping turns the board round, and again turns it back", function()
     eq(session:flipped(), false)
 end)
 
-test("C2: close, flip and reset can always be used", function()
-    eq(Session.new(assert(Game.new())):view().buttons, { close = true, flip = true, reset = true })
+test("C2: close, flip and reset can always be used; at the start there is nowhere to go", function()
+    eq(Session.new(assert(Game.new())):view().buttons, { close = true, flip = true, reset = true,
+        backward = false, forward = false })
 end)
 
 -- H07
@@ -363,4 +364,67 @@ test("Edit: reset goes back to the usual start position after an edit", function
     eq(session.game:serialize().start, "7k/8/8/8/8/8/8/K7 b - - 0 1")
     eq(session:reset(), true)
     eq(session.game:serialize().start, Rules.START_FEN)
+end)
+
+-- Going along the line
+
+local function can_go(session)
+    local buttons = session:view().buttons
+    return { backward = buttons.backward, forward = buttons.forward }
+end
+
+test("Line: back and forward step along the line, with the last move marked", function()
+    local session = session_at()
+    tap(session, "e2", "e4", "e7", "e5")
+    eq(can_go(session), { backward = true, forward = false })
+    eq(session:navigate("back"), true)
+    eq(session:view().last_move.san.text, "e4")
+    eq(marked(session, "last_move"), { "e2", "e4" })
+    eq(can_go(session), { backward = true, forward = true })
+    eq(session:navigate("back"), true)
+    eq(session:view().last_move, nil)
+    eq(can_go(session), { backward = false, forward = true })
+    eq(session:navigate("forward"), true)
+    eq(session:navigate("end"), true)
+    eq(session:view().last_move.san.text, "e5")
+    eq(session:navigate("start"), true)
+    eq(session:view().last_move, nil)
+end)
+
+test("Line: at either end, going further changes nothing", function()
+    local session = session_at()
+    eq(session:navigate("back"), false)
+    eq(session:navigate("forward"), false)
+    tap(session, "e2", "e4")
+    eq(session:navigate("forward"), false)
+    eq(session:navigate("end"), false)
+end)
+
+test("Line: going drops the selection and a pending promotion", function()
+    local session = session_at()
+    tap(session, "e2", "e4", "d7")
+    eq(session:navigate("back"), true)
+    eq(marked(session, "selected"), {})
+    local promoting = session_at(PROMOTION)
+    tap(promoting, "h1", "h2", "a1", "b1", "a7", "a8")
+    eq(promoting:navigate("back"), true)
+    eq(promoting:view().promotion, nil)
+end)
+
+test("Line: a different move after going back replaces the rest of the line", function()
+    local session = session_at()
+    tap(session, "e2", "e4", "e7", "e5")
+    session:navigate("back")
+    tap(session, "c7", "c5")
+    eq(can_go(session), { backward = true, forward = false })
+    eq(session.game:serialize().moves, { "e2e4", "c7c5" })
+end)
+
+test("Line: the same move after going back keeps the rest of the line", function()
+    local session = session_at()
+    tap(session, "e2", "e4", "e7", "e5")
+    session:navigate("start")
+    tap(session, "e2", "e4")
+    eq(can_go(session), { backward = true, forward = true })
+    eq(session.game:serialize().moves, { "e2e4", "e7e5" })
 end)

@@ -192,6 +192,21 @@ function Session:reset()
     return true
 end
 
+-- The game's step for each way to go along the line.
+local STEPS = { back = "back", forward = "forward", start = "toStart", ["end"] = "toEnd" }
+
+-- Goes along the line: "back", "forward", "start" or "end". It drops the selection and a
+-- pending promotion. Returns whether the position changed; at the end it goes towards, nothing
+-- changes.
+function Session:navigate(direction)
+    local step = assert(STEPS[direction], "no such direction")
+    if not self.game[step](self.game) then
+        return false
+    end
+    forget_choice(self)
+    return true
+end
+
 -- a1 is dark.
 local function is_light(sq)
     return (Rules.fileOf(sq) + Rules.rankOf(sq)) % 2 == 1
@@ -279,7 +294,8 @@ function Session:view()
         last_move = last_move,
         promotion = promotion_view(self.pending, position),
         flipped = self.is_flipped,
-        buttons = { close = true, flip = true, reset = true },
+        buttons = { close = true, flip = true, reset = true,
+            backward = self.game:canBack(), forward = self.game:canForward() },
     }
 end
 
