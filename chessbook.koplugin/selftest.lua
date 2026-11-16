@@ -491,10 +491,10 @@ local function h04(t, plugin)
     step(function()
         pressed_in_place("holding the move button and lifting it there")
         -- Slow drag up, with the finger leaving the window on the way.
-        drag_by(-40, -150, "pan_release", { { x = 2, y = 400 }, { x = 5, y = 5 } })
+        drag_by(-40, -120, "pan_release", { { x = 2, y = 400 }, { x = 5, y = 5 } })
     end)
     step(function()
-        moved("a slow drag", -40, -150)
+        moved("a slow drag", -40, -120)
         t:shot("moved")
         local diff = changed_outside(t.page, t.from, layout:rects().window)
         t:check("the page where the window was is clean", diff == 0, diff .. " pixels differ")
@@ -873,7 +873,66 @@ local function line(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset, edit = edit, line = line }
+-- H16: the strip under the board with the last moves that fit.
+local function h16(t, plugin)
+    local layout, session = plugin.layout, plugin.session
+    local steps, step = new_steps(plugin)
+    -- How many pixels of the strip are not white: none when it is empty.
+    local function inked()
+        local count = 0
+        for _, value in ipairs(grab(layout:rects().notation)) do
+            count = count + (value < 0xFF and 1 or 0)
+        end
+        return count
+    end
+    local function shown()
+        return #session:view().notation.moves
+    end
+    step(function()
+        plugin:toggle()
+    end)
+    step(function()
+        t:check("at the start the strip is empty", inked() == 0, inked())
+        tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1", "f3", "b8", "c6", "f1", "b5",
+            "a7", "a6", "b5", "a4", "g8", "f6", "e1", "g1", "f8", "e7")
+    end)
+    step(function()
+        t:shot("line")
+        t:check("after moves the strip shows them", inked() > 0 and shown() == 10, shown())
+        tap_buttons(t, plugin, "backward", "backward")
+    end)
+    step(function()
+        t:shot("back")
+        t:check("going back the strip ends at the position shown", shown() == 8, shown())
+        tap_buttons(t, plugin, "size")
+        while layout:canResize(-1) do
+            tap_buttons(t, plugin, "smaller")
+        end
+        tap_buttons(t, plugin, "back")
+    end)
+    step(function()
+        t:shot("minimum")
+        tap_buttons(t, plugin, "edit", "clear", "king")
+        tap_squares(t, plugin, "e1")
+        tap_buttons(t, plugin, "color")
+        tap_squares(t, plugin, "e8")
+        tap_buttons(t, plugin, "color")
+    end)
+    step(function()
+        t:check("while editing the strip is empty", inked() == 0, inked())
+        tap_buttons(t, plugin, "back")
+        tap_squares(t, plugin, "e1", "d2", "e8", "d7")
+    end)
+    step(function()
+        t:shot("edited")
+        t:check("a game from an edited position has no numbers",
+            session:view().notation.numbered == false and shown() == 2)
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset, edit = edit, line = line, h16 = h16 }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
