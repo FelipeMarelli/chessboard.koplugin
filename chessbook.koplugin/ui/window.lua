@@ -201,10 +201,11 @@ local function centre_bitmap(bb, icon, rect)
         rect.y + math.floor((rect.h - h) / 2), 0, 0, w, h)
 end
 
--- The color button: a disc when White's pieces are put, a ring when Black's are.
+-- The color button: a ring when White's pieces are put, a disc when Black's are, like the turn in
+-- the corner of the board.
 local function paint_color(bb, rect, color)
     local radius = math.floor(icon_side(rect) * 0.4)
-    local width = color == "w" and radius or Theme.px(Theme.PRESSED.width)
+    local width = color == "w" and Theme.px(Theme.PRESSED.width) or radius
     bb:paintCircle(rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), radius,
         Theme.GRAY.frame, width)
 end
