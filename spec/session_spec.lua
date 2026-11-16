@@ -271,3 +271,96 @@ test("Reset: at the start position with no moves, nothing changes", function()
     eq(session:reset(), false)
     assert_start(session)
 end)
+
+-- Editing the start position
+
+-- Chooses a piece and puts it on squares, by name.
+local function put(session, letter, ...)
+    session:choosePiece(letter)
+    return tap(session, ...)
+end
+
+-- A session editing an empty board.
+local function editing_empty()
+    local session = session_at()
+    tap(session, "e2", "e4")
+    session:startEdit()
+    session:clearBoard()
+    return session
+end
+
+test("Edit: starts from the usual start position, which the game goes back to", function()
+    local session = session_at(AFTER_E4_D5)
+    eq(session:isEditing(), false)
+    eq(session:startEdit(), true)
+    eq(session:isEditing(), true)
+    eq(session.game:serialize().start, Rules.START_FEN)
+    local view = session:view()
+    eq(view.squares[sq("e1")].piece, "K"); eq(view.turn, "w")
+    eq(view.edit, { color = "w" })
+end)
+
+test("Edit: clearing leaves the board empty", function()
+    local view = editing_empty():view()
+    for square = 1, 64 do
+        eq(view.squares[square].piece, nil)
+    end
+end)
+
+test("Edit: a tap puts the chosen piece in the chosen color, and without one does nothing", function()
+    local session = editing_empty()
+    eq(tap(session, "e1").changed, false)
+    eq(put(session, "k", "e1").changed, true)
+    eq(put(session, "k", "e1").changed, false)
+    eq(session:view().edit, { color = "w", piece = "k" })
+    session:toggleColor()
+    put(session, "q", "e1")
+    eq(piece_on(session, "e1"), "q")
+    eq(session:view().edit, { color = "b", piece = "q" })
+end)
+
+test("Edit: the color chosen when it ends is the side to move, with no castling", function()
+    local session = editing_empty()
+    put(session, "k", "e1"); put(session, "p", "e2")
+    session:toggleColor()
+    put(session, "k", "e8")
+    eq(session:view().turn, "b")
+    session:toggleColor(); session:toggleColor()
+    eq(session:finishEdit(), true)
+    eq(session:isEditing(), false)
+    eq(session.game:serialize().start, "4k3/8/8/8/8/8/4P3/4K3 b - - 0 1")
+    eq(session:finishEdit(), false)
+end)
+
+test("Edit: clearing keeps the chosen color", function()
+    local session = editing_empty()
+    session:toggleColor()
+    session:clearBoard()
+    eq(session:view().turn, "b")
+end)
+
+test("Edit: an invalid position goes back to the usual start", function()
+    local session = editing_empty()
+    put(session, "k", "e1")
+    session:finishEdit()
+    eq(session.game:serialize().start, Rules.START_FEN)
+end)
+
+test("Edit: unchanged, the usual start position stays, without castling", function()
+    local session = session_at()
+    session:startEdit()
+    session:finishEdit()
+    eq(session.game:serialize().start,
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1")
+end)
+
+test("Edit: reset goes back to the usual start position after an edit", function()
+    local session = editing_empty()
+    put(session, "k", "a1")
+    session:toggleColor()
+    put(session, "k", "h8")
+    session:finishEdit()
+    eq(session.game:serialize().start, "7k/8/8/8/8/8/8/K7 b - - 0 1")
+    eq(session:reset(), true)
+    eq(session.game:serialize().start, Rules.START_FEN)
+end)

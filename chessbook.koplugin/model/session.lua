@@ -66,10 +66,83 @@ local function play(self, move)
     return answer(true, move)
 end
 
+-- Editing the start position. While it lasts a tap on a square puts the chosen piece there, in
+-- the chosen color, and the game is left alone until finishEdit.
+
+-- Puts the chosen piece on a square, if a piece is chosen.
+local function place(self, sq)
+    local edit = self.edit
+    local piece = edit.piece and (edit.color == "w" and edit.piece:upper() or edit.piece)
+    if not piece or edit.position.board[sq] == piece then
+        return answer(false)
+    end
+    edit.position.board[sq] = piece
+    return answer(true)
+end
+
+local EMPTY_FEN = "8/8/8/8/8/8/8/8 w - - 0 1"
+
+-- A position to edit: the pieces of a FEN, a color to move, no castling and no en passant.
+local function editable(fen, color)
+    local position = assert(Rules.fromFen(fen))
+    position.turn, position.castling, position.passant = color, "", nil
+    position.halfmove, position.fullmove = 0, 1
+    return position
+end
+
+function Session:isEditing()
+    return self.edit ~= nil
+end
+
+-- Starts editing from the usual start position, which the game goes back to.
+function Session:startEdit()
+    forget_choice(self)
+    assert(self.game:reset())
+    self.edit = { position = editable(Rules.START_FEN, "w"), color = "w" }
+    return true
+end
+
+-- Empties the board being edited.
+function Session:clearBoard()
+    self.edit.position = editable(EMPTY_FEN, self.edit.color)
+    return answer(true)
+end
+
+-- Switches the color of the pieces to put, which is also the side to move.
+function Session:toggleColor()
+    local edit = self.edit
+    edit.color = edit.color == "w" and "b" or "w"
+    edit.position.turn = edit.color
+    return answer(true)
+end
+
+-- Chooses the piece to put: "k", "q", "r", "b", "n" or "p".
+function Session:choosePiece(letter)
+    self.edit.piece = letter
+    return answer(true)
+end
+
+-- Ends editing: the game starts from the edited position when it is valid, else from the usual
+-- one. False when there was nothing being edited.
+function Session:finishEdit()
+    local edit = self.edit
+    if not edit then
+        return false
+    end
+    self.edit = nil
+    if not self.game:reset(Rules.toFen(edit.position)) then
+        assert(self.game:reset())
+    end
+    return true
+end
+
 -- A tap on a square of the board. It selects a piece of the side to move, plays the selected
 -- one to a legal target, or clears the selection. A move that promotes waits for the piece: see
 -- choosePromotion.
 function Session:tapSquare(sq)
+    if self.edit then
+        return place(self, sq)
+    end
     if self.pending then
         return answer(false)
     end
@@ -165,13 +238,37 @@ end
 
 -- What there is to draw: each square with its piece, its marks and whether it is a light one,
 -- whose turn it is, how the game stands, its last move, and which buttons can be used.
-function Session:view()
-    local position = self.game:position()
-    local last_move = self.game:lastMove()
+local function squares_of(position)
     local squares = {}
     for sq = 1, 64 do
         squares[sq] = { piece = Rules.pieceAt(position, sq), marks = {}, light = is_light(sq) }
     end
+    return squares
+end
+
+-- While editing: the pieces put so far, the chosen color as the side to move, and no marks.
+local function edit_view(self)
+    local edit = self.edit
+    return {
+        squares = squares_of(edit.position),
+        turn = edit.color,
+        status = "ongoing",
+        flipped = self.is_flipped,
+        edit = { color = edit.color, piece = edit.piece },
+        buttons = {},
+    }
+end
+
+-- What there is to draw: each square with its piece, its marks and whether it is a light one,
+-- whose turn it is, how the game stands, its last move, and which buttons can be used. While
+-- editing, see edit_view.
+function Session:view()
+    if self.edit then
+        return edit_view(self)
+    end
+    local position = self.game:position()
+    local last_move = self.game:lastMove()
+    local squares = squares_of(position)
     mark_last_move(squares, last_move)
     mark_check(squares, position)
     mark_selection(squares, position, self.selected, self.moves)
