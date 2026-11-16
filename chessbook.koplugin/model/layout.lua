@@ -313,8 +313,8 @@ end
 
 -- Which part of the window a point falls on, or nil when the window is closed or the point is
 -- outside it. The thin border counts as the part next to it, and the gutters as the board,
--- without a square; the strip of moves is its own zone, which does nothing. A disabled button is like the row between buttons; one that shows another
--- row says which, in opens.
+-- without a square; the strip of moves is its own zone, which does nothing. A disabled button is
+-- like the row between buttons; one that shows another row says which, in opens.
 function Layout:hit(x, y, flipped)
     local r = self:rects()
     if not (self.open and inside(r.window, x, y)) then
