@@ -100,16 +100,17 @@ local function assert_buttons_fit(layout, px_per_mm)
     end
 end
 
-test("C2: move, flip, size, reset and edit from the left, then backward, forward and close at the right", function()
-    local layout = new(632, 840)
-    local row = layout:rects().buttons
-    assert_buttons_fit(layout, PX_PER_MM)
-    eq(ids_of(layout), MAIN_ROW)
-    eq(layout:buttonRect("move").x, row.x)
-    eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
-    eq(layout:buttonRect("move"), layout:buttons()[1].rect)
-    eq(layout:buttonRect("nothing"), nil)
-end)
+test("C2: move, flip, size, reset and edit from the left; backward, forward and close at the right",
+    function()
+        local layout = new(632, 840)
+        local row = layout:rects().buttons
+        assert_buttons_fit(layout, PX_PER_MM)
+        eq(ids_of(layout), MAIN_ROW)
+        eq(layout:buttonRect("move").x, row.x)
+        eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
+        eq(layout:buttonRect("move"), layout:buttons()[1].rect)
+        eq(layout:buttonRect("nothing"), nil)
+    end)
 
 -- 6. Square board, equal squares ----------------------------------------------------------------
 

@@ -117,13 +117,7 @@ local function use_size(size)
     end
 end
 
-local function render(path, side)
-    local bb = RenderImage:renderSVGImageFile(path, side, side)
-    return bb
-end
-
--- The bitmap of a piece (a FEN letter) at a square size. NanoSVG gives straight alpha: blit it
--- with alphablitFrom.
+-- The file of a piece, by its FEN letter.
 local function piece_path(letter)
     local color = letter:match("%u") and "w" or "b"
     return string.format("%s/assets/pieces/merida/%s%s.svg", plugin_dir, color, letter:upper())
@@ -133,12 +127,14 @@ end
 local function cached(group, key, path, side)
     local bb = group[key]
     if not bb then
-        bb = render(path, side)
+        bb = RenderImage:renderSVGImageFile(path, side, side)
         group[key] = bb
     end
     return bb
 end
 
+-- The bitmap of a piece (a FEN letter) at a square size. NanoSVG gives straight alpha: blit it
+-- with alphablitFrom.
 function Theme.piece(letter, size)
     use_size(size)
     return cached(cache.pieces, letter, piece_path(letter), size)

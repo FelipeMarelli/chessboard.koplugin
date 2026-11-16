@@ -56,7 +56,9 @@ local function repaint_if(self, changed)
 end
 
 -- The piece each button of the edit row puts.
-local PIECE_BUTTONS = { king = "k", queen = "q", rook = "r", bishop = "b", knight = "n", pawn = "p" }
+local PIECE_BUTTONS = {
+    king = "k", queen = "q", rook = "r", bishop = "b", knight = "n", pawn = "p",
+}
 
 local ACTIONS = {
     close = function(self) self:setOpen(false) end,

@@ -251,8 +251,7 @@ local function promotion_view(pending, position)
     end
 end
 
--- What there is to draw: each square with its piece, its marks and whether it is a light one,
--- whose turn it is, how the game stands, its last move, and which buttons can be used.
+-- Each square of a position with its piece, whether it is a light one and no marks yet.
 local function squares_of(position)
     local squares = {}
     for sq = 1, 64 do
