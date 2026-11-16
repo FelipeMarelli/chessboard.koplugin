@@ -572,13 +572,25 @@ local function tap_buttons(t, plugin, ...)
     end
 end
 
+-- What the session view shows on a square, by name: its piece and its marks.
+local function square_view(plugin, name)
+    local Rules = require("chess/rules")
+    return plugin.session:view().squares[Rules.squareFromName(name)]
+end
+
+-- Starts the game again from a FEN (the usual start when nil) and repaints the window.
+local function load_position(plugin, fen)
+    assert(plugin.session.game:reset(fen))
+    plugin.window:refresh(plugin.layout:dirtyRect())
+end
+
 -- H07: play moves with two taps, and the marks that go with them.
 local function h07(t, plugin)
     local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
     local steps, step = new_steps(plugin)
     local function info(name)
-        return session:view().squares[Rules.squareFromName(name)]
+        return square_view(plugin, name)
     end
     local function has(name, mark)
         return info(name).marks[mark] == true
@@ -595,10 +607,6 @@ local function h07(t, plugin)
         tap_squares(t, plugin, ...)
         t:check(name, info(square).piece == piece, info(square).piece)
         repainted(name, select("#", ...))
-    end
-    local function load(fen)
-        assert(session.game:reset(fen))
-        plugin.window:refresh(layout:dirtyRect())
     end
     step(function()
         t:watchRepaints()
@@ -655,7 +663,7 @@ local function h07(t, plugin)
         played("castling", "g1", "K", "g1")
         t:check("castling moves the rook", info("f1").piece == "R" and info("h1").piece == nil)
         t:shot("castled")
-        load()
+        load_position(plugin)
         played("f2-f3", "f3", "P", "f2", "f3")
         played("e7-e5", "e5", "p", "e7", "e5")
         played("g2-g4", "g4", "P", "g2", "g4")
@@ -665,19 +673,14 @@ local function h07(t, plugin)
         t:check("the king in check is marked", has("e1", "check"))
     end)
     step(function()
-        load("7k/8/6K1/8/8/8/8/5Q2 w - - 0 1")
+        load_position(plugin, "7k/8/6K1/8/8/8/8/5Q2 w - - 0 1")
         played("the queen stalemates", "f7", "Q", "f1", "f7")
         t:shot("stalemate")
         t:check("stalemate", session:view().status == "stalemate")
-        load("4k3/8/8/8/8/8/8/R6K w - - 0 1")
+        load_position(plugin, "4k3/8/8/8/8/8/8/R6K w - - 0 1")
         played("the rook checks", "a8", "R", "a1", "a8")
         t:shot("check")
         t:check("the black king in check is marked", has("e8", "check"))
-    end)
-    step(function()
-        load("8/P7/8/8/8/8/8/k6K w - - 0 1")
-        played("a pawn on the last rank becomes a queen, until H08", "a8", "Q", "a7", "a8")
-        t:shot("promoted")
         plugin.window:setOpen(false)
     end)
     return steps
@@ -788,7 +791,7 @@ local function reset(t, plugin)
         t:check("reset goes back to the start position, with no moves",
             saved.start == Rules.START_FEN and #saved.moves == 0, #saved.moves)
         t:check("and drops the selection",
-            next(session:view().squares[Rules.squareFromName("g1")].marks) == nil)
+            next(square_view(plugin, "g1").marks) == nil)
         t:repaintedOnce("reset repaints the window once, without a flash", layout:rects().window,
             "ui")
         tap_buttons(t, plugin, "reset")
@@ -932,7 +935,53 @@ local function h16(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset, edit = edit, line = line, h16 = h16 }
+-- H08: choosing the piece of a promotion, and cancelling it.
+local function h08(t, plugin)
+    local layout, session = plugin.layout, plugin.session
+    local steps, step = new_steps(plugin)
+    local PROMOTION = "8/P7/8/8/8/8/8/k6K w - - 0 1"
+    local function piece_on(name)
+        return square_view(plugin, name).piece
+    end
+    local function promote()
+        load_position(plugin, PROMOTION)
+        tap_squares(t, plugin, "a7", "a8")
+    end
+    step(function()
+        plugin:toggle()
+        promote()
+    end)
+    step(function()
+        t:shot("selector")
+        t:check("a pawn on the last rank shows the pieces to choose", session:isPromoting())
+        tap_squares(t, plugin, "a6")
+    end)
+    step(function()
+        t:shot("rook")
+        t:check("tapping the rook promotes to a rook", piece_on("a8") == "R", piece_on("a8"))
+        t:check("and the strip writes it", session:view().last_move.san.promotion == "R")
+        promote()
+        tap_buttons(t, plugin, "flip")
+        t:check("a button while choosing only cancels", not session:isPromoting()
+            and not session:flipped() and piece_on("a7") == "P")
+        promote()
+        local before = layout:rects().window
+        local from = center(layout:buttonRect("move"))
+        t:drag(from, offset(from, -40, -120), "pan_release")
+        t:check("the window does not move while choosing", same_rect(before,
+            layout:rects().window) and session:isPromoting())
+        tap_squares(t, plugin, "h1")
+    end)
+    step(function()
+        t:shot("cancelled")
+        t:check("a tap on another square cancels: the pawn stays",
+            not session:isPromoting() and piece_on("a7") == "P" and piece_on("a8") == nil)
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit, line = line, h16 = h16 }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
