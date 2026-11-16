@@ -65,6 +65,8 @@ local ACTIONS = {
         self:refresh(self.layout:dirtyRect())
     end,
     reset = function(self) repaint_if(self, self.session:reset()) end,
+    backward = function(self) repaint_if(self, self.session:navigate("back")) end,
+    forward = function(self) repaint_if(self, self.session:navigate("forward")) end,
     smaller = function(self) resize(self, -1) end,
     bigger = function(self) resize(self, 1) end,
     clear = function(self) repaint_if(self, self.session:clearBoard().changed) end,
@@ -239,13 +241,19 @@ local function paint_pressed(bb, rect)
         G_reader_settings:nilOrTrue("anti_alias_ui"))
 end
 
+-- Disabled by the layout (a size at its limit) or by the session (an arrow at the end of the line).
+local function is_disabled(button, view)
+    return not button.enabled or view.buttons[button.id] == false
+end
+
 -- One button of the row, whole: its background, its icon, lighter if it is disabled, and, if it
--- is marked (see is_marked), its mark. edit is the edit part of the session view, if any.
-local function paint_button(bb, button, pressed, edit)
+-- is marked (see is_marked), its mark. view is the session view.
+local function paint_button(bb, button, pressed, view)
     local rect = button.rect
+    local edit = view.edit
     bb:paintRect(rect.x, rect.y, rect.w, rect.h, Theme.GRAY.row)
     paint_icon(bb, button.id, rect, edit)
-    if not button.enabled then
+    if is_disabled(button, view) then
         bb:lightenRect(rect.x, rect.y, rect.w, rect.h, Theme.DISABLED)
     end
     if is_marked(button, pressed, edit) then
@@ -258,7 +266,7 @@ end
 -- make the mark wait for the page. The button lies on the window, so nothing of the page is in it.
 function Window:repaintButton(id)
     local button = self.layout:button(id)
-    paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view().edit)
+    paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view())
     UIManager:setDirty(nil, "fast", Geom:new(button.rect))
     UIManager:forceRePaint()
 end
@@ -286,7 +294,7 @@ function Window:paintTo(bb)
     local pressed = self.layout:pressedButton()
     local view = self.session:view()
     for _, button in ipairs(self.layout:buttons()) do
-        paint_button(bb, button, pressed, view.edit)
+        paint_button(bb, button, pressed, view)
     end
     Board.paint(bb, self.layout, view)
 end
