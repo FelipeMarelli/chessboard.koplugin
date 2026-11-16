@@ -46,13 +46,13 @@ Theme.GRAY = {
 }
 
 -- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.
--- They differ in shape: a thin gray frame on the two squares of the last move, a thick dark one
--- for the selected piece, a dot for a move to an empty square, corners for a capture and a disc
--- behind a king in check. The last move is not a tint: on e-ink a shade darker than the square
--- hardly showed. Chosen by Felipe ("E" of a comparison sheet), made a little lighter.
+-- last_move tints the whole square, a shade darker than its own gray; the others differ in shape:
+-- a frame for the selected piece, a dot for a move to an empty square, corners for a capture and
+-- a disc behind a king in check. Felipe went from the tint to a thin gray frame, and back to the
+-- tint ("A" of a comparison sheet) on 16 November 2026: he did not like the frame.
 Theme.MARK = {
-    last_move = gray(0x66),
-    last_move_width = 0.04,
+    last_move_on_light = gray(0xCC),
+    last_move_on_dark = gray(0x88),
     selected = gray(0x33),
     selected_width = 0.08,
     target = gray(0x55),
