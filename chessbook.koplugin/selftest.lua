@@ -809,7 +809,8 @@ local function reset(t, plugin)
     return steps
 end
 
--- Editing the start position: the flow Felipe described, then an invalid position.
+-- Editing the start position: unchanged it keeps the line, then the flow Felipe described, then
+-- an invalid position.
 local function edit(t, plugin)
     local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
@@ -817,13 +818,23 @@ local function edit(t, plugin)
     local function start()
         return session.game:serialize().start
     end
+    local function moves()
+        return #session.game:serialize().moves
+    end
     step(function()
         plugin:toggle()
         tap_squares(t, plugin, "e2", "e4")
         tap_buttons(t, plugin, "edit")
         t:shot("edit-row")
         t:check("the pencil shows the edit row", layout:shownRow() == "edit", layout:shownRow())
-        t:check("and goes back to the start position", start() == Rules.START_FEN, start())
+        t:check("with the position shown", square_view(plugin, "e4").piece == "P")
+        tap_buttons(t, plugin, "back")
+        t:check("back without changes keeps the line", moves() == 1, moves())
+    end)
+    step(function()
+        tap_buttons(t, plugin, "edit", "clear")
+        t:shot("trash-start")
+        t:check("the trash puts the start position", square_view(plugin, "e2").piece == "P")
         tap_buttons(t, plugin, "clear", "king")
         tap_squares(t, plugin, "e1")
         tap_buttons(t, plugin, "pawn")
@@ -840,9 +851,9 @@ local function edit(t, plugin)
             start() == "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", start())
     end)
     step(function()
-        tap_buttons(t, plugin, "edit", "clear", "back")
-        t:check("an invalid position goes back to the start position", start() == Rules.START_FEN,
-            start())
+        tap_buttons(t, plugin, "edit", "clear", "clear", "back")
+        t:check("an invalid position keeps the game it came from",
+            start() == "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", start())
         plugin:toggle()
     end)
     return steps
@@ -936,7 +947,7 @@ local function h16(t, plugin)
     end)
     step(function()
         t:shot("minimum")
-        tap_buttons(t, plugin, "edit", "clear", "king")
+        tap_buttons(t, plugin, "edit", "clear", "clear", "king")
         tap_squares(t, plugin, "e1")
         tap_buttons(t, plugin, "color")
         tap_squares(t, plugin, "e8")
