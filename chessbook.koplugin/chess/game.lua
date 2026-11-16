@@ -109,10 +109,9 @@ function Game:toEnd()
     return moved
 end
 
--- The move that led to the current position, with its move number, the color that played it and
--- its notation (see rules.san), or nil at the start.
-function Game:lastMove()
-    local node = self.cursor
+-- The move that led to a node, with its move number, the color that played it and its notation
+-- (see rules.san), worked out the first time it is asked for. Nil for the root.
+local function move_of(node)
     if not node.parent then
         return nil
     end
@@ -121,6 +120,31 @@ function Game:lastMove()
         node.san = Rules.san(before, node.move)
     end
     return { move = node.move, number = before.fullmove, color = before.turn, san = node.san }
+end
+
+-- The move that led to the current position (see move_of), or nil at the start.
+function Game:lastMove()
+    return move_of(self.cursor)
+end
+
+-- The last moves, up to count, that led to the current position, oldest first, each as lastMove
+-- gives it. Empty at the start.
+function Game:recentMoves(count)
+    local list = {}
+    local node = self.cursor
+    while node.parent and #list < count do
+        list[#list + 1] = move_of(node)
+        node = node.parent
+    end
+    for i = 1, math.floor(#list / 2) do
+        list[i], list[#list + 1 - i] = list[#list + 1 - i], list[i]
+    end
+    return list
+end
+
+-- The FEN of the position the game started from.
+function Game:startFen()
+    return Rules.toFen(self.root.position)
 end
 
 -- A plain table to save: the start FEN, the moves of the line in coordinate notation, and the

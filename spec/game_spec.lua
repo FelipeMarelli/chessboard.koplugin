@@ -148,6 +148,33 @@ test("C5: castling, check and mate come in the notation", function()
     eq(castle:lastMove().move.castle, sq("h1"))
 end)
 
+-- The notation of each move in a list, as plain text.
+local function texts(moves)
+    local list = {}
+    for _, m in ipairs(moves) do
+        list[#list + 1] = m.number .. m.color .. ":" .. (m.san.piece or "") .. m.san.text
+    end
+    return list
+end
+
+test("H16: the last moves up to the cursor, oldest first", function()
+    local game = assert(Game.new())
+    eq(game:recentMoves(3), {})
+    play(game, "e2e4", "e7e5", "g1f3", "b8c6")
+    eq(texts(game:recentMoves(3)), { "1b:e5", "2w:Nf3", "2b:nc6" })
+    eq(texts(game:recentMoves(10)), { "1w:e4", "1b:e5", "2w:Nf3", "2b:nc6" })
+    game:back()
+    eq(texts(game:recentMoves(2)), { "1b:e5", "2w:Nf3" })
+    eq(game:recentMoves(1)[1], game:lastMove())
+end)
+
+test("H16: the FEN the game started from, wherever the cursor is", function()
+    local game = play(assert(Game.new()), "e2e4")
+    eq(game:startFen(), Rules.START_FEN)
+    assert(game:reset("4k3/8/8/8/8/8/4P3/4K3 b - - 0 12"))
+    eq(game:startFen(), "4k3/8/8/8/8/8/4P3/4K3 b - - 0 12")
+end)
+
 -- 6. A new game --------------------------------------------------------------------------------
 
 test("C6: starting again from a position replaces the line", function()
