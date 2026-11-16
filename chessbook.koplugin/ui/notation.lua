@@ -1,16 +1,27 @@
 -- Paints the strip under the board with the last moves, as model/notation.lua writes them, with
--- the Merida pieces as figurines.
+-- the chess characters of the font as figurines (KOReader finds them in FreeSerif, one of its
+-- fallback fonts).
 local Notation = require("model/notation")
 local Theme = require("ui/theme")
 
 local Strip = {}
+
+-- White's pieces, whichever side moved.
+local FIGURINE = { K = "\u{2654}", Q = "\u{2655}", R = "\u{2656}", B = "\u{2657}", N = "\u{2658}" }
+
+-- A figurine as the text of its character; other parts as they are.
+local function as_text(part)
+    if part.kind == "figurine" then
+        return { kind = "text", text = FIGURINE[part.piece] }
+    end
+    return part
+end
 
 -- The sizes of the parts on a strip of a height, in pixels.
 local function sizes_of(height)
     local style = Theme.NOTATION
     return {
         text = math.floor(height * style.text_share),
-        figurine = math.floor(height * style.figurine_share),
         gap = Theme.px(style.gap),
         pad = Theme.px(style.pad),
     }
@@ -20,10 +31,9 @@ end
 local function measurer(sizes)
     local widths = {}
     return function(part)
+        part = as_text(part)
         if part.kind == "gap" then
             return sizes.gap
-        elseif part.kind == "figurine" then
-            return sizes.figurine
         end
         if not widths[part.text] then
             local text = Theme.text(part.text, sizes.text, Theme.NOTATION.color)
@@ -45,11 +55,6 @@ local PAINT = {
         text:paintTo(bb, x, middle(rect, text:getSize().h))
         text:free()
     end,
-    figurine = function(bb, part, x, rect, sizes)
-        local image = Theme.pieceIcon(part.piece, sizes.figurine)
-        local w, h = image:getWidth(), image:getHeight()
-        bb:alphablitFrom(image, x, middle(rect, h), 0, 0, w, h)
-    end,
     gap = function() end,
 }
 
@@ -67,7 +72,8 @@ function Strip.paint(bb, rect, notation)
         if x + w > right then
             return
         end
-        PAINT[part.kind](bb, part, x, rect, sizes)
+        local shown = as_text(part)
+        PAINT[shown.kind](bb, shown, x, rect, sizes)
         x = x + w
     end
 end

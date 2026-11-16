@@ -81,13 +81,12 @@ Theme.STATUS = {
     text_share = 0.8,
 }
 
--- The strip with the last moves. text_share and figurine_share: heights as shares of the strip;
+-- The strip with the last moves. text_share: text height as a share of the strip;
 -- gap (between moves) and pad (at the ends) in mm.
 Theme.NOTATION = {
     background = gray(0xFF),
     color = gray(0x00),
     text_share = 0.6,
-    figurine_share = 0.85,
     gap = 1.5,
     pad = 1,
 }

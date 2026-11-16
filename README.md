@@ -242,7 +242,7 @@ El instalador de AppStore no se revisó. El catálogo se ordena por estrellas y 
 - Ajustar en la Kindle el indicador de turno en la esquina, que mide 2,5 mm (H07).
 - Probar en la Kindle el editor de tamaño (H05): si el paso de 1 mm de casilla es cómodo, y si un botón deshabilitado (aclarado al 60 %) se distingue.
 - Probar en la Kindle los botones de 7 mm y la casilla mínima de 4,2 mm, y si el tacho queda demasiado cerca de otros botones como para tocarlo sin querer.
-- Probar en la Kindle la franja de jugadas (H16): si el texto de 2,7 mm y los figurines se leen,; los figurines son siempre las piezas blancas, de trazo fino.
+- Probar en la Kindle la franja de jugadas (H16): si el texto de 2,7 mm y los figurines se leen. Los figurines son los caracteres de ajedrez de FreeSerif, siempre las piezas blancas, de trazo fino.
 - Medir en la Kindle cuánto tarda generar las jugadas legales y escribir la notación (`chess/rules.lua`).
 
 ## Licencia
