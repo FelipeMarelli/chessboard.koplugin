@@ -325,24 +325,62 @@ local function put(session, letter, ...)
     return tap(session, ...)
 end
 
--- A session editing an empty board.
+-- A session editing an empty board: on the start position, the trash empties it.
 local function editing_empty()
     local session = session_at()
-    tap(session, "e2", "e4")
     session:startEdit()
     session:clearBoard()
     return session
 end
 
-test("Edit: starts from the usual start position, which the game goes back to", function()
-    local session = session_at(AFTER_E4_D5)
+-- A session with 1.e4 d5 played, gone back to the position after 1.e4.
+local function back_after_e4()
+    local session = session_at()
+    tap(session, "e2", "e4", "d7", "d5")
+    session:navigate("back")
+    return session
+end
+
+-- Felipe, 16 November 2026: editing starts from the position shown, and the line is kept until
+-- an edited position replaces it. Before, the editor started from the usual start position.
+test("Edit: starts from the position shown, and the game is left as it is", function()
+    local session = back_after_e4()
     eq(session:isEditing(), false)
     eq(session:startEdit(), true)
     eq(session:isEditing(), true)
-    eq(session.game:serialize().start, Rules.START_FEN)
     local view = session:view()
-    eq(view.squares[sq("e1")].piece, "K"); eq(view.turn, "w")
-    eq(view.edit, { color = "w" })
+    eq(view.squares[sq("e4")].piece, "P"); eq(view.turn, "b")
+    eq(view.edit, { color = "b" })
+    eq(session.game:serialize().moves, { "e2e4", "d7d5" })
+end)
+
+test("Edit: unchanged, back keeps the line and the position shown", function()
+    local session = back_after_e4()
+    session:startEdit()
+    session:toggleColor(); session:toggleColor()
+    eq(session:finishEdit(), true)
+    eq(session.game:serialize().moves, { "e2e4", "d7d5" })
+    eq(session:view().squares[sq("d5")].piece, nil)
+    eq(session:view().buttons.forward, true)
+end)
+
+test("Edit: the trash puts the start position, and on it empties the board", function()
+    local session = back_after_e4()
+    session:startEdit()
+    eq(session:clearBoard(), true)
+    eq(piece_on(session, "e2"), "P"); eq(session:view().turn, "w")
+    eq(session:clearBoard(), true)
+    eq(piece_on(session, "e1"), nil)
+    eq(session:clearBoard(), true)
+    eq(piece_on(session, "e1"), "K")
+end)
+
+test("Edit: the start position put with the trash starts a new game from it", function()
+    local session = back_after_e4()
+    session:startEdit()
+    session:clearBoard()
+    session:finishEdit()
+    eq(session.game:serialize(), { start = Rules.START_FEN, moves = {}, cursor = 0 })
 end)
 
 test("Edit: clearing leaves the board empty", function()
@@ -378,18 +416,22 @@ test("Edit: the color chosen when it ends is the side to move", function()
     eq(session:finishEdit(), false)
 end)
 
-test("Edit: clearing keeps the chosen color", function()
-    local session = editing_empty()
+test("Edit: emptying the board keeps the chosen color", function()
+    local session = session_at()
+    session:startEdit()
     session:toggleColor()
     session:clearBoard()
+    eq(piece_on(session, "e1"), nil)
     eq(session:view().turn, "b")
 end)
 
-test("Edit: an invalid position goes back to the usual start", function()
-    local session = editing_empty()
+test("Edit: an invalid position keeps the line it came from", function()
+    local session = back_after_e4()
+    session:startEdit()
+    session:clearBoard(); session:clearBoard()
     put(session, "k", "e1")
     session:finishEdit()
-    eq(session.game:serialize().start, Rules.START_FEN)
+    eq(session.game:serialize().moves, { "e2e4", "d7d5" })
 end)
 
 -- Felipe, 16 November 2026: castling is there when the king and the rook are on their start
@@ -401,9 +443,8 @@ test("Edit: unchanged, the usual start position stays, castling included", funct
     eq(session.game:serialize().start, Rules.START_FEN)
 end)
 
-test("Edit: choosing a piece again, or clearing an empty board, changes nothing", function()
+test("Edit: choosing a piece again changes nothing", function()
     local session = editing_empty()
-    eq(session:clearBoard(), false)
     eq(session:choosePiece("q"), true)
     eq(session:choosePiece("q"), false)
 end)

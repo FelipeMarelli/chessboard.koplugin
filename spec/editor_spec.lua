@@ -57,6 +57,28 @@ test("Editor: clearing empties the board, and an empty one does not change", fun
     eq(editor:clear(), false)
 end)
 
+test("Editor: changed when the pieces or the side to move differ from where it started",
+    function()
+        local editor = editor_of()
+        eq(editor:isChanged(), false)
+        editor:setTurn("b")
+        eq(editor:isChanged(), true)
+        editor:setTurn("w")
+        eq(editor:isChanged(), false)
+        put(editor, "Q", "e4")
+        eq(editor:isChanged(), true)
+    end)
+
+test("Editor: the start position, White to move, and on it nothing changes", function()
+    local editor = editor_of("4k3/8/8/8/8/8/4P3/4K3 b - - 0 7")
+    eq(editor:isStart(), false)
+    eq(editor:setStart(), true)
+    eq(editor:isStart(), true)
+    eq(editor:turn(), "w")
+    eq(result_fen(editor), Rules.START_FEN)
+    eq(editor:setStart(), false)
+end)
+
 test("Editor: the side to move", function()
     local editor = editor_of()
     eq(editor:setTurn("w"), false)

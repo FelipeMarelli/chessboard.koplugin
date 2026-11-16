@@ -34,9 +34,45 @@ local function copy(board)
     return new
 end
 
+-- Whether two boards have the same pieces on the same squares.
+local function same_board(a, b)
+    for sq = 1, 64 do
+        if a[sq] ~= b[sq] then
+            return false
+        end
+    end
+    return true
+end
+
+local START_BOARD = assert(Rules.fromFen(Rules.START_FEN)).board
+
 -- Edits the pieces of a position and its side to move; the rest of it is left behind.
 function Editor.new(position)
-    return setmetatable({ board = copy(position.board), side = position.turn }, Editor)
+    return setmetatable({
+        board = copy(position.board),
+        side = position.turn,
+        entry = { board = copy(position.board), side = position.turn },
+    }, Editor)
+end
+
+-- Whether the pieces or the side to move differ from the position the editor started with.
+function Editor:isChanged()
+    return self.side ~= self.entry.side or not same_board(self.board, self.entry.board)
+end
+
+-- Whether the board has the pieces of the usual start position.
+function Editor:isStart()
+    return same_board(self.board, START_BOARD)
+end
+
+-- Puts the pieces of the usual start position, White to move. Returns whether it changed.
+function Editor:setStart()
+    if self:isStart() and self.side == "w" then
+        return false
+    end
+    self.board = copy(START_BOARD)
+    self.side = "w"
+    return true
 end
 
 -- Chooses the piece to put, a FEN letter ("K", "q", ...), or none. Returns whether it changed.

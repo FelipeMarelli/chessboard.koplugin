@@ -104,17 +104,21 @@ function Session:isEditing()
     return self.editor ~= nil
 end
 
--- Starts editing from the usual start position, which the game goes back to.
+-- Starts editing from the position shown; the game is left as it is until editing ends.
 function Session:startEdit()
     forget_choice(self)
-    assert(self.game:reset())
     self.editor = Editor.new(self.game:position())
     return true
 end
 
--- Empties the board being edited. Returns whether it changed.
+-- The trash of the editor: puts the usual start position, and on it, empties the board.
+-- Returns whether it changed.
 function Session:clearBoard()
-    return self.editor:clear()
+    local editor = self.editor
+    if editor:isStart() then
+        return editor:clear()
+    end
+    return editor:setStart()
 end
 
 -- Switches the color of the pieces to put, which is also the side to move.
@@ -134,16 +138,18 @@ function Session:choosePiece(letter)
     return self.editor:setTool(colored(letter, self.editor:turn()))
 end
 
--- Ends editing: the game starts from the edited position when it is valid, else from the usual
--- one. False when there was nothing being edited.
+-- Ends editing: when the position was changed and is valid, the game starts from it; else the
+-- game and its line stay as they were. False when there was nothing being edited.
 function Session:finishEdit()
     local editor = self.editor
     if not editor then
         return false
     end
     self.editor = nil
-    local position = editor:result()
-    assert(self.game:reset(position and Rules.toFen(position)))
+    local position = editor:isChanged() and editor:result()
+    if position then
+        assert(self.game:reset(Rules.toFen(position)))
+    end
     return true
 end
 
