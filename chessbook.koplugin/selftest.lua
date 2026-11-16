@@ -803,17 +803,19 @@ local function reset(t, plugin)
     return steps
 end
 
+-- Taps buttons of the row shown, by id, one after another.
+local function tap_buttons(t, layout, ...)
+    for _, id in ipairs({ ... }) do
+        t:tapRect(layout:buttonRect(id))
+    end
+end
+
 -- Editing the start position: the flow Felipe described, then an invalid position.
 local function edit(t, plugin)
     local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
     local steps = {}
     local function step(fn) steps[#steps + 1] = fn end
-    local function tap_buttons(...)
-        for _, id in ipairs({ ... }) do
-            t:tapRect(layout:buttonRect(id))
-        end
-    end
     local function start()
         return session.game:serialize().start
     end
@@ -821,27 +823,27 @@ local function edit(t, plugin)
     step(function()
         plugin:toggle()
         tap_squares(t, plugin, "e2", "e4")
-        tap_buttons("edit")
+        tap_buttons(t, layout, "edit")
         t:shot("edit-row")
         t:check("the pencil shows the edit row", layout:shownRow() == "edit", layout:shownRow())
         t:check("and goes back to the start position", start() == Rules.START_FEN, start())
-        tap_buttons("clear", "king")
+        tap_buttons(t, layout, "clear", "king")
         tap_squares(t, plugin, "e1")
-        tap_buttons("pawn")
+        tap_buttons(t, layout, "pawn")
         tap_squares(t, plugin, "e2")
-        tap_buttons("color", "king")
+        tap_buttons(t, layout, "color", "king")
         tap_squares(t, plugin, "e8")
         t:shot("black-king")
-        tap_buttons("color")
+        tap_buttons(t, layout, "color")
         t:shot("placed")
-        tap_buttons("back")
+        tap_buttons(t, layout, "back")
         t:shot("saved")
         t:check("back shows the main row", layout:shownRow() == "main", layout:shownRow())
         t:check("and the game starts from the edited position, White to move",
             start() == "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", start())
     end)
     step(function()
-        tap_buttons("edit", "clear", "back")
+        tap_buttons(t, layout, "edit", "clear", "back")
         t:check("an invalid position goes back to the start position", start() == Rules.START_FEN,
             start())
         plugin:toggle()
@@ -849,7 +851,45 @@ local function edit(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset, edit = edit }
+-- The arrows: step back and forward along the line, and a new move after going back replaces
+-- the rest of it.
+local function line(t, plugin)
+    local layout, session = plugin.layout, plugin.session
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
+    local function moves()
+        return table.concat(session.game:serialize().moves, " ")
+    end
+    local function can_go()
+        local buttons = session:view().buttons
+        return buttons.backward, buttons.forward
+    end
+    go_to_page(steps, plugin)
+    step(function()
+        plugin:toggle()
+        tap_squares(t, plugin, "e2", "e4", "e7", "e5")
+        local backward, forward = can_go()
+        t:check("at the end of the line only backward can be used", backward and not forward)
+        t:shot("end")
+        tap_buttons(t, layout, "backward", "backward")
+        t:shot("start")
+        backward, forward = can_go()
+        t:check("two steps back is the start, where only forward can be used",
+            not backward and forward)
+        tap_buttons(t, layout, "backward")
+        t:check("backward at the start does nothing", session.game:serialize().cursor == 0)
+        tap_buttons(t, layout, "forward")
+        t:shot("forward")
+        t:check("forward plays e4 again", session:view().last_move.san.text == "e4")
+        tap_squares(t, plugin, "c7", "c5")
+        t:shot("replaced")
+        t:check("a new move replaces the rest of the line", moves() == "e2e4 c7c5", moves())
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset, edit = edit, line = line }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
