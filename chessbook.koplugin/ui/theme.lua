@@ -4,7 +4,9 @@
 -- guesses, to be tuned on the Kindle.
 local Blitbuffer = require("ffi/blitbuffer")
 local Device = require("device")
+local Font = require("ui/font")
 local RenderImage = require("ui/renderimage")
+local TextWidget = require("ui/widget/textwidget")
 
 local Screen = Device.screen
 
@@ -19,6 +21,7 @@ Theme.SIZES = {
     min_square = 4.2,
     size_step = 1,  -- how much the side of a square changes with each tap on smaller or bigger
     gutter = 2.5,   -- strips for the coordinates outside the board; 0 puts them on the squares
+    notation = 4.5, -- strip with the last moves, between the board and the buttons (H16)
 }
 
 Theme.ICON = 5          -- icon side, mm
@@ -69,6 +72,17 @@ Theme.STATUS = {
     text_share = 0.8,
 }
 
+-- The strip with the last moves. text_share and figurine_share: heights as shares of the strip;
+-- gap (between moves) and pad (at the ends) in mm.
+Theme.NOTATION = {
+    background = gray(0xFF),
+    color = gray(0x00),
+    text_share = 0.6,
+    figurine_share = 0.85,
+    gap = 1.5,
+    pad = 1,
+}
+
 -- Coordinate labels. share: text height as a share of the square; gutter_share: as a share of
 -- the gutter, when there is one. file_corner and rank_corner: "top_left", "top_right",
 -- "bottom_left" or "bottom_right" of their square.
@@ -89,6 +103,21 @@ end
 
 function Theme.px(mm)
     return math.max(1, math.floor(mm * Theme.pxPerMm() + 0.5))
+end
+
+-- Font:getFace scales the size it gets with the screen; this asks for a size in pixels.
+local function face_of_px(size_px)
+    return Font:getFace("cfont", size_px * 100 / Screen:scaleBySize(100))
+end
+
+-- A text of a height in pixels, in the interface font. The caller frees it.
+function Theme.text(text, size_px, color, bold)
+    return TextWidget:new{
+        text = text,
+        face = face_of_px(math.max(6, size_px)),
+        bold = bold,
+        fgcolor = color,
+    }
 end
 
 local plugin_dir

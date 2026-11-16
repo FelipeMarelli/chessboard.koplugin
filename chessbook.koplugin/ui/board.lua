@@ -1,9 +1,6 @@
 -- Paints the board: squares, marks, coordinate labels, pieces and whose turn it is, from the
 -- session view.
-local Font = require("ui/font")
 local Rules = require("chess/rules")
-local Screen = require("device").screen
-local TextWidget = require("ui/widget/textwidget")
 local Theme = require("ui/theme")
 
 local Board = {}
@@ -73,21 +70,6 @@ local function paint_marks(bb, layout, view)
     end
 end
 
--- Font:getFace scales the size it gets with the screen; this asks for a size in pixels.
-local function face_of_px(size_px)
-    return Font:getFace("cfont", size_px * 100 / Screen:scaleBySize(100))
-end
-
--- A text of a height in pixels. The caller frees it.
-local function text_of(text, size_px, color, bold)
-    return TextWidget:new{
-        text = text,
-        face = face_of_px(math.max(6, size_px)),
-        bold = bold,
-        fgcolor = color,
-    }
-end
-
 -- Where a text of a size goes in a corner of a square.
 local CORNERS = {
     top_left = function(r, size, pad) return r.x + pad, r.y end,
@@ -111,7 +93,7 @@ local function paint_labels(bb, layout, view)
         local name = Rules.squareName(label.square)
         local is_file = label.kind == "file"
         local color = view.squares[label.square].light and style.on_light or style.on_dark
-        local text = text_of(is_file and name:sub(1, 1) or name:sub(2, 2), size_px,
+        local text = Theme.text(is_file and name:sub(1, 1) or name:sub(2, 2), size_px,
             gutters and style.on_gutter or color, style.bold)
         if gutters then
             text:paintTo(bb, centred(label.rect, text:getSize()))
@@ -148,7 +130,7 @@ local function paint_status(bb, layout, view)
     local style = Theme.STATUS
     local ending = ENDINGS[view.status]
     if ending then
-        local text = text_of(ending, math.floor(r.h * style.text_share), style.color, true)
+        local text = Theme.text(ending, math.floor(r.h * style.text_share), style.color, true)
         text:paintTo(bb, centred(r, text:getSize()))
         text:free()
     else
