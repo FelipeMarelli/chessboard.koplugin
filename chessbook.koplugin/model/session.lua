@@ -272,13 +272,6 @@ local function mark_selection(squares, position, selected, moves)
     end
 end
 
-local function mark_last_move(squares, last)
-    if last then
-        mark(squares, last.move.from, "last_move")
-        mark(squares, last.move.to, "last_move")
-    end
-end
-
 local function mark_check(squares, position)
     if Rules.isCheck(position) then
         mark(squares, Rules.kingSquare(position, Rules.turn(position)), "check")
@@ -343,7 +336,6 @@ function Session:view()
     local position = self.game:position()
     local last_move = self.game:lastMove()
     local squares = squares_of(position)
-    mark_last_move(squares, last_move)
     mark_check(squares, position)
     mark_selection(squares, position, self.selected, self.moves)
     return {

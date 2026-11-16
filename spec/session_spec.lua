@@ -160,19 +160,12 @@ test("H07 C5: en passant is a capture, and takes the pawn off its square", funct
     eq(piece_on(session, "f6"), "P"); eq(piece_on(session, "f5"), nil)
 end)
 
-test("H07 C6: the squares of the last move stay marked", function()
+-- Felipe, 16 November 2026: the last move is not marked on the board; the strip shows it.
+test("H07 C6: the squares of the last move are not marked", function()
     local session = session_at()
-    eq(marked(session, "last_move"), {})
     tap(session, "e2", "e4")
-    eq(marked(session, "last_move"), { "e2", "e4" })
-    tap(session, "g8", "f6")
-    eq(marked(session, "last_move"), { "f6", "g8" })
-end)
-
-test("H07 C6: after castling the last move marks where the king went from and to", function()
-    local session = session_at("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
-    tap(session, "e1", "c1")
-    eq(marked(session, "last_move"), { "c1", "e1" })
+    eq(marked(session, "last_move"), {})
+    eq(session:view().last_move.san.text, "e4")
 end)
 
 test("H07 C7: the king of the side to move is marked when in check", function()
@@ -275,7 +268,7 @@ local function assert_start(session)
     eq(session.game:serialize(), { start = Rules.START_FEN, moves = {}, cursor = 0 })
     local view = session:view()
     eq(view.turn, "w"); eq(view.last_move, nil); eq(view.promotion, nil)
-    eq(marked(session, "selected"), {}); eq(marked(session, "last_move"), {})
+    eq(marked(session, "selected"), {})
 end
 
 test("Reset: after some moves, back to the start position with no moves", function()
@@ -479,13 +472,12 @@ local function can_go(session)
     return { backward = buttons.backward, forward = buttons.forward }
 end
 
-test("Line: back and forward step along the line, with the last move marked", function()
+test("Line: back and forward step along the line, with the move that led there", function()
     local session = session_at()
     tap(session, "e2", "e4", "e7", "e5")
     eq(can_go(session), { backward = true, forward = false })
     eq(session:navigate("back"), true)
     eq(session:view().last_move.san.text, "e4")
-    eq(marked(session, "last_move"), { "e2", "e4" })
     eq(can_go(session), { backward = true, forward = true })
     eq(session:navigate("back"), true)
     eq(session:view().last_move, nil)
