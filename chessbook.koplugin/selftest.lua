@@ -125,6 +125,14 @@ function SelfTest:press(from, to, held, via)
     end
 end
 
+-- A finger resting in the middle of rect and lifted there, without moving.
+function SelfTest:holdRect(rect)
+    local p = center(rect)
+    self:touch(p)
+    self:gesture({ ges = "hold", pos = point(p) })
+    self:lift(p, p, "hold")
+end
+
 -- The end of a drag from one point to another: the finger is lifted at to. lift: "pan_release"
 -- (a slow drag), "swipe" or "multiswipe" (quick ones) or "hold" (the finger rested before moving).
 function SelfTest:lift(from, to, lift)
@@ -853,6 +861,7 @@ local function line(t, plugin)
         return buttons.backward, buttons.forward
     end
     step(function()
+        t:watchRepaints()
         plugin:toggle()
         tap_squares(t, plugin, "e2", "e4", "e7", "e5")
         local backward, forward = can_go()
@@ -871,6 +880,18 @@ local function line(t, plugin)
         tap_squares(t, plugin, "c7", "c5")
         t:shot("replaced")
         t:check("a new move replaces the rest of the line", moves() == "e2e4 c7c5", moves())
+        tap_squares(t, plugin, "g1", "f3")
+        t.repaints = {}
+        local reader_calls = t:countAllCalls(plugin.ui, READER_DRAG_ZONES)
+        t:holdRect(plugin.layout:buttonRect("backward"))
+        t:shot("held_backward")
+        t:check("holding backward goes to the start", session.game:serialize().cursor == 0)
+        t:repaintedOnce("and repaints the window once, without a flash",
+            plugin.layout:rects().window, "ui")
+        t:holdRect(plugin.layout:buttonRect("forward"))
+        t:shot("held_forward")
+        t:check("holding forward goes to the end", session:view().last_move.san.text == "f3")
+        t:check("holding an arrow does not reach the reader", reader_calls() == 0, reader_calls())
         plugin:toggle()
     end)
     return steps
