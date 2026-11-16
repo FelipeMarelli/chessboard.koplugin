@@ -942,7 +942,9 @@ local function h16(t, plugin)
     end)
     step(function()
         t:shot("back")
-        t:check("going back the strip ends at the position shown", shown() == 8, shown())
+        local current = session:view().notation.current
+        t:check("going back the strip keeps the line and marks the move on the board",
+            shown() == 10 and current == 8, shown() .. " " .. current)
         tap_buttons(t, plugin, "size")
         while layout:canResize(-1) do
             tap_buttons(t, plugin, "smaller")
