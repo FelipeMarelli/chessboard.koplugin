@@ -81,6 +81,13 @@ for id, letter in pairs(PIECE_BUTTONS) do
     ACTIONS[id] = function(self) repaint_if(self, self.session:choosePiece(letter)) end
 end
 
+-- What holding a button down does, for the buttons that do something else when held: the arrows
+-- go to the start or the end of the line.
+local HOLD_ACTIONS = {
+    backward = function(self) repaint_if(self, self.session:navigate("start")) end,
+    forward = function(self) repaint_if(self, self.session:navigate("end")) end,
+}
+
 -- What showing a row does to the session: the edit row starts editing the start position, and
 -- the main one ends it. Each says whether the board changed.
 local ROW_ENTERED = {
@@ -115,6 +122,16 @@ function Window:run(name, action, ...)
     end
 end
 
+-- Runs what pressing a button does, from actions; while a promotion waits for its piece, any
+-- button only cancels it.
+function Window:pressButton(hit, actions)
+    if self.session:isPromoting() then
+        self:run("promotion", cancel_promotion)
+    elseif actions[hit.button] then
+        self:run(hit.button, actions[hit.button])
+    end
+end
+
 -- True when the tap was on the window, so that the reader does not get it.
 function Window:onTap(ges)
     -- A tap is a finger lifted where it went down: it ends the touch that started it.
@@ -125,14 +142,21 @@ function Window:onTap(ges)
     end
     if hit.square then
         self:run("square", tap_square, hit.square)
-    elseif self.session:isPromoting() then
-        self:run("promotion", cancel_promotion)
-    elseif hit.opens then
+    elseif hit.opens and not self.session:isPromoting() then
         self:run(hit.button, show_row, hit.opens)
-    elseif ACTIONS[hit.button] then
-        self:run(hit.button, ACTIONS[hit.button])
+    else
+        self:pressButton(hit, ACTIONS)
     end
     return true
+end
+
+-- A finger resting on the window: on a button with a hold action, it does it at once, without
+-- waiting for the finger to be lifted.
+function Window:hold(pos)
+    local hit = self.layout:hit(pos.x, pos.y, self.session:flipped())
+    if hit and HOLD_ACTIONS[hit.button] then
+        self:pressButton(hit, HOLD_ACTIONS)
+    end
 end
 
 -- Drags. KOReader splits one drag into several gestures: "touch" as soon as the finger goes down;
@@ -176,6 +200,9 @@ function Window:onDrag(ges)
     local marked = self.layout:pressedButton()
     if not self:ownsDrag(ges) then
         return false
+    end
+    if ges.ges == "hold" then
+        self:hold(ges.pos)
     end
     local lift = point_of(ges, LIFT_FIELD)
     local pressed = self.layout:pressedButton()
