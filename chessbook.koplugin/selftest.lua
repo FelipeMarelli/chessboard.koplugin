@@ -39,7 +39,7 @@ end
 
 -- A point of the button row that is on no button: just right of the last button on the left.
 local function between_buttons(layout)
-    local last_left = layout:buttonRect("reset")
+    local last_left = layout:buttonRect("edit")
     return { x = last_left.x + last_left.w + 2, y = last_left.y + last_left.h / 2 }
 end
 
@@ -803,7 +803,53 @@ local function reset(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset }
+-- Editing the start position: the flow Felipe described, then an invalid position.
+local function edit(t, plugin)
+    local Rules = require("chess/rules")
+    local layout, session = plugin.layout, plugin.session
+    local steps = {}
+    local function step(fn) steps[#steps + 1] = fn end
+    local function tap_buttons(...)
+        for _, id in ipairs({ ... }) do
+            t:tapRect(layout:buttonRect(id))
+        end
+    end
+    local function start()
+        return session.game:serialize().start
+    end
+    go_to_page(steps, plugin)
+    step(function()
+        plugin:toggle()
+        tap_squares(t, plugin, "e2", "e4")
+        tap_buttons("edit")
+        t:shot("edit-row")
+        t:check("the pencil shows the edit row", layout:shownRow() == "edit", layout:shownRow())
+        t:check("and goes back to the start position", start() == Rules.START_FEN, start())
+        tap_buttons("clear", "king")
+        tap_squares(t, plugin, "e1")
+        tap_buttons("pawn")
+        tap_squares(t, plugin, "e2")
+        tap_buttons("color", "king")
+        tap_squares(t, plugin, "e8")
+        t:shot("black-king")
+        tap_buttons("color")
+        t:shot("placed")
+        tap_buttons("back")
+        t:shot("saved")
+        t:check("back shows the main row", layout:shownRow() == "main", layout:shownRow())
+        t:check("and the game starts from the edited position, White to move",
+            start() == "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", start())
+    end)
+    step(function()
+        tap_buttons("edit", "clear", "back")
+        t:check("an invalid position goes back to the start position", start() == Rules.START_FEN,
+            start())
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, reset = reset, edit = edit }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
