@@ -142,6 +142,18 @@ function Game:recentMoves(count)
     return list
 end
 
+-- The moves of the line after the current position, up to count, in order, each as lastMove
+-- gives it. Empty at the end of the line.
+function Game:nextMoves(count)
+    local list = {}
+    local node = self.cursor.children[1]
+    while node and #list < count do
+        list[#list + 1] = move_of(node)
+        node = node.children[1]
+    end
+    return list
+end
+
 -- The FEN of the position the game started from.
 function Game:startFen()
     return Rules.toFen(self.root.position)
