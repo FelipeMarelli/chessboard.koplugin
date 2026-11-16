@@ -11,7 +11,9 @@ local FILES = 8
 -- The rows of buttons under the board, by name. Each has its buttons from the left edge and from
 -- the right edge, in order. The main row shows first; a button of OPENS shows another row instead
 -- of acting, and the back button of any row shows the main one again. "move" is the one to drag
--- the window by; "backward" and "forward" step along the line of moves, next to close.
+-- the window by; "backward" and "forward" step along the line of moves, next to close. A row with
+-- upper buttons puts them, from the left, in the place of the strip of moves (after the others,
+-- when there is no strip).
 local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
 local BACK_BUTTON = "back"
@@ -19,8 +21,8 @@ local ROWS = {
     main = { left = { MOVE_BUTTON, "flip", "size", "reset", "edit" },
         right = { "close", "forward", "backward" } },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
-    edit = { left = { BACK_BUTTON, "clear", "color", "king", "queen", "rook", "bishop", "knight",
-        "pawn" }, right = {} },
+    edit = { left = { BACK_BUTTON, "clear", "erase" }, right = {},
+        upper = { "color", "king", "queen", "rook", "bishop", "knight", "pawn" } },
 }
 local OPENS = { size = "size", edit = "edit" }
 
@@ -222,22 +224,43 @@ function Layout:rects()
     return rects
 end
 
--- Every button of the row shown, with its id, its rect and whether it is enabled, from left to
--- right. When they do not all fit in the row at their usual width, they are narrowed until they do.
-function Layout:buttons()
-    local row = self:rects().buttons
-    local list = {}
-    local left, right = ROWS[self.row].left, ROWS[self.row].right
-    local bw = math.min(self.px.button, math.floor(row.w / (#left + #right)))
+local function concat(a, b)
+    local all = { unpack(a) }
+    for _, id in ipairs(b) do
+        all[#all + 1] = id
+    end
+    return all
+end
+
+-- Adds to list the buttons side by side in rect: left ones from its left edge, right ones from
+-- its right edge. When they do not all fit at their usual width, they are narrowed until they do.
+local function add_buttons(self, list, rect, left, right)
+    local bw = math.min(self.px.button, math.floor(rect.w / (#left + #right)))
     local function add(id, x)
         list[#list + 1] = { id = id, enabled = self:isEnabled(id),
-            rect = { x = x, y = row.y, w = bw, h = row.h } }
+            rect = { x = x, y = rect.y, w = bw, h = rect.h } }
     end
     for i, id in ipairs(left) do
-        add(id, row.x + (i - 1) * bw)
+        add(id, rect.x + (i - 1) * bw)
     end
     for i = #right, 1, -1 do
-        add(right[i], row.x + row.w - i * bw)
+        add(right[i], rect.x + rect.w - i * bw)
+    end
+end
+
+-- Every button of the row shown, with its id, its rect and whether it is enabled: those of the
+-- row under the board from left to right, then the upper ones (see ROWS).
+function Layout:buttons()
+    local rects = self:rects()
+    local row = ROWS[self.row]
+    local left, upper = row.left, row.upper
+    if upper and not rects.notation then
+        left, upper = concat(left, upper), nil
+    end
+    local list = {}
+    add_buttons(self, list, rects.buttons, left, row.right)
+    if upper then
+        add_buttons(self, list, rects.notation, upper, {})
     end
     return list
 end

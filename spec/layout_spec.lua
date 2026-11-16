@@ -85,19 +85,40 @@ local function ids_of(layout)
     return ids
 end
 
--- Every button of the row shown is inside the row and 7 mm or more on each side; narrower only
--- when the row has no room for them all at 7 mm, and then all of the same width.
-local function assert_buttons_fit(layout, px_per_mm)
-    local row = layout:rects().buttons
-    local buttons = layout:buttons()
-    local seven = 7 * px_per_mm - 1
-    local room = row.w >= #buttons * seven
-    for _, button in ipairs(buttons) do
-        assert(contains(row, button.rect), button.id)
-        assert(button.rect.h >= seven, "button lower than 7 mm: " .. button.id)
-        assert(button.rect.w >= seven or (not room and button.rect.w == buttons[1].rect.w),
-            "button narrower than 7 mm: " .. button.id)
+-- The buttons of the row shown that lie in an area.
+local function buttons_in(layout, area)
+    local list = {}
+    for _, button in ipairs(layout:buttons()) do
+        if contains(area, button.rect) then
+            list[#list + 1] = button
+        end
     end
+    return list
+end
+
+-- Every button of the row shown is in the row under the board, 7 mm or more on each side, or in
+-- the strip of moves (the upper ones of the edit row), as high as the strip. Narrower than 7 mm
+-- only when their area has no room for them all at 7 mm, and then all of the same width.
+local function assert_buttons_fit(layout, px_per_mm)
+    local rects = layout:rects()
+    local seven = 7 * px_per_mm - 1
+    local count = 0
+    local function check(area)
+        local buttons = buttons_in(layout, area)
+        local room = area.w >= #buttons * seven
+        for _, button in ipairs(buttons) do
+            eq(button.rect.h, area.h)
+            assert(button.rect.w >= seven or (not room and button.rect.w == buttons[1].rect.w),
+                "button narrower than 7 mm: " .. button.id)
+        end
+        count = count + #buttons
+    end
+    assert(rects.buttons.h >= seven, "row lower than 7 mm")
+    check(rects.buttons)
+    if rects.notation then
+        check(rects.notation)
+    end
+    eq(count, #layout:buttons())
 end
 
 test("C2: move, flip, size, reset and edit from the left; backward, forward and close at the right",
@@ -774,13 +795,22 @@ test("H05: the same screen keeps the size, and a new one gives the default size"
     eq(layout:squareSize(), new(840, 632):squareSize())
 end)
 
-test("Edit: the edit button shows the edit row: back, clear, color and the six pieces", function()
+-- The color and the six pieces of the edit row.
+local EDIT_UPPER = { "color", "king", "queen", "rook", "bishop", "knight", "pawn" }
+
+test("Edit: the edit button shows the edit row: back, clear and the eraser", function()
     local layout = new(632, 840)
     eq(tap_button(layout, "edit"), { zone = "button", button = "edit", opens = "edit" })
     layout:showRow("edit")
-    eq(ids_of(layout), { "back", "clear", "color", "king", "queen", "rook", "bishop", "knight",
-        "pawn" })
+    local ids = ids_of(layout)
+    eq({ unpack(ids, 1, 3) }, { "back", "clear", "erase" })
     eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
+end)
+
+test("Edit: without a strip of moves, the color and the pieces go after the others", function()
+    local layout = new(632, 840)
+    layout:showRow("edit")
+    eq(ids_of(layout), { "back", "clear", "erase", unpack(EDIT_UPPER) })
 end)
 
 -- H16: the strip with the last moves --------------------------------------------------------
@@ -825,4 +855,20 @@ test("H16 C7: at the minimum size the strip covers neither the board nor the but
 test("H16: a tap on the strip is the window's and does nothing", function()
     local layout = with_sizes(632, 840, NOTATION)
     eq(layout:hit(center(layout:rects().notation)), { zone = "notation" })
+end)
+
+-- Felipe, 16 November 2026: the color and the pieces go up, in the place of the strip of moves,
+-- so they are not so narrow with a small board.
+test("Edit, H16: the color and the six pieces take the place of the strip of moves", function()
+    local layout = with_sizes(632, 840, NOTATION)
+    layout:showRow("edit")
+    eq(#layout:buttons(), 10)
+    local strip = layout:rects().notation
+    eq(#buttons_in(layout, strip), #EDIT_UPPER)
+    for i, id in ipairs(EDIT_UPPER) do
+        local rect = layout:buttonRect(id)
+        assert(contains(strip, rect), id)
+        eq(rect.x, strip.x + (i - 1) * rect.w)
+        eq(tap_button(layout, id), { zone = "button", button = id })
+    end
 end)
