@@ -74,6 +74,9 @@ test("C2: the board and a row of buttons under it, inside the window", function(
     eq(r.titlebar, nil)
 end)
 
+-- The buttons of the main row, from left to right.
+local MAIN_ROW = { "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
+
 local function ids_of(layout)
     local ids = {}
     for _, button in ipairs(layout:buttons()) do
@@ -97,11 +100,11 @@ local function assert_buttons_fit(layout, px_per_mm)
     end
 end
 
-test("C2: move, flip, size, reset and edit from the left of the row, and close at the right", function()
+test("C2: move, flip, size, reset and edit from the left, then backward, forward and close at the right", function()
     local layout = new(632, 840)
     local row = layout:rects().buttons
     assert_buttons_fit(layout, PX_PER_MM)
-    eq(ids_of(layout), { "move", "flip", "size", "reset", "edit", "close" })
+    eq(ids_of(layout), MAIN_ROW)
     eq(layout:buttonRect("move").x, row.x)
     eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
     eq(layout:buttonRect("move"), layout:buttons()[1].rect)
@@ -207,8 +210,11 @@ test("C10: taps on the buttons and between them", function()
     eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
     eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
     eq(layout:hit(center(layout:buttonRect("reset"))), { zone = "button", button = "reset" })
-    local edit = layout:buttonRect("edit")
-    eq(layout:hit(edit.x + edit.w + 1, edit.y + 1), { zone = "button" })
+    -- On a big screen the row has room between the left buttons and the right ones.
+    local big = new(1272, 1696)
+    local edit = big:buttonRect("edit")
+    assert(edit.x + edit.w + 1 < big:buttonRect("backward").x, "no room between the buttons")
+    eq(big:hit(edit.x + edit.w + 1, edit.y + 1), { zone = "button" })
 end)
 
 test("C10: a tap outside the window, or with the window closed, is not the window's", function()
@@ -615,7 +621,7 @@ test("H05 C1: the size button shows the size row: back, smaller and bigger", fun
     eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
     eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
     layout:showRow("main")
-    eq(ids_of(layout), { "move", "flip", "size", "reset", "edit", "close" })
+    eq(ids_of(layout), MAIN_ROW)
 end)
 
 test("H05 C2: only the buttons that show a row open one, and back always opens the main row",

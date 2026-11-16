@@ -11,12 +11,12 @@ local FILES = 8
 -- The rows of buttons under the board, by name. Each has its buttons from the left edge and from
 -- the right edge, in order. The main row shows first; a button of OPENS shows another row instead
 -- of acting, and the back button of any row shows the main one again. "move" is the one to drag
--- the window by.
+-- the window by; "backward" and "forward" step along the line of moves, next to close.
 local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
 local BACK_BUTTON = "back"
 local ROWS = {
-    main = { left = { MOVE_BUTTON, "flip", "size", "reset", "edit" }, right = { "close" } },
+    main = { left = { MOVE_BUTTON, "flip", "size", "reset", "edit" }, right = { "close", "forward", "backward" } },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
     edit = { left = { BACK_BUTTON, "clear", "color", "king", "queen", "rook", "bishop", "knight",
         "pawn" }, right = {} },
