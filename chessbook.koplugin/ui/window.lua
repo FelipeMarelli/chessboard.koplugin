@@ -76,6 +76,7 @@ local ACTIONS = {
     bigger = function(self) resize(self, 1) end,
     clear = function(self) repaint_if(self, self.session:clearBoard()) end,
     color = function(self) repaint_if(self, self.session:toggleColor()) end,
+    erase = function(self) repaint_if(self, self.session:chooseEraser()) end,
 }
 for id, letter in pairs(PIECE_BUTTONS) do
     ACTIONS[id] = function(self) repaint_if(self, self.session:choosePiece(letter)) end
@@ -260,10 +261,11 @@ local function paint_icon(bb, id, rect, edit)
     end
 end
 
--- True when a button is marked: held down to drag the window, or the piece chosen to put.
+-- True when a button is marked: held down to drag the window, or the piece or the eraser chosen.
 local function is_marked(button, pressed, edit)
     local chosen = edit and edit.piece
-    return button.id == pressed or (chosen ~= nil and PIECE_BUTTONS[button.id] == chosen)
+    return button.id == pressed
+        or (chosen ~= nil and (PIECE_BUTTONS[button.id] == chosen or button.id == chosen))
 end
 
 -- A rounded border inside a button, to show that it is held down.
@@ -325,15 +327,19 @@ function Window:paintTo(bb)
     end
     local rects = self.layout:rects()
     paint_frame(bb, rects)
-    local pressed = self.layout:pressedButton()
     local view = self.session:view()
+    local strip = rects.notation
+    if strip and view.edit then
+        -- While editing, the strip holds the upper buttons of the edit row.
+        bb:paintRect(strip.x, strip.y, strip.w, strip.h, Theme.GRAY.row)
+    elseif strip then
+        Strip.paint(bb, strip, view.notation)
+    end
+    local pressed = self.layout:pressedButton()
     for _, button in ipairs(self.layout:buttons()) do
         paint_button(bb, button, pressed, view)
     end
     Board.paint(bb, self.layout, view)
-    if rects.notation then
-        Strip.paint(bb, rects.notation, view.notation)
-    end
 end
 
 return Window
