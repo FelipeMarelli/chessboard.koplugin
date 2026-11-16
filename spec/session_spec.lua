@@ -437,3 +437,45 @@ test("Line: the same move after going back keeps the rest of the line", function
     eq(can_go(session), { backward = true, forward = true })
     eq(session.game:serialize().moves, { "e2e4", "e7e5" })
 end)
+
+-- The moves for the strip under the board (H16)
+
+-- The notation of the moves the view gives for the strip, as plain text.
+local function strip_of(session)
+    local list = {}
+    for _, m in ipairs(session:view().notation.moves) do
+        list[#list + 1] = (m.san.piece or "") .. m.san.text
+    end
+    return table.concat(list, " ")
+end
+
+test("H16 C1, C6: the strip has the moves up to the position shown", function()
+    local session = session_at()
+    eq(strip_of(session), "")
+    tap(session, "e2", "e4", "e7", "e5", "g1", "f3")
+    eq(strip_of(session), "e4 e5 Nf3")
+    eq(session:view().notation.numbered, true)
+    session:navigate("back")
+    eq(strip_of(session), "e4 e5")
+    session:reset()
+    eq(strip_of(session), "")
+end)
+
+test("H16 C3: no move numbers in a game from an edited position", function()
+    local session = editing_empty()
+    put(session, "k", "e1")
+    session:toggleColor()
+    put(session, "k", "e8")
+    session:toggleColor()
+    session:finishEdit()
+    tap(session, "e1", "e2")
+    eq(strip_of(session), "Ke2")
+    eq(session:view().notation.numbered, false)
+end)
+
+test("H16 C5: while editing the strip is empty", function()
+    local session = session_at()
+    tap(session, "e2", "e4")
+    session:startEdit()
+    eq(session:view().notation, { moves = {}, numbered = false })
+end)

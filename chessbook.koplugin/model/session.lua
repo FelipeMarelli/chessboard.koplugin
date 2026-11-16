@@ -246,7 +246,18 @@ local function squares_of(position)
     return squares
 end
 
--- While editing: the pieces put so far, the chosen color as the side to move, and no marks.
+-- The most moves the strip under the board can show: more than fit in the widest window.
+local NOTATION_MOVES = 16
+
+-- The last moves up to the position shown, for the strip under the board (see model/notation.lua),
+-- with move numbers only when the game started from the usual position.
+local function notation_of(game)
+    return { moves = game:recentMoves(NOTATION_MOVES),
+        numbered = game:startFen() == Rules.START_FEN }
+end
+
+-- While editing: the pieces put so far, the chosen color as the side to move, no marks and no
+-- moves.
 local function edit_view(self)
     local editor = self.editor
     local piece = editor:tool()
@@ -256,13 +267,14 @@ local function edit_view(self)
         status = "ongoing",
         flipped = self.is_flipped,
         edit = { color = editor:turn(), piece = piece and piece:lower() },
+        notation = { moves = {}, numbered = false },
         buttons = {},
     }
 end
 
 -- What there is to draw: each square with its piece, its marks and whether it is a light one,
--- whose turn it is, how the game stands, its last move, and which buttons can be used. While
--- editing, see edit_view.
+-- whose turn it is, how the game stands, its last move and the ones before it, and which buttons
+-- can be used. While editing, see edit_view.
 function Session:view()
     if self.editor then
         return edit_view(self)
@@ -278,6 +290,7 @@ function Session:view()
         turn = Rules.turn(position),
         status = Rules.status(position),
         last_move = last_move,
+        notation = notation_of(self.game),
         promotion = promotion_view(self.pending, position),
         flipped = self.is_flipped,
         buttons = { close = true, flip = true, reset = true,
