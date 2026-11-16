@@ -6,3 +6,6 @@
 # KOReader emulator, sources and emulator data
 vendor/
 emu-data/
+
+# Private working notes (stories, status, architecture drafts)
+docs/
