@@ -5,6 +5,7 @@
 local Board = require("ui/board")
 local Device = require("device")
 local Geom = require("ui/geometry")
+local Strip = require("ui/notation")
 local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
 local logger = require("logger")
@@ -299,6 +300,9 @@ function Window:paintTo(bb)
         paint_button(bb, button, pressed, view)
     end
     Board.paint(bb, self.layout, view)
+    if rects.notation then
+        Strip.paint(bb, rects.notation, view.notation)
+    end
 end
 
 return Window
