@@ -343,14 +343,15 @@ end
 -- window; from anywhere else it does nothing, and from the board above all, which is for playing.
 
 -- Starts a drag with the finger down at x, y. False when the point is off the window: the drag is
--- the reader's. Called again with the same point, it goes on with the drag already started.
-function Layout:startDrag(x, y, flipped)
+-- the reader's. Called again with the same point, it goes on with the drag already started. With
+-- locked, not even the move button moves the window, as while a promotion waits for its piece.
+function Layout:startDrag(x, y, flipped, locked)
     local d = self.drag
     if d and d.x == x and d.y == y then
         return true
     end
     local hit = self:hit(x, y, flipped)
-    self.drag = hit and { x = x, y = y, moves = hit.button == MOVE_BUTTON } or nil
+    self.drag = hit and { x = x, y = y, moves = not locked and hit.button == MOVE_BUTTON } or nil
     return self.drag ~= nil
 end
 

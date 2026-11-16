@@ -30,6 +30,11 @@ local function color_of(piece)
     return piece:match("%u") and "w" or "b"
 end
 
+-- A piece letter ("k", "q", ...) in a color.
+local function colored(letter, color)
+    return color == "w" and letter:upper() or letter:lower()
+end
+
 -- The legal moves of the piece on a square, when it is one of the side to move and has any.
 local function movable(position, sq)
     local piece = Rules.pieceAt(position, sq)
@@ -67,13 +72,33 @@ local function play(self, move)
     return answer(true, move)
 end
 
+-- The pieces a pawn can become, in the order lichess offers them.
+local PROMOTION_PIECES = { "q", "n", "r", "b" }
+
+-- A promotion waiting for its piece: the move, and the pieces to choose from in a column of
+-- squares, from the one the pawn goes to towards the middle of the board.
+local function pending_promotion(move, color)
+    local file, rank = Rules.fileOf(move.to), Rules.rankOf(move.to)
+    local toward_middle = rank == 8 and -1 or 1
+    local choices = {}
+    for i, letter in ipairs(PROMOTION_PIECES) do
+        choices[i] = { square = Rules.square(file, rank + (i - 1) * toward_middle),
+            piece = colored(letter, color) }
+    end
+    return { from = move.from, to = move.to, choices = choices }
+end
+
+-- The piece of the promotion offered on a square, if any.
+local function choice_on(pending, sq)
+    for _, choice in ipairs(pending.choices) do
+        if choice.square == sq then
+            return choice.piece:lower()
+        end
+    end
+end
+
 -- Editing the start position (see model/editor.lua). The color button chooses at once the color
 -- of the pieces to put and the side to move, so the editor's turn is that color.
-
--- A piece letter ("k", "q", ...) in a color.
-local function colored(letter, color)
-    return color == "w" and letter:upper() or letter:lower()
-end
 
 function Session:isEditing()
     return self.editor ~= nil
@@ -123,19 +148,23 @@ function Session:finishEdit()
 end
 
 -- A tap on a square of the board. It selects a piece of the side to move, plays the selected
--- one to a legal target, or clears the selection. A move that promotes waits for the piece: see
--- choosePromotion.
+-- one to a legal target, or clears the selection. A move that promotes waits for the piece:
+-- meanwhile a tap on a piece offered completes it, and a tap anywhere else cancels it.
 function Session:tapSquare(sq)
     if self.editor then
         return answer(self.editor:tapSquare(sq))
     end
     if self.pending then
-        return answer(false)
+        local letter = choice_on(self.pending, sq)
+        if letter then
+            return self:choosePromotion(letter)
+        end
+        return answer(self:cancelPromotion())
     end
     local move = move_to(self, sq)
     if move and move.promotion then
         clear_selection(self)
-        self.pending = { from = move.from, to = move.to }
+        self.pending = pending_promotion(move, Rules.turn(self.game:position()))
         return answer(true, nil, true)
     elseif move then
         return play(self, move)
@@ -158,6 +187,20 @@ function Session:choosePromotion(letter)
         return answer(false)
     end
     return play(self, { from = pending.from, to = pending.to, promotion = letter })
+end
+
+-- Drops a pending promotion: the pawn stays where it was and no move is played. Returns whether
+-- there was one.
+function Session:cancelPromotion()
+    if not self.pending then
+        return false
+    end
+    self.pending = nil
+    return true
+end
+
+function Session:isPromoting()
+    return self.pending ~= nil
 end
 
 -- True when a reset would change nothing: the usual start position, no moves, nothing chosen.
@@ -233,7 +276,8 @@ end
 
 local function promotion_view(pending, position)
     if pending then
-        return { square = Rules.squareName(pending.to), color = Rules.turn(position) }
+        return { square = Rules.squareName(pending.to), color = Rules.turn(position),
+            choices = pending.choices }
     end
 end
 

@@ -409,6 +409,18 @@ test("H04 C1: a drag that starts on a square is the window's but does not move i
     end
 end)
 
+test("H08 C4: a locked drag from the move button is the window's but does not move it",
+    function()
+        local layout = new(632, 840)
+        local before = layout:rects().window
+        local x, y = row_point(layout)
+        eq(layout:startDrag(x, y, false, true), true)
+        eq(layout:pressedButton(), nil)
+        eq(layout:dragRect(x - 30, y - 200), nil)
+        eq(layout:endDrag(x - 30, y - 200), false)
+        eq(layout:rects().window, before)
+    end)
+
 test("H04 C2: the move button is pressed while it drags the window, and only then", function()
     local layout = new(632, 840)
     eq(layout:pressedButton(), nil)

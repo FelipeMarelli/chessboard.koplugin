@@ -199,17 +199,61 @@ end)
 
 local PROMOTION = "8/P7/8/8/8/8/8/k6K w - - 0 1"
 
-test("H07: a move that promotes waits for the piece, and other taps do nothing meanwhile",
+-- The pieces offered for a promotion, by square name.
+local function offered(session)
+    local list = {}
+    for _, choice in ipairs(session:view().promotion.choices) do
+        list[#list + 1] = Rules.squareName(choice.square) .. "=" .. choice.piece
+    end
+    return table.concat(list, " ")
+end
+
+test("H08 C1: a move that promotes waits for the piece, offered in a column from that square",
     function()
         local session = session_at(PROMOTION)
         eq(tap(session, "a7", "a8"), { changed = true, needs_promotion = true })
         eq(piece_on(session, "a7"), "P"); eq(piece_on(session, "a8"), nil)
-        eq(session:view().promotion, { square = "a8", color = "w" })
+        eq(session:isPromoting(), true)
+        local view = session:view()
+        eq({ view.promotion.square, view.promotion.color }, { "a8", "w" })
+        eq(offered(session), "a8=Q a7=N a6=R a5=B")
         eq(marked(session, "selected"), {})
-        eq(tap(session, "h1"), { changed = false, needs_promotion = false })
     end)
 
-test("H07: choosing the piece completes the promotion", function()
+test("H08 C1: Black's pieces for Black, up from the first rank", function()
+    local session = session_at("K7/8/8/8/8/8/3p4/7k b - - 0 1")
+    tap(session, "d2", "d1")
+    eq(offered(session), "d1=q d2=n d3=r d4=b")
+end)
+
+test("H08 C2, C5: tapping a piece offered plays the move with it", function()
+    local session = session_at(PROMOTION)
+    tap(session, "a7", "a8")
+    local result = tap(session, "a6")
+    eq(result.played, { from = sq("a7"), to = sq("a8"), promotion = "r" })
+    eq(piece_on(session, "a8"), "R")
+    eq(session:isPromoting(), false); eq(session:view().promotion, nil)
+    eq(session:view().last_move.san, { text = "a8", promotion = "R", suffix = "+" })
+end)
+
+test("H08 C3: a tap anywhere else cancels: the pawn stays and no move is played", function()
+    local session = session_at(PROMOTION)
+    tap(session, "a7", "a8")
+    eq(tap(session, "h1"), { changed = true, needs_promotion = false })
+    eq(session:isPromoting(), false)
+    eq(piece_on(session, "a7"), "P"); eq(session.game:serialize().moves, {})
+    eq(session:cancelPromotion(), false)
+end)
+
+test("H08 C3: cancelling, from outside the board, says whether there was a promotion", function()
+    local session = session_at(PROMOTION)
+    eq(session:cancelPromotion(), false)
+    tap(session, "a7", "a8")
+    eq(session:cancelPromotion(), true)
+    eq(piece_on(session, "a7"), "P")
+end)
+
+test("H08 C2: choosing the piece completes the promotion", function()
     local session = session_at(PROMOTION)
     tap(session, "a7", "a8")
     local result = session:choosePromotion("q")
@@ -218,7 +262,7 @@ test("H07: choosing the piece completes the promotion", function()
     eq(session:view().promotion, nil); eq(session:view().turn, "b")
 end)
 
-test("H07: choosing a piece with no promotion pending does nothing", function()
+test("H08: choosing a piece with no promotion pending does nothing", function()
     local session = session_at()
     eq(session:choosePromotion("q"), { changed = false, needs_promotion = false })
     eq(session:view().turn, "w")
