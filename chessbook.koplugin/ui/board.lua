@@ -1,5 +1,5 @@
--- Paints the board: squares, marks, coordinate labels, pieces and whose turn it is, from the
--- session view.
+-- Paints the board: squares, marks, coordinate labels, pieces, whose turn it is and the promotion
+-- selector, from the session view.
 local Rules = require("chess/rules")
 local Theme = require("ui/theme")
 
@@ -105,15 +105,35 @@ local function paint_labels(bb, layout, view)
     end
 end
 
+local function paint_piece(bb, piece, r)
+    local image = Theme.piece(piece, r.w)
+    bb:alphablitFrom(image, r.x, r.y, 0, 0, image:getWidth(), image:getHeight())
+end
+
 local function paint_pieces(bb, layout, view)
-    local s = layout:squareSize()
     for sq = 1, 64 do
         local piece = view.squares[sq].piece
         if piece then
-            local r = layout:squareRect(sq, view.flipped)
-            local image = Theme.piece(piece, s)
-            bb:alphablitFrom(image, r.x, r.y, 0, 0, image:getWidth(), image:getHeight())
+            paint_piece(bb, piece, layout:squareRect(sq, view.flipped))
         end
+    end
+end
+
+-- While a promotion waits for its piece: the board lightened, and the pieces to choose on white
+-- squares with a frame.
+local function paint_promotion(bb, layout, view)
+    if not view.promotion then
+        return
+    end
+    local style = Theme.PROMOTION
+    local board = layout:rects().board
+    bb:lightenRect(board.x, board.y, board.w, board.h, style.dim)
+    local frame = share(layout:squareSize(), style.frame_width)
+    for _, choice in ipairs(view.promotion.choices) do
+        local r = layout:squareRect(choice.square, view.flipped)
+        bb:paintRect(r.x, r.y, r.w, r.h, style.background)
+        bb:paintInnerBorder(r.x, r.y, r.w, r.h, frame, style.frame)
+        paint_piece(bb, choice.piece, r)
     end
 end
 
@@ -146,6 +166,7 @@ function Board.paint(bb, layout, view)
     paint_labels(bb, layout, view)
     paint_pieces(bb, layout, view)
     paint_status(bb, layout, view)
+    paint_promotion(bb, layout, view)
 end
 
 return Board

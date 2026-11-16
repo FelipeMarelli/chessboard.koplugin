@@ -63,6 +63,15 @@ Theme.MARK = {
     check_radius = 0.48,
 }
 
+-- The promotion selector, as on lichess: the board lightened by dim, and the pieces to choose on
+-- white squares with a frame, frame_width a share of the square side.
+Theme.PROMOTION = {
+    dim = 0.6,
+    background = gray(0xFF),
+    frame = gray(0x00),
+    frame_width = 0.04,
+}
+
 -- Whose turn it is, in the corner where the coordinate strips meet: a ring when White moves,
 -- a disc when Black does, and a symbol when the game is over. Sizes are shares of the corner.
 Theme.STATUS = {
