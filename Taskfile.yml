@@ -94,6 +94,9 @@ tasks:
       fi
       {{if .SELFTEST}}
       export CHESSBOOK_SELFTEST=1
+      # No window: SDL draws off screen and the screenshots come out the same. SDL_VIDEO_DRIVER=x11
+      # or wayland shows it.
+      export SDL_VIDEO_DRIVER="${SDL_VIDEO_DRIVER:-offscreen}"
       echo "selftest {{.SCENARIO}} ({{.ORIENTATION}}): $book"
       {{end}}
       ./run-emu.sh "$(realpath "$book")"

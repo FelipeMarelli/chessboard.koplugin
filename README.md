@@ -167,7 +167,7 @@ task check                    # pruebas de la lógica y después ui:all
 task shots                    # abre emu-data/chessbook/ con el informe y las capturas
 ```
 
-`BOOK` es una ruta o parte del nombre de un libro de `example-books/`, sin importar mayúsculas (por defecto `nunn`). `PAGE` es la página donde arranca la prueba de interfaz (por defecto 30). Los escenarios de `ui:all` se leen de `selftest.lua`.
+`BOOK` es una ruta o parte del nombre de un libro de `example-books/`, sin importar mayúsculas (por defecto `nunn`). `PAGE` es la página donde arranca la prueba de interfaz (por defecto 30). Los escenarios de `ui:all` se leen de `selftest.lua`. Las pruebas de interfaz de `task` corren sin ventana (`SDL_VIDEO_DRIVER=offscreen`); para verla, `SDL_VIDEO_DRIVER=wayland task ui SCENARIO=h05` (o `x11`).
 
 ### Pruebas de la lógica
 
