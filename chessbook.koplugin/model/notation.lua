@@ -1,5 +1,6 @@
 -- The moves shown under the board, written as in a book, as parts to draw one after another:
--- texts, figurines in place of the piece letters, and gaps between moves.
+-- texts, figurines in place of the piece letters, and gaps between moves. Figurines are always
+-- White's pieces, whichever side moved, as in most books.
 --
 -- A move is what game:lastMove() gives. numbered: whether to write move numbers, which only mean
 -- something when the game started from the usual position.
@@ -20,7 +21,7 @@ local function parts_of(move, numbered, first)
         end
     end
     local function figurine(piece)
-        list[#list + 1] = { kind = "figurine", piece = piece }
+        list[#list + 1] = { kind = "figurine", piece = piece:upper() }
     end
     local san = move.san
     if numbered and move.color == "w" then
