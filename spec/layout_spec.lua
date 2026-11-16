@@ -308,7 +308,7 @@ end
 -- of twice the density.
 local function smallest_with_theme_sizes()
     local sizes = { row = 7, button = 7, border = 0.3, margin = 2, min_square = 4.2, gutter = 2.5,
-        size_step = 1 }
+        notation = 4.5, size_step = 1 }
     local list = {}
     for _, size in ipairs({ { 632, 840 }, { 1272, 1696 } }) do
         local layout = Layout.new{ screen_w = size[1], screen_h = size[2],
@@ -504,13 +504,18 @@ end)
 
 -- Coordinates outside the board ---------------------------------------------------------------
 
-local function with_gutter(w, h)
+-- An open layout with the sizes of SIZES and some more, or other, sizes.
+local function with_sizes(w, h, more)
     local sizes = {}
     for k, v in pairs(SIZES) do sizes[k] = v end
-    sizes.gutter = 2.5
+    for k, v in pairs(more) do sizes[k] = v end
     local layout = Layout.new{ screen_w = w, screen_h = h, px_per_mm = PX_PER_MM, sizes = sizes }
     layout:setOpen(true)
     return layout
+end
+
+local function with_gutter(w, h)
+    return with_sizes(w, h, { gutter = 2.5 })
 end
 
 test("C7: without gutters each label is centred in its own square", function()
@@ -764,4 +769,48 @@ test("Edit: the edit button shows the edit row: back, clear, color and the six p
     eq(ids_of(layout), { "back", "clear", "color", "king", "queen", "rook", "bishop", "knight",
         "pawn" })
     eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
+end)
+
+-- H16: the strip with the last moves --------------------------------------------------------
+
+local NOTATION = { gutter = 2.5, notation = 4.5 }
+
+test("H16 C1: the strip of moves goes between the board and the buttons, as wide as the row",
+    function()
+        for _, size in ipairs(SCREENS) do
+            local r = with_sizes(size[1], size[2], NOTATION):rects()
+            local n = r.notation
+            eq(n.y, r.files.y + r.files.h)
+            eq(n.y + n.h, r.buttons.y)
+            eq(n.h, 27) -- 4.5 mm at 150 dpi
+            eq({ n.x, n.w }, { r.buttons.x, r.buttons.w })
+            assert(contains(r.window, n))
+        end
+        eq(with_gutter(632, 840):rects().notation, nil)
+    end)
+
+test("H16 C1: the strip makes the window taller, and the biggest board still fits", function()
+    local plain, strip = with_gutter(632, 840), with_sizes(632, 840, NOTATION)
+    eq(strip:squareSize(), plain:squareSize())
+    eq(strip:rects().window.h, plain:rects().window.h + 27)
+    biggest(strip)
+    assert(contains({ x = 0, y = 0, w = 632, h = 840 }, strip:rects().window), "off the screen")
+    assert(strip:squareSize() <= biggest(plain):squareSize())
+end)
+
+test("H16 C7: at the minimum size the strip covers neither the board nor the buttons",
+    function()
+        for _, layout in ipairs(smallest_with_theme_sizes()) do
+            local r = layout:rects()
+            assert(r.notation, "no strip")
+            assert(not overlap(r.notation, r.board) and not overlap(r.notation, r.files))
+            for _, button in ipairs(layout:buttons()) do
+                assert(not overlap(r.notation, button.rect), button.id)
+            end
+        end
+    end)
+
+test("H16: a tap on the strip is the window's and does nothing", function()
+    local layout = with_sizes(632, 840, NOTATION)
+    eq(layout:hit(center(layout:rects().notation)), { zone = "notation" })
 end)

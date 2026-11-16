@@ -32,6 +32,11 @@ local function px(mm, px_per_mm)
     return math.max(1, math.floor(mm * px_per_mm + 0.5))
 end
 
+-- A size that may be left out: 0 when it is nil or 0.
+local function optional_px(mm, px_per_mm)
+    return (mm or 0) > 0 and px(mm, px_per_mm) or 0
+end
+
 local function inside(rect, x, y)
     return x >= rect.x and x < rect.x + rect.w and y >= rect.y and y < rect.y + rect.h
 end
@@ -42,8 +47,9 @@ end
 
 -- A layout for a screen. sizes, in millimetres: row (height of the button row under the board),
 -- button (width of a button), border, margin (to the screen edge), min_square, size_step (how much
--- the side of a square changes with each step of resize), and gutter (the strips left of and
--- under the board where the coordinates go; 0 or nil to put them on the squares).
+-- the side of a square changes with each step of resize), gutter (the strips left of and
+-- under the board where the coordinates go; 0 or nil to put them on the squares) and notation
+-- (height of the strip with the last moves, between the board and the buttons; 0 or nil for none).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local ppm = args.px_per_mm
@@ -55,7 +61,8 @@ function Layout.new(args)
         margin = px(sizes.margin, ppm),
         min_square = px(sizes.min_square, ppm),
         size_step = px(sizes.size_step, ppm),
-        gutter = (sizes.gutter or 0) > 0 and px(sizes.gutter, ppm) or 0,
+        gutter = optional_px(sizes.gutter, ppm),
+        notation = optional_px(sizes.notation, ppm),
     }
     self.open = false
     self.row = MAIN_ROW
@@ -67,7 +74,7 @@ end
 function Layout:maxSquare()
     local p = self.px
     local room_w = self.screen_w - 2 * (p.margin + p.border) - p.gutter
-    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.gutter - p.row
+    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.gutter - p.notation - p.row
     return math.max(p.min_square, math.floor(math.min(room_w, room_h) / FILES))
 end
 
@@ -131,7 +138,7 @@ end
 function Layout:windowSize()
     local p = self.px
     local side = FILES * self.square
-    return side + p.gutter + 2 * p.border, side + p.gutter + p.row + 2 * p.border
+    return side + p.gutter + 2 * p.border, side + p.gutter + p.notation + p.row + 2 * p.border
 end
 
 -- Opening or closing the window drops the drag and shows the main row.
@@ -197,12 +204,15 @@ function Layout:rects()
     local w, h = self:windowSize()
     local side = FILES * self.square
     local left, top = self.x + p.border, self.y + p.border
-    local g = p.gutter
+    local g, n = p.gutter, p.notation
     local rects = {
         window = { x = self.x, y = self.y, w = w, h = h },
         board = { x = left + g, y = top, w = side, h = side },
-        buttons = { x = left, y = top + side + g, w = side + g, h = p.row },
+        buttons = { x = left, y = top + side + g + n, w = side + g, h = p.row },
     }
+    if n > 0 then
+        rects.notation = { x = left, y = top + side + g, w = side + g, h = n }
+    end
     if g > 0 then
         rects.ranks = { x = left, y = top, w = g, h = side }
         rects.files = { x = left + g, y = top + side, w = side, h = g }
@@ -303,7 +313,7 @@ end
 
 -- Which part of the window a point falls on, or nil when the window is closed or the point is
 -- outside it. The thin border counts as the part next to it, and the gutters as the board,
--- without a square. A disabled button is like the row between buttons; one that shows another
+-- without a square; the strip of moves is its own zone, which does nothing. A disabled button is like the row between buttons; one that shows another
 -- row says which, in opens.
 function Layout:hit(x, y, flipped)
     local r = self:rects()
@@ -320,6 +330,8 @@ function Layout:hit(x, y, flipped)
     end
     if inside(board, x, y) then
         return { zone = "board", square = square_at(board, self.square, x, y, flipped) }
+    elseif r.notation and inside(r.notation, x, y) then
+        return { zone = "notation" }
     elseif y < r.buttons.y then
         return { zone = "board" }
     end
