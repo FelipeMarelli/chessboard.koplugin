@@ -321,7 +321,7 @@ test("Edit: a tap puts the chosen piece in the chosen color, and without one doe
         eq(session:view().edit, { color = "b", piece = "q" })
     end)
 
-test("Edit: the color chosen when it ends is the side to move, with no castling", function()
+test("Edit: the color chosen when it ends is the side to move", function()
     local session = editing_empty()
     put(session, "k", "e1"); put(session, "p", "e2")
     session:toggleColor()
@@ -348,12 +348,20 @@ test("Edit: an invalid position goes back to the usual start", function()
     eq(session.game:serialize().start, Rules.START_FEN)
 end)
 
-test("Edit: unchanged, the usual start position stays, without castling", function()
+-- Felipe, 16 November 2026: castling is there when the king and the rook are on their start
+-- squares. Before, an edit dropped every castling.
+test("Edit: unchanged, the usual start position stays, castling included", function()
     local session = session_at()
     session:startEdit()
     session:finishEdit()
-    eq(session.game:serialize().start,
-        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1")
+    eq(session.game:serialize().start, Rules.START_FEN)
+end)
+
+test("Edit: choosing a piece again, or clearing an empty board, changes nothing", function()
+    local session = editing_empty()
+    eq(session:clearBoard(), false)
+    eq(session:choosePiece("q"), true)
+    eq(session:choosePiece("q"), false)
 end)
 
 test("Edit: reset goes back to the usual start position after an edit", function()

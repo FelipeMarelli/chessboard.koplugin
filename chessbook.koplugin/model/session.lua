@@ -1,5 +1,6 @@
 -- What the reader does with the board and what has to be drawn for it: selecting a piece, moving
 -- it with a second tap, and the marks that go with that.
+local Editor = require("model/editor")
 local Rules = require("chess/rules")
 
 local Session = {}
@@ -66,73 +67,58 @@ local function play(self, move)
     return answer(true, move)
 end
 
--- Editing the start position. While it lasts a tap on a square puts the chosen piece there, in
--- the chosen color, and the game is left alone until finishEdit.
+-- Editing the start position (see model/editor.lua). The color button chooses at once the color
+-- of the pieces to put and the side to move, so the editor's turn is that color.
 
--- Puts the chosen piece on a square, if a piece is chosen.
-local function place(self, sq)
-    local edit = self.edit
-    local piece = edit.piece and (edit.color == "w" and edit.piece:upper() or edit.piece)
-    if not piece or edit.position.board[sq] == piece then
-        return answer(false)
-    end
-    edit.position.board[sq] = piece
-    return answer(true)
-end
-
-local EMPTY_FEN = "8/8/8/8/8/8/8/8 w - - 0 1"
-
--- A position to edit: the pieces of a FEN, a color to move, no castling and no en passant.
-local function editable(fen, color)
-    local position = assert(Rules.fromFen(fen))
-    position.turn, position.castling, position.passant = color, "", nil
-    position.halfmove, position.fullmove = 0, 1
-    return position
+-- A piece letter ("k", "q", ...) in a color.
+local function colored(letter, color)
+    return color == "w" and letter:upper() or letter:lower()
 end
 
 function Session:isEditing()
-    return self.edit ~= nil
+    return self.editor ~= nil
 end
 
 -- Starts editing from the usual start position, which the game goes back to.
 function Session:startEdit()
     forget_choice(self)
     assert(self.game:reset())
-    self.edit = { position = editable(Rules.START_FEN, "w"), color = "w" }
+    self.editor = Editor.new(self.game:position())
     return true
 end
 
--- Empties the board being edited.
+-- Empties the board being edited. Returns whether it changed.
 function Session:clearBoard()
-    self.edit.position = editable(EMPTY_FEN, self.edit.color)
-    return answer(true)
+    return self.editor:clear()
 end
 
 -- Switches the color of the pieces to put, which is also the side to move.
 function Session:toggleColor()
-    local edit = self.edit
-    edit.color = edit.color == "w" and "b" or "w"
-    edit.position.turn = edit.color
-    return answer(true)
+    local editor = self.editor
+    local color = editor:turn() == "w" and "b" or "w"
+    editor:setTurn(color)
+    local piece = editor:tool()
+    if piece then
+        editor:setTool(colored(piece, color))
+    end
+    return true
 end
 
--- Chooses the piece to put: "k", "q", "r", "b", "n" or "p".
+-- Chooses the piece to put: "k", "q", "r", "b", "n" or "p". Returns whether it changed.
 function Session:choosePiece(letter)
-    self.edit.piece = letter
-    return answer(true)
+    return self.editor:setTool(colored(letter, self.editor:turn()))
 end
 
 -- Ends editing: the game starts from the edited position when it is valid, else from the usual
 -- one. False when there was nothing being edited.
 function Session:finishEdit()
-    local edit = self.edit
-    if not edit then
+    local editor = self.editor
+    if not editor then
         return false
     end
-    self.edit = nil
-    if not self.game:reset(Rules.toFen(edit.position)) then
-        assert(self.game:reset())
-    end
+    self.editor = nil
+    local position = editor:result()
+    assert(self.game:reset(position and Rules.toFen(position)))
     return true
 end
 
@@ -140,8 +126,8 @@ end
 -- one to a legal target, or clears the selection. A move that promotes waits for the piece: see
 -- choosePromotion.
 function Session:tapSquare(sq)
-    if self.edit then
-        return place(self, sq)
+    if self.editor then
+        return answer(self.editor:tapSquare(sq))
     end
     if self.pending then
         return answer(false)
@@ -262,13 +248,14 @@ end
 
 -- While editing: the pieces put so far, the chosen color as the side to move, and no marks.
 local function edit_view(self)
-    local edit = self.edit
+    local editor = self.editor
+    local piece = editor:tool()
     return {
-        squares = squares_of(edit.position),
-        turn = edit.color,
+        squares = squares_of(editor:position()),
+        turn = editor:turn(),
         status = "ongoing",
         flipped = self.is_flipped,
-        edit = { color = edit.color, piece = edit.piece },
+        edit = { color = editor:turn(), piece = piece and piece:lower() },
         buttons = {},
     }
 end
@@ -277,7 +264,7 @@ end
 -- whose turn it is, how the game stands, its last move, and which buttons can be used. While
 -- editing, see edit_view.
 function Session:view()
-    if self.edit then
+    if self.editor then
         return edit_view(self)
     end
     local position = self.game:position()
