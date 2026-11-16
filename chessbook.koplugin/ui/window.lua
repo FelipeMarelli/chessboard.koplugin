@@ -29,9 +29,11 @@ function Window:refresh(rect, covers_text)
     UIManager:setDirty(self.view.dialog, covers_text and "flashui" or "ui", Geom:new(rect))
 end
 
--- Opening or closing ends an edit of the start position, as the main row shows again.
+-- Opening or closing ends an edit of the start position, as the main row shows again, and drops
+-- a promotion waiting for its piece.
 function Window:setOpen(open)
     self.session:finishEdit()
+    self.session:cancelPromotion()
     self.layout:setOpen(open)
     self:refresh(self.layout:dirtyRect(), open)
 end
@@ -95,14 +97,13 @@ local function show_row(self, name)
     self:refresh(board_changed and self.layout:dirtyRect() or self.layout:rects().buttons)
 end
 
--- A tap on a square of the board. Until the promotion picker comes (H08), a pawn that reaches
--- the last rank becomes a queen.
 local function tap_square(self, sq)
-    local result = self.session:tapSquare(sq)
-    if result.needs_promotion then
-        result = self.session:choosePromotion("q")
-    end
-    repaint_if(self, result.changed)
+    repaint_if(self, self.session:tapSquare(sq).changed)
+end
+
+-- A tap off the squares while a promotion waits for its piece cancels it, and does nothing else.
+local function cancel_promotion(self)
+    repaint_if(self, self.session:cancelPromotion())
 end
 
 -- Runs what a tap does; a failure closes the window, so that the reader can go on.
@@ -124,6 +125,8 @@ function Window:onTap(ges)
     end
     if hit.square then
         self:run("square", tap_square, hit.square)
+    elseif self.session:isPromoting() then
+        self:run("promotion", cancel_promotion)
     elseif hit.opens then
         self:run(hit.button, show_row, hit.opens)
     elseif ACTIONS[hit.button] then
@@ -157,11 +160,12 @@ local function point_of(ges, fields)
 end
 
 -- True when the gesture is part of a drag that started on the window: one it starts, or one going
--- on.
+-- on. While a promotion waits for its piece the window does not move.
 function Window:ownsDrag(ges)
     local start = point_of(ges, START_FIELD)
     if start then
-        return self.layout:startDrag(start.x, start.y, self.session:flipped())
+        return self.layout:startDrag(start.x, start.y, self.session:flipped(),
+            self.session:isPromoting())
     end
     return self.layout:isDragging()
 end
