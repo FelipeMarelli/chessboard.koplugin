@@ -75,7 +75,11 @@ function Editor:setStart()
     return true
 end
 
--- Chooses the piece to put, a FEN letter ("K", "q", ...), or none. Returns whether it changed.
+-- The tool that empties the squares it taps.
+Editor.ERASER = "erase"
+
+-- Chooses the piece to put, a FEN letter ("K", "q", ...), the eraser, or none. Returns whether it
+-- changed.
 function Editor:setTool(letter)
     if self.piece == letter then
         return false
@@ -88,12 +92,17 @@ function Editor:tool()
     return self.piece
 end
 
--- Puts the chosen piece on a square. Returns whether the board changed.
+-- Puts the chosen piece on a square, or empties it with the eraser. Returns whether the board
+-- changed.
 function Editor:tapSquare(sq)
-    if not self.piece or self.board[sq] == self.piece then
+    if not self.piece then
         return false
     end
-    self.board[sq] = self.piece
+    local piece = self.piece ~= Editor.ERASER and self.piece or nil
+    if self.board[sq] == piece then
+        return false
+    end
+    self.board[sq] = piece
     return true
 end
 

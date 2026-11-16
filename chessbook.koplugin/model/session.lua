@@ -127,10 +127,15 @@ function Session:toggleColor()
     local color = editor:turn() == "w" and "b" or "w"
     editor:setTurn(color)
     local piece = editor:tool()
-    if piece then
+    if piece and piece ~= Editor.ERASER then
         editor:setTool(colored(piece, color))
     end
     return true
+end
+
+-- Chooses the eraser, to empty squares. Returns whether it changed.
+function Session:chooseEraser()
+    return self.editor:setTool(Editor.ERASER)
 end
 
 -- Chooses the piece to put: "k", "q", "r", "b", "n" or "p". Returns whether it changed.

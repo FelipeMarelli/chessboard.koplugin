@@ -79,6 +79,14 @@ test("Editor: the start position, White to move, and on it nothing changes", fun
     eq(editor:setStart(), false)
 end)
 
+test("Editor: the eraser empties a square, and an empty one does not change", function()
+    local editor = editor_of()
+    eq(editor:setTool(Editor.ERASER), true)
+    eq(editor:tapSquare(sq("e2")), true)
+    eq(editor:position().board[sq("e2")], nil)
+    eq(editor:tapSquare(sq("e2")), false)
+end)
+
 test("Editor: the side to move", function()
     local editor = editor_of()
     eq(editor:setTurn("w"), false)
