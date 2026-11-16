@@ -1,6 +1,6 @@
 local _ = require("gettext")
 return {
-    fullname = _("Chess book companion"),
+    fullname = _("Chess Board"),
     description = _([[A chess board floating over the page of the book.]]),
-    version = "0.8.0",
+    version = "0.9.0",
 }

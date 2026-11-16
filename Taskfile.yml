@@ -16,7 +16,7 @@ vars:
   SCENARIO: h03
   # Read from the selftest itself, so a new scenario needs no change here.
   SCENARIOS:
-    sh: grep '^local SCENARIOS' chessbook.koplugin/selftest.lua | grep -o '[a-z0-9_]* =' | tr -d ' ='
+    sh: grep '^local SCENARIOS' chessboard.koplugin/selftest.lua | grep -o '[a-z0-9_]* =' | tr -d ' ='
 
 tasks:
   default:
@@ -73,16 +73,16 @@ tasks:
 
   shots:
     desc: Open the folder with the self-test report and screenshots
-    cmd: xdg-open emu-data/chessbook
+    cmd: xdg-open emu-data/chessboard
 
   _emulator:
     internal: true
     env:
       EMULATE_READER_W: '{{if eq .ORIENTATION "h"}}840{{else}}632{{end}}'
       EMULATE_READER_H: '{{if eq .ORIENTATION "h"}}632{{else}}840{{end}}'
-      CHESSBOOK_SCENARIO: '{{.SCENARIO}}'
-      CHESSBOOK_PAGE: '{{.PAGE}}'
-    # CHESSBOOK_SELFTEST is set only for the self-test: the plugin starts it even when empty.
+      CHESSBOARD_SCENARIO: '{{.SCENARIO}}'
+      CHESSBOARD_PAGE: '{{.PAGE}}'
+    # CHESSBOARD_SELFTEST is set only for the self-test: the plugin starts it even when empty.
     cmd: |
       book="{{.BOOK}}"
       if [ ! -f "$book" ]; then
@@ -93,7 +93,7 @@ tasks:
         exit 1
       fi
       {{if .SELFTEST}}
-      export CHESSBOOK_SELFTEST=1
+      export CHESSBOARD_SELFTEST=1
       # No window: SDL draws off screen and the screenshots come out the same. SDL_VIDEO_DRIVER=x11
       # or wayland shows it.
       export SDL_VIDEO_DRIVER="${SDL_VIDEO_DRIVER:-offscreen}"

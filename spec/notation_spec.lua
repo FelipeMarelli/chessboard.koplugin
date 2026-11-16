@@ -98,7 +98,7 @@ test("C1: the move that led to the position shown is marked", function()
     eq(current_of(Notation.parts(moves, true, 0)), "")
 end)
 
--- Felipe, 16 November 2026: going back keeps the line in the strip.
+-- Decided on 16 November 2026: going back keeps the line in the strip.
 test("C1: the line ends the strip while the current move fits; else the strip starts with it",
     function()
         local moves = moves_of(nil, "e2e4", "e7e5", "g1f3", "b8c6")

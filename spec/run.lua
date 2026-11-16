@@ -3,7 +3,7 @@
 --   cd vendor/koreader-emu/lib/koreader && ./luajit "$OLDPWD/spec/run.lua" [name_spec.lua ...]
 
 local spec_dir = (arg and arg[0] or ""):match("^(.*)/[^/]*$") or "."
-local plugin_dir = spec_dir .. "/../chessbook.koplugin"
+local plugin_dir = spec_dir .. "/../chessboard.koplugin"
 
 -- Only the plugin and the specs can be required, never KOReader, even when this runs from the
 -- KOReader folder: a module of chess/ or model/ that needs KOReader fails to load here.

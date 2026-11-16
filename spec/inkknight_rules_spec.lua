@@ -3,11 +3,11 @@
 -- Taken from tests/chess_spec.lua of Ink Knight, commit 601acd2a3a3e24148e442e10fd806accd6002782,
 -- https://github.com/beater-studios/ink_knight.koplugin
 -- Copyright (C) 2026 Beater Studios
--- Modified for chessbook.koplugin in November 2026: only the tests of the rules were kept, written
+-- Modified for chessboard.koplugin in November 2026: only the tests of the rules were kept, written
 -- against the names of chess/rules.lua; the parts about Ink Knight's games, screens and Chess960
 -- numbering were left out.
 -- Licensed under the GNU General Public License, version 3 only: see
--- chessbook.koplugin/chess/LICENSE-GPL-3.0.
+-- chessboard.koplugin/chess/LICENSE-GPL-3.0.
 local Helper = require("helper")
 local Chess = require("chess/rules")
 local eq, test = Helper.eq, Helper.test

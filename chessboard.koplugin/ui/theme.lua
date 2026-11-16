@@ -48,7 +48,7 @@ Theme.GRAY = {
 -- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.
 -- They differ in shape: a frame for the selected piece, a dot for a move to an empty square,
 -- corners for a capture and a disc behind a king in check. The last move is not marked on the
--- board, as Felipe chose after trying a tint, a frame and a sheet of other ways: the strip of
+-- board, as chosen after trying a tint, a frame and a sheet of other ways: the strip of
 -- moves shows it in bold.
 Theme.MARK = {
     selected = gray(0x33),

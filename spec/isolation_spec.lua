@@ -9,7 +9,7 @@ test("KOReader modules cannot be required from the specs", function()
 end)
 
 test("every module of chess/ and model/ loads without KOReader", function()
-    local plugin = Helper.dir .. "/../chessbook.koplugin"
+    local plugin = Helper.dir .. "/../chessboard.koplugin"
     local count = 0
     for _, folder in ipairs({ "chess", "model" }) do
         local list = assert(io.popen('ls -1 "' .. plugin .. "/" .. folder .. '"'))

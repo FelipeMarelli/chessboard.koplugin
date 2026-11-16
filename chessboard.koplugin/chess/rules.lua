@@ -4,8 +4,8 @@
 -- https://github.com/beater-studios/ink_knight.koplugin
 -- Copyright (C) 2026 Beater Studios
 --
--- Modified for chessbook.koplugin in November 2026: names and signatures follow the contract in
--- docs/arquitectura.md; FEN is read strictly and keeps the move number; notation hands the piece
+-- Modified for chessboard.koplugin in November 2026: names and signatures follow the contract in
+-- AGENTS.md; FEN is read strictly and keeps the move number; notation hands the piece
 -- letter apart so a figurine can replace it; moves are checked before they are applied; positions
 -- can be validated; the helpers tied to Ink Knight's games and screens were removed.
 --

@@ -118,7 +118,7 @@ end
 function Window:run(name, action, ...)
     local ok, err = pcall(action, self, ...)
     if not ok then
-        logger.err("chessbook:", name, "failed:", err)
+        logger.err("chessboard:", name, "failed:", err)
         self:setOpen(false)
     end
 end

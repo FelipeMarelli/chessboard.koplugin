@@ -764,7 +764,7 @@ test("H05 C6: the region to repaint after a resize covers the window before and 
     eq(layout:dirtyRect(before), layout:rects().window)
 end)
 
--- Felipe changed this criterion on 15 November 2026: when a row has no room for its buttons at
+-- This criterion changed on 15 November 2026: when a row has no room for its buttons at
 -- 7 mm they are narrowed, instead of going to two rows.
 test("H05 C7: at the minimum size the buttons of every row fit and are apart, narrowed if need be",
     function()
@@ -857,7 +857,7 @@ test("H16: a tap on the strip is the window's and does nothing", function()
     eq(layout:hit(center(layout:rects().notation)), { zone = "notation" })
 end)
 
--- Felipe, 16 November 2026: the color and the pieces go up, in the place of the strip of moves,
+-- Decided on 16 November 2026: the color and the pieces go up, in the place of the strip of moves,
 -- so they are not so narrow with a small board.
 test("Edit, H16: the color and the six pieces take the place of the strip of moves", function()
     local layout = with_sizes(632, 840, NOTATION)

@@ -65,7 +65,7 @@ local DRAG_OVERRIDES = {
 -- The window lets through what is not on it.
 local function touch_zone(ges, overrides, handler)
     return {
-        id = "chessbook_" .. ges,
+        id = "chessboard_" .. ges,
         ges = ges,
         screen_zone = { ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1 },
         overrides = overrides,
@@ -73,12 +73,12 @@ local function touch_zone(ges, overrides, handler)
     }
 end
 
-local ChessBook = WidgetContainer:extend{
-    name = "chessbook",
+local ChessBoard = WidgetContainer:extend{
+    name = "chessboard",
     is_doc_only = true,
 }
 
-function ChessBook:init()
+function ChessBoard:init()
     Theme.setPluginDir(self.path)
     self.layout = Layout.new{
         screen_w = Screen:getWidth(),
@@ -90,8 +90,8 @@ function ChessBook:init()
     self.ui.menu:registerToMainMenu(self)
 end
 
-function ChessBook:addToMainMenu(menu_items)
-    menu_items.chessbook = {
+function ChessBoard:addToMainMenu(menu_items)
+    menu_items.chessboard = {
         text = I18n.t("Chess board"),
         sorting_hint = "more_tools",
         checked_func = function() return self.layout:isOpen() end,
@@ -99,59 +99,59 @@ function ChessBook:addToMainMenu(menu_items)
     }
 end
 
-function ChessBook:onReaderReady()
+function ChessBoard:onReaderReady()
     self.window = Window.new(self.view, self.layout, self.session)
-    self.view:registerViewModule("chessbook", self)
+    self.view:registerViewModule("chessboard", self)
     local zones = { touch_zone("tap", TAP_OVERRIDES, function(ges) return self:onTap(ges) end) }
     for ges, overrides in pairs(DRAG_OVERRIDES) do
         zones[#zones + 1] = touch_zone(ges, overrides, function(g) return self:onDrag(g) end)
     end
     self.ui:registerTouchZones(zones)
-    if os.getenv("CHESSBOOK_SELFTEST") then
+    if os.getenv("CHESSBOARD_SELFTEST") then
         self.selftest = require("selftest").start(self)
     end
 end
 
-function ChessBook:toggle()
+function ChessBoard:toggle()
     if self.window then
         self.window:toggle()
     end
 end
 
 -- A failure of the plugin must not stop the reading: log it and close the window.
-function ChessBook:guard(what, fn, ...)
+function ChessBoard:guard(what, fn, ...)
     local ok, result = pcall(fn, ...)
     if ok then
         return result
     end
-    logger.err("chessbook:", what, "failed:", result)
+    logger.err("chessboard:", what, "failed:", result)
     pcall(self.layout.setOpen, self.layout, false)
     return false
 end
 
-function ChessBook:onTap(ges)
+function ChessBoard:onTap(ges)
     return self:guard("tap", self.window.onTap, self.window, ges)
 end
 
-function ChessBook:onDrag(ges)
+function ChessBoard:onDrag(ges)
     return self:guard("drag", self.window.onDrag, self.window, ges)
 end
 
 -- Called by ReaderView after it paints the page.
-function ChessBook:paintTo(bb)
+function ChessBoard:paintTo(bb)
     self:guard("paint", self.window.paintTo, self.window, bb)
 end
 
 -- Called by ReaderView when the screen turns or changes size.
-function ChessBook:resetLayout()
+function ChessBoard:resetLayout()
     self.layout:setScreen(Screen:getWidth(), Screen:getHeight())
 end
 
-function ChessBook:onCloseDocument()
+function ChessBoard:onCloseDocument()
     if self.selftest then
         self.selftest:stop()
     end
     Theme.free()
 end
 
-return ChessBook
+return ChessBoard

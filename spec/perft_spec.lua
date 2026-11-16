@@ -3,9 +3,9 @@
 -- Taken from tests/perft_spec.lua of Ink Knight, commit 601acd2a3a3e24148e442e10fd806accd6002782,
 -- https://github.com/beater-studios/ink_knight.koplugin
 -- Copyright (C) 2026 Beater Studios
--- Modified for chessbook.koplugin in November 2026: runs under spec/run.lua against
+-- Modified for chessboard.koplugin in November 2026: runs under spec/run.lua against
 -- chess/rules.lua. Licensed under the GNU General Public License, version 3 only: see
--- chessbook.koplugin/chess/LICENSE-GPL-3.0.
+-- chessboard.koplugin/chess/LICENSE-GPL-3.0.
 --
 -- The positions in spec/perft come from scalachess (MIT, spec/perft/LICENSE-scalachess). Each
 -- depth's count must match, so any mistake in the rules shows. Only the depths up to PERFT_LIMIT

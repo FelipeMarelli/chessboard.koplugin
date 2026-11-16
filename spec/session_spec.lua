@@ -160,7 +160,7 @@ test("H07 C5: en passant is a capture, and takes the pawn off its square", funct
     eq(piece_on(session, "f6"), "P"); eq(piece_on(session, "f5"), nil)
 end)
 
--- Felipe, 16 November 2026: the last move is not marked on the board; the strip shows it.
+-- Decided on 16 November 2026: the last move is not marked on the board; the strip shows it.
 test("H07 C6: the squares of the last move are not marked", function()
     local session = session_at()
     tap(session, "e2", "e4")
@@ -334,7 +334,7 @@ local function back_after_e4()
     return session
 end
 
--- Felipe, 16 November 2026: editing starts from the position shown, and the line is kept until
+-- Decided on 16 November 2026: editing starts from the position shown, and the line is kept until
 -- an edited position replaces it. Before, the editor started from the usual start position.
 test("Edit: starts from the position shown, and the game is left as it is", function()
     local session = back_after_e4()
@@ -439,7 +439,7 @@ test("Edit: an invalid position keeps the line it came from", function()
     eq(session.game:serialize().moves, { "e2e4", "d7d5" })
 end)
 
--- Felipe, 16 November 2026: castling is there when the king and the rook are on their start
+-- Decided on 16 November 2026: castling is there when the king and the rook are on their start
 -- squares. Before, an edit dropped every castling.
 test("Edit: unchanged, the usual start position stays, castling included", function()
     local session = session_at()
@@ -538,7 +538,7 @@ local function strip_of(session)
     return table.concat(list, " ")
 end
 
--- Felipe, 16 November 2026: the strip keeps the whole line while going along it, the move on the
+-- Decided on 16 November 2026: the strip keeps the whole line while going along it, the move on the
 -- board marked. Before, it ended at the position shown.
 test("H16 C1, C6: the strip has the line, and which move led to the position shown", function()
     local session = session_at()

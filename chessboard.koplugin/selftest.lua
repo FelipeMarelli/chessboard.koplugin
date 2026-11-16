@@ -1,10 +1,10 @@
 -- Scripted run of the window with synthetic taps, for the emulator. Only runs when the variable
--- CHESSBOOK_SELFTEST is set.
+-- CHESSBOARD_SELFTEST is set.
 --
---   CHESSBOOK_SELFTEST=1 [CHESSBOOK_SCENARIO=h03] [CHESSBOOK_PAGE=30] ./run-emu.sh book
+--   CHESSBOARD_SELFTEST=1 [CHESSBOARD_SCENARIO=h03] [CHESSBOARD_PAGE=30] ./run-emu.sh book
 --
--- Each scenario taps, checks the state and saves screenshots in emu-data/chessbook/. The result
--- goes to emu-data/chessbook/selftest.txt, one PASS or FAIL line per check.
+-- Each scenario taps, checks the state and saves screenshots in emu-data/chessboard/. The result
+-- goes to emu-data/chessboard/selftest.txt, one PASS or FAIL line per check.
 local DataStorage = require("datastorage")
 local Device = require("device")
 local Event = require("ui/event")
@@ -153,7 +153,7 @@ function SelfTest:check(name, ok, detail)
     if not ok then
         self.failed = true
     end
-    logger.info("chessbook selftest:", line)
+    logger.info("chessboard selftest:", line)
 end
 
 -- Records the regions asked to be repainted, to check that only the window is.
@@ -196,11 +196,11 @@ function SelfTest:countAllCalls(ui, zone_ids)
 end
 
 -- The steps of a scenario and the function that adds one. The first one goes to the page in
--- CHESSBOOK_PAGE, when it is set.
+-- CHESSBOARD_PAGE, when it is set.
 local function new_steps(plugin)
     local steps = {}
     local function step(fn) steps[#steps + 1] = fn end
-    local page = tonumber(os.getenv("CHESSBOOK_PAGE") or "")
+    local page = tonumber(os.getenv("CHESSBOARD_PAGE") or "")
     if page then
         step(function() plugin.ui:handleEvent(Event:new("GotoPage", page)) end)
     end
@@ -810,7 +810,7 @@ local function reset(t, plugin)
     return steps
 end
 
--- Editing the start position: unchanged it keeps the line, then the flow Felipe described, then
+-- Editing the start position: unchanged it keeps the line, then the flow the story describes, then
 -- an invalid position.
 local function edit(t, plugin)
     local Rules = require("chess/rules")
@@ -1026,8 +1026,8 @@ local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
-    t.scenario = os.getenv("CHESSBOOK_SCENARIO") or "h03"
-    t.dir = DataStorage:getDataDir() .. "/chessbook"
+    t.scenario = os.getenv("CHESSBOARD_SCENARIO") or "h03"
+    t.dir = DataStorage:getDataDir() .. "/chessboard"
     if lfs.attributes(t.dir, "mode") ~= "directory" then
         lfs.mkdir(t.dir)
     end
@@ -1061,7 +1061,7 @@ function SelfTest:finish(plugin)
         file:close()
     end
     for _, line in ipairs(self.results) do
-        print("chessbook selftest: " .. line)
+        print("chessboard selftest: " .. line)
     end
     self:stop()
     plugin.ui:onClose()
