@@ -28,7 +28,9 @@ function Window:refresh(rect, covers_text)
     UIManager:setDirty(self.view.dialog, covers_text and "flashui" or "ui", Geom:new(rect))
 end
 
+-- Opening or closing ends an edit of the start position, as the main row shows again.
 function Window:setOpen(open)
+    self.session:finishEdit()
     self.layout:setOpen(open)
     self:refresh(self.layout:dirtyRect(), open)
 end
@@ -53,6 +55,9 @@ local function repaint_if(self, changed)
     end
 end
 
+-- The piece each button of the edit row puts.
+local PIECE_BUTTONS = { king = "k", queen = "q", rook = "r", bishop = "b", knight = "n", pawn = "p" }
+
 local ACTIONS = {
     close = function(self) self:setOpen(false) end,
     flip = function(self)
@@ -62,12 +67,27 @@ local ACTIONS = {
     reset = function(self) repaint_if(self, self.session:reset()) end,
     smaller = function(self) resize(self, -1) end,
     bigger = function(self) resize(self, 1) end,
+    clear = function(self) repaint_if(self, self.session:clearBoard().changed) end,
+    color = function(self) repaint_if(self, self.session:toggleColor().changed) end,
+}
+for id, letter in pairs(PIECE_BUTTONS) do
+    ACTIONS[id] = function(self) repaint_if(self, self.session:choosePiece(letter).changed) end
+end
+
+-- What showing a row does to the session: the edit row starts editing the start position, and
+-- the main one ends it. Each says whether the board changed.
+local ROW_ENTERED = {
+    edit = function(session) return session:startEdit() end,
+    main = function(session) return session:finishEdit() end,
 }
 
--- Shows another row of buttons in place of the one shown; only the row is repainted.
+-- Shows another row of buttons in place of the one shown; only the row is repainted, unless the
+-- board changed too.
 local function show_row(self, name)
     self.layout:showRow(name)
-    self:refresh(self.layout:rects().buttons)
+    local entered = ROW_ENTERED[name]
+    local board_changed = entered and entered(self.session)
+    self:refresh(board_changed and self.layout:dirtyRect() or self.layout:rects().buttons)
 end
 
 -- A tap on a square of the board. Until the promotion picker comes (H08), a pawn that reaches
@@ -170,11 +190,43 @@ function Window:drop(pos, marked)
     end
 end
 
-local function paint_icon(bb, name, rect)
-    local icon = Theme.icon(name)
+-- The side of the icons in a button: Theme.ICON, or less in a button narrowed to fit its row.
+local function icon_side(rect)
+    return math.min(Theme.px(Theme.ICON), rect.w - Theme.px(Theme.PRESSED.inset) * 2)
+end
+
+local function centre_bitmap(bb, icon, rect)
     local w, h = icon:getWidth(), icon:getHeight()
     bb:alphablitFrom(icon, rect.x + math.floor((rect.w - w) / 2),
         rect.y + math.floor((rect.h - h) / 2), 0, 0, w, h)
+end
+
+-- The color button: a disc when White's pieces are put, a ring when Black's are.
+local function paint_color(bb, rect, color)
+    local radius = math.floor(icon_side(rect) * 0.4)
+    local width = color == "w" and radius or Theme.px(Theme.PRESSED.width)
+    bb:paintCircle(rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), radius,
+        Theme.GRAY.frame, width)
+end
+
+-- The icon of a button; in the edit row, the pieces show in the color they are put in.
+local function paint_icon(bb, id, rect, edit)
+    local side = icon_side(rect)
+    local letter = PIECE_BUTTONS[id]
+    if id == "color" then
+        paint_color(bb, rect, edit.color)
+    elseif letter then
+        centre_bitmap(bb, Theme.pieceIcon(edit.color == "w" and letter:upper() or letter, side),
+            rect)
+    else
+        centre_bitmap(bb, Theme.icon(id, side), rect)
+    end
+end
+
+-- True when a button is marked: held down to drag the window, or the piece chosen to put.
+local function is_marked(button, pressed, edit)
+    local chosen = edit and edit.piece
+    return button.id == pressed or (chosen ~= nil and PIECE_BUTTONS[button.id] == chosen)
 end
 
 -- A rounded border inside a button, to show that it is held down.
@@ -187,15 +239,15 @@ local function paint_pressed(bb, rect)
 end
 
 -- One button of the row, whole: its background, its icon, lighter if it is disabled, and, if it
--- is held down, its mark.
-local function paint_button(bb, button, pressed)
+-- is marked (see is_marked), its mark. edit is the edit part of the session view, if any.
+local function paint_button(bb, button, pressed, edit)
     local rect = button.rect
     bb:paintRect(rect.x, rect.y, rect.w, rect.h, Theme.GRAY.row)
-    paint_icon(bb, button.id, rect)
+    paint_icon(bb, button.id, rect, edit)
     if not button.enabled then
         bb:lightenRect(rect.x, rect.y, rect.w, rect.h, Theme.DISABLED)
     end
-    if pressed then
+    if is_marked(button, pressed, edit) then
         paint_pressed(bb, rect)
     end
 end
@@ -205,7 +257,7 @@ end
 -- make the mark wait for the page. The button lies on the window, so nothing of the page is in it.
 function Window:repaintButton(id)
     local button = self.layout:button(id)
-    paint_button(Screen.bb, button, self.layout:pressedButton() == id)
+    paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view().edit)
     UIManager:setDirty(nil, "fast", Geom:new(button.rect))
     UIManager:forceRePaint()
 end
@@ -231,10 +283,11 @@ function Window:paintTo(bb)
     local rects = self.layout:rects()
     paint_frame(bb, rects)
     local pressed = self.layout:pressedButton()
+    local view = self.session:view()
     for _, button in ipairs(self.layout:buttons()) do
-        paint_button(bb, button, button.id == pressed)
+        paint_button(bb, button, pressed, view.edit)
     end
-    Board.paint(bb, self.layout, self.session:view())
+    Board.paint(bb, self.layout, view)
 end
 
 return Window

@@ -124,26 +124,39 @@ end
 
 -- The bitmap of a piece (a FEN letter) at a square size. NanoSVG gives straight alpha: blit it
 -- with alphablitFrom.
-function Theme.piece(letter, size)
-    use_size(size)
-    local bb = cache.pieces[letter]
+local function piece_path(letter)
+    local color = letter:match("%u") and "w" or "b"
+    return string.format("%s/assets/pieces/merida/%s%s.svg", plugin_dir, color, letter:upper())
+end
+
+-- A bitmap from a group of the cache, rendered the first time it is asked for.
+local function cached(group, key, path, side)
+    local bb = group[key]
     if not bb then
-        local color = letter:match("%u") and "w" or "b"
-        local name = string.format("%s/assets/pieces/merida/%s%s.svg", plugin_dir, color,
-            letter:upper())
-        bb = render(name, size)
-        cache.pieces[letter] = bb
+        bb = render(path, side)
+        group[key] = bb
     end
     return bb
 end
 
-function Theme.icon(name)
-    local bb = cache.icons[name]
-    if not bb then
-        bb = render(string.format("%s/assets/icons/%s.svg", plugin_dir, name), Theme.px(Theme.ICON))
-        cache.icons[name] = bb
-    end
-    return bb
+function Theme.piece(letter, size)
+    use_size(size)
+    return cached(cache.pieces, letter, piece_path(letter), size)
+end
+
+-- Buttons whose icon is the file of another one.
+local ICON_FILES = { clear = "reset" }
+
+-- The icon of a button, side pixels wide (Theme.ICON when not given).
+function Theme.icon(name, side)
+    side = side or Theme.px(Theme.ICON)
+    local path = string.format("%s/assets/icons/%s.svg", plugin_dir, ICON_FILES[name] or name)
+    return cached(cache.icons, name .. "@" .. side, path, side)
+end
+
+-- A piece drawn as the icon of a button.
+function Theme.pieceIcon(letter, side)
+    return cached(cache.icons, letter .. "@" .. side, piece_path(letter), side)
 end
 
 return Theme
