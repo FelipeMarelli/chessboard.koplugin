@@ -4,7 +4,7 @@ A KOReader plugin for reading chess books: an interactive board that floats **ov
 
 > **Still in development.** It works, but some features are missing and there may be bugs. Found a bug or want a feature? Open an issue at https://github.com/FelipeMarelli/chessboard.koplugin/issues — every report helps.
 
-<img src="screenshots/game.png" width="300" alt="The board over a page of a book, with the moves played below it"/>
+<img src="screenshots/reading.png" width="300" alt="A small board in a corner, beside the text being read"/> <img src="screenshots/game.png" width="300" alt="A big board over the page, with the moves played below it"/>
 
 ## Features
 
