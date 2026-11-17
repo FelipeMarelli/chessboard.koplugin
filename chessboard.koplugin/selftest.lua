@@ -1022,7 +1022,52 @@ local function h08(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit, line = line, h16 = h16 }
+-- Screenshots for the README: a board nearly as big as it gets, in the middle of the screen, the Marshall Attack
+-- (Capablanca-Marshall, New York 1918), a selected pawn and the editor. Run it on a book in the
+-- public domain.
+local README_SHRINK_STEPS = 2
+
+local function readme(t, plugin)
+    local layout = plugin.layout
+    local steps, step = new_steps(plugin)
+    step(function()
+        plugin:toggle()
+        tap_buttons(t, plugin, "size")
+        while layout:canResize(1) do
+            tap_buttons(t, plugin, "bigger")
+        end
+        for _ = 1, README_SHRINK_STEPS do
+            tap_buttons(t, plugin, "smaller")
+        end
+        tap_buttons(t, plugin, "back")
+        local before = layout:rects()
+        local w, h = layout:windowSize()
+        layout:moveTo(math.floor((layout.screen_w - w) / 2), math.floor((layout.screen_h - h) / 2))
+        plugin.window:refresh(layout:dirtyRect(before))
+    end)
+    step(function()
+        tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1", "f3", "b8", "c6", "f1", "b5",
+            "a7", "a6", "b5", "a4", "g8", "f6", "e1", "g1", "f8", "e7", "f1", "e1", "b7", "b5",
+            "a4", "b3", "e8", "g8", "c2", "c3", "d7", "d5")
+    end)
+    step(function()
+        t:shot("game")
+        tap_squares(t, plugin, "e4")
+    end)
+    step(function()
+        t:shot("play")
+        tap_squares(t, plugin, "e4")
+        tap_buttons(t, plugin, "edit")
+    end)
+    step(function()
+        t:shot("editor")
+        tap_buttons(t, plugin, "back")
+        plugin:toggle()
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit, line = line, h16 = h16, readme = readme }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
