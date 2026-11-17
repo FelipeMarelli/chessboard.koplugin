@@ -1,4 +1,7 @@
 -- Plugin entry point: menu entry, life cycle and the link between the reader and the window.
+--
+-- Copyright (C) 2026 Felipe Marelli
+-- Licensed under the GNU Affero General Public License, version 3: see LICENSE.
 local Device = require("device")
 local Game = require("chess/game")
 local I18n = require("i18n")

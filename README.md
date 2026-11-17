@@ -22,7 +22,11 @@ The plugin is still in development. Issues and feature requests are welcome.
 
 ## License
 
-AGPL-3.0, the same as KOReader. See `LICENSE`.
+Copyright (C) 2026 Felipe Marelli.
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License, version 3, the same as KOReader. It comes with no warranty. See `LICENSE`, also included in the plugin folder.
+
+The files listed below keep the license of their origin.
 
 ### Third-party code and graphics
 
