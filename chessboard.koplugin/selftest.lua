@@ -1022,28 +1022,36 @@ local function h08(t, plugin)
     return steps
 end
 
--- Screenshots for the README: a board nearly as big as it gets, in the middle of the screen, the Marshall Attack
--- (Capablanca-Marshall, New York 1918), a selected pawn and the editor. Run it on a book in the
--- public domain.
+-- Screenshots for the README: a board nearly as big as it gets, in the middle of the screen, with
+-- the Marshall Attack (Capablanca-Marshall, New York 1918); a selected pawn; the editor; and the
+-- smallest board in a corner, to read beside it. Run it on a book in the public domain.
 local README_SHRINK_STEPS = 2
 
 local function readme(t, plugin)
     local layout = plugin.layout
     local steps, step = new_steps(plugin)
+    -- Moves the window to x, y (kept inside the screen) and repaints it.
+    local function move_window(x, y)
+        local before = layout:rects()
+        layout:moveTo(x, y)
+        plugin.window:refresh(layout:dirtyRect(before))
+    end
+    -- Taps a size button until it is disabled.
+    local function resize_fully(button, steps_back)
+        while layout:canResize(steps_back) do
+            tap_buttons(t, plugin, button)
+        end
+    end
     step(function()
         plugin:toggle()
         tap_buttons(t, plugin, "size")
-        while layout:canResize(1) do
-            tap_buttons(t, plugin, "bigger")
-        end
+        resize_fully("bigger", 1)
         for _ = 1, README_SHRINK_STEPS do
             tap_buttons(t, plugin, "smaller")
         end
         tap_buttons(t, plugin, "back")
-        local before = layout:rects()
         local w, h = layout:windowSize()
-        layout:moveTo(math.floor((layout.screen_w - w) / 2), math.floor((layout.screen_h - h) / 2))
-        plugin.window:refresh(layout:dirtyRect(before))
+        move_window(math.floor((layout.screen_w - w) / 2), math.floor((layout.screen_h - h) / 2))
     end)
     step(function()
         tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1", "f3", "b8", "c6", "f1", "b5",
@@ -1061,13 +1069,20 @@ local function readme(t, plugin)
     end)
     step(function()
         t:shot("editor")
+        tap_buttons(t, plugin, "back", "size")
+        resize_fully("smaller", -1)
         tap_buttons(t, plugin, "back")
+        move_window(layout.screen_w, layout.screen_h)
+    end)
+    step(function()
+        t:shot("reading")
         plugin:toggle()
     end)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit, line = line, h16 = h16, readme = readme }
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit,
+    line = line, h16 = h16, readme = readme }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
