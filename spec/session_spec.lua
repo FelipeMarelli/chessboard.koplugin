@@ -347,6 +347,16 @@ test("Edit: starts from the position shown, and the game is left as it is", func
     eq(session.game:serialize().moves, { "e2e4", "d7d5" })
 end)
 
+test("Edit: a flipped board shows White at the bottom while editing, and is flipped again after",
+    function()
+        local session = back_after_e4()
+        session:flip()
+        session:startEdit()
+        eq(session:flipped(), false); eq(session:view().flipped, false)
+        session:finishEdit()
+        eq(session:flipped(), true)
+    end)
+
 test("Edit: unchanged, back keeps the line and the position shown", function()
     local session = back_after_e4()
     session:startEdit()

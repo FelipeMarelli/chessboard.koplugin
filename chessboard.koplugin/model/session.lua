@@ -104,10 +104,13 @@ function Session:isEditing()
     return self.editor ~= nil
 end
 
--- Starts editing from the position shown; the game is left as it is until editing ends.
+-- Starts editing from the position shown; the game is left as it is until editing ends. The board
+-- shows White at the bottom while editing, and turns back to how it was when editing ends.
 function Session:startEdit()
     forget_choice(self)
     self.editor = Editor.new(self.game:position())
+    self.flipped_before_edit = self.is_flipped
+    self.is_flipped = false
     return true
 end
 
@@ -144,13 +147,15 @@ function Session:choosePiece(letter)
 end
 
 -- Ends editing: when the position was changed and is valid, the game starts from it; else the
--- game and its line stay as they were. False when there was nothing being edited.
+-- game and its line stay as they were. The board turns back as it was. False when there was
+-- nothing being edited.
 function Session:finishEdit()
     local editor = self.editor
     if not editor then
         return false
     end
     self.editor = nil
+    self.is_flipped = self.flipped_before_edit
     local position = editor:isChanged() and editor:result()
     if position then
         assert(self.game:reset(Rules.toFen(position)))
