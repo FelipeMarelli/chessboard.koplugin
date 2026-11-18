@@ -28,6 +28,8 @@ Theme.ICON = 5          -- icon side, mm
 
 -- A disabled button is drawn over with white by this share, so that its icon looks lighter.
 Theme.DISABLED = 0.6
+-- The tools of the editor not chosen are drawn lighter by this share, so the chosen one stands out.
+Theme.UNCHOSEN = 0.6
 
 -- The border that marks a button held down, in mm: as thick as the strokes of the icons, inside
 -- the button by inset, with rounded corners like theirs.

@@ -279,11 +279,18 @@ local function paint_icon(bb, id, rect, edit)
     end
 end
 
--- True when a button is marked: held down to drag the window, or the piece or the eraser chosen.
-local function is_marked(button, pressed, edit)
+-- The tool of the editor a button chooses, as the session view names it: a piece letter or
+-- "erase"; nil for the other buttons.
+local function tool_of(id)
+    return PIECE_BUTTONS[id] or (id == "erase" and id or nil)
+end
+
+-- True when the button is a tool of the editor and another one is chosen: it is drawn lighter, so
+-- that the chosen one stands out.
+local function is_unchosen(button, edit)
     local chosen = edit and edit.piece
-    return button.id == pressed
-        or (chosen ~= nil and (PIECE_BUTTONS[button.id] == chosen or button.id == chosen))
+    local tool = tool_of(button.id)
+    return chosen ~= nil and tool ~= nil and tool ~= chosen
 end
 
 -- A rounded border inside a button, to show that it is held down.
@@ -300,17 +307,26 @@ local function is_disabled(button, view)
     return not button.enabled or view.buttons[button.id] == false
 end
 
--- One button of the row, whole: its background, its icon, lighter if it is disabled, and, if it
--- is marked (see is_marked), its mark. view is the session view.
+-- How much lighter a button is drawn: when disabled, or when it is a tool not chosen; nil if not.
+local function lightening(button, view)
+    if is_disabled(button, view) then
+        return Theme.DISABLED
+    elseif is_unchosen(button, view.edit) then
+        return Theme.UNCHOSEN
+    end
+end
+
+-- One button of the row, whole: its background, its icon, lighter as lightening says, and, if it
+-- is held down to drag the window, its mark. view is the session view.
 local function paint_button(bb, button, pressed, view)
     local rect = button.rect
-    local edit = view.edit
     bb:paintRect(rect.x, rect.y, rect.w, rect.h, Theme.GRAY.row)
-    paint_icon(bb, button.id, rect, edit)
-    if is_disabled(button, view) then
-        bb:lightenRect(rect.x, rect.y, rect.w, rect.h, Theme.DISABLED)
+    paint_icon(bb, button.id, rect, view.edit)
+    local share = lightening(button, view)
+    if share then
+        bb:lightenRect(rect.x, rect.y, rect.w, rect.h, share)
     end
-    if is_marked(button, pressed, edit) then
+    if button.id == pressed then
         paint_pressed(bb, rect)
     end
 end
