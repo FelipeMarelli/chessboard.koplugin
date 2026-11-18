@@ -96,7 +96,7 @@ end
 function ChessBoard:addToMainMenu(menu_items)
     menu_items.chessboard = {
         text = I18n.t("Chess board"),
-        sorting_hint = "more_tools",
+        sorting_hint = "tools",
         checked_func = function() return self.layout:isOpen() end,
         callback = function() self:toggle() end,
     }

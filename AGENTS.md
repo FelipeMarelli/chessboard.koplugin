@@ -48,7 +48,7 @@ task shots                 # opens emu-data/chessboard/ with the report and the 
 CHESSBOARD_SELFTEST=1 CHESSBOARD_SCENARIO=h05 CHESSBOARD_PAGE=30 ./run-emu.sh "$PWD/example-books/<book>"
 ```
 
-There is no `lua`, `luajit` or `busted` installed on the system: always use the emulator's `luajit`. The emulator window size is set with `EMULATE_READER_W`, `EMULATE_READER_H` and `EMULATE_READER_DPI` (default 632, 840 and 150). The board opens from the reader menu: Tools › More tools › "Chess board". Interface runs share `emu-data/`: run them one at a time.
+There is no `lua`, `luajit` or `busted` installed on the system: always use the emulator's `luajit`. The emulator window size is set with `EMULATE_READER_W`, `EMULATE_READER_H` and `EMULATE_READER_DPI` (default 632, 840 and 150). The board opens from the reader menu: Tools › "Chess board". Interface runs share `emu-data/`: run them one at a time.
 
 The plugin is linked into the emulator with a symlink at `vendor/koreader-emu/lib/koreader/plugins/chessboard.koplugin`, so changes show up when the emulator restarts. `vendor/` holds KOReader v2026.07.1 for Linux x86_64 (`koreader-emu/`) and the KOReader sources (`koreader-src/`, `koreader-base-src/`), for reference only. None of it is versioned.
 

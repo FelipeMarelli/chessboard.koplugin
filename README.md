@@ -29,7 +29,7 @@ Developed and tested on KOReader v2026.07.1, on a Kindle Paperwhite.
 
 ## Use
 
-With a book open, the board opens and closes from the reader menu, under Tools › More tools › "Chess board".
+With a book open, the board opens and closes from the reader menu, under Tools › "Chess board".
 
 - **Play**: tap a piece, then the target square.
 - **Walk the line**: the arrows go back and forward one move; held down, they go to the start and the end.
