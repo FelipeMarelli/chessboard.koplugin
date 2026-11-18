@@ -75,7 +75,7 @@ test("C2: the board and a row of buttons under it, inside the window", function(
 end)
 
 -- The buttons of the main row, from left to right.
-local MAIN_ROW = { "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
+local MAIN_ROW = { "peek", "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
 
 local function ids_of(layout)
     local ids = {}
@@ -121,15 +121,16 @@ local function assert_buttons_fit(layout, px_per_mm)
     eq(count, #layout:buttons())
 end
 
-test("C2: move, flip, size, reset and edit from the left; backward, forward and close at the right",
+test("C2: eye, move, flip, size, reset and edit from the left; backward, forward and close at "
+    .. "the right",
     function()
         local layout = new(632, 840)
         local row = layout:rects().buttons
         assert_buttons_fit(layout, PX_PER_MM)
         eq(ids_of(layout), MAIN_ROW)
-        eq(layout:buttonRect("move").x, row.x)
+        eq(layout:buttonRect("peek").x, row.x)
         eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
-        eq(layout:buttonRect("move"), layout:buttons()[1].rect)
+        eq(layout:buttonRect("peek"), layout:buttons()[1].rect)
         eq(layout:buttonRect("nothing"), nil)
     end)
 
@@ -262,7 +263,7 @@ test("C10: every point inside the window, border included, belongs to some part"
         end
         assert(layout:hit(w.x + w.w - 1, y, false))
     end
-    eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "move" })
+    eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "peek" })
     eq(layout:hit(w.x + w.w - 1, w.y + w.h - 1, false), { zone = "button", button = "close" })
     eq(layout:hit(w.x + w.w - 1, w.y, false), { zone = "board", square = 64 })
 end)
@@ -304,11 +305,13 @@ local function overlap(a, b)
     return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
 end
 
-test("H04 C1: the move button is the first of the row, on the same grid as the others", function()
+-- H17 C1 put the eye before it, first of the row.
+test("H04 C1: the move button comes after the eye, on the same grid as the others", function()
     for _, size in ipairs(SCREENS) do
         local layout = new(size[1], size[2])
+        local eye = layout:buttonRect("peek")
         local move, after = layout:buttonRect("move"), layout:buttonRect("flip")
-        eq(move, { x = layout:rects().buttons.x, y = after.y, w = after.w, h = after.h })
+        eq(move, { x = eye.x + eye.w, y = after.y, w = after.w, h = after.h })
         eq(after.x, move.x + move.w)
         eq(layout:hit(center(move)), { zone = "button", button = "move" })
     end
@@ -440,6 +443,34 @@ test("H08 C4: a locked drag from the move button is the window's but does not mo
         eq(layout:dragRect(x - 30, y - 200), nil)
         eq(layout:endDrag(x - 30, y - 200), false)
         eq(layout:rects().window, before)
+    end)
+
+test("H17 C2, C3: the window hides while the finger is on the eye, and comes back the same",
+    function()
+        local layout = new(632, 840)
+        local before = layout:rects()
+        local x, y = center(layout:buttonRect("peek"))
+        eq(layout:isHidden(), false)
+        eq(layout:startDrag(x, y, false), true)
+        eq(layout:isHidden(), true)
+        eq(layout:pressedButton(), nil, "the eye is not marked: the window is not shown")
+        eq(layout:endDrag(x - 100, y - 300), false, "the window does not move")
+        eq(layout:isHidden(), false)
+        eq(layout:rects(), before)
+    end)
+
+test("H17 C3: the eye hides the window in any state, and only while the finger is down",
+    function()
+        local layout = new(632, 840)
+        local x, y = center(layout:buttonRect("peek"))
+        layout:startDrag(x, y, false, true)
+        eq(layout:isHidden(), true, "even while a promotion waits for its piece")
+        layout:setOpen(false)
+        eq(layout:isHidden(), false, "closed while hidden")
+        layout:setOpen(true)
+        local square_x, square_y = center(layout:squareRect(sq("e2"), false))
+        layout:startDrag(square_x, square_y, false)
+        eq(layout:isHidden(), false, "a drag from the board")
     end)
 
 test("H04 C2: the move button is pressed while it drags the window, and only then", function()
@@ -608,7 +639,7 @@ test("C10: a tap on a gutter is the window's but not a square", function()
             assert(layout:hit(x, y, false), "nothing at " .. x .. "," .. y)
         end
     end
-    eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "move" })
+    eq(layout:hit(w.x, w.y + w.h - 1, false), { zone = "button", button = "peek" })
 end)
 
 test("H04 C1: a drag from anywhere on the window but the move button is the window's and does "

@@ -194,7 +194,7 @@ layout:minimize()  layout:maximize()  layout:restore()  layout:mode()
 layout:setOpen(boolean)    layout:isOpen()
 layout:buttons()           layout:button(id)  layout:buttonRect(id)
 layout:showRow(name)       layout:shownRow()
-layout:startDrag(x, y, flipped, locked)       layout:pressedButton()
+layout:startDrag(x, y, flipped, locked)       layout:pressedButton()   layout:isHidden()
 layout:squareSize()        layout.labelSquares(flipped)
 layout:dirtyRect(previous_rects)
 layout:serialize()         layout.deserialize(table, screen)
@@ -203,7 +203,7 @@ layout:serialize()         layout.deserialize(table, screen)
 - `sizes` carries millimeters defined in `ui/theme.lua`: `row`, `button`, `border`, `margin`, `min_square`, `size_step` and `notation` (height of the move strip; 0 or nothing, no strip).
 - The window shows one button row at a time, by name (`"main"`, `"size"`, the editor's). A button can open another row instead of acting (`opens`); `"back"` opens the main one; opening or closing the window goes back to the main one. To add a row, declare it in `model/layout.lua` with the button that opens it. A row can have top buttons, in the place of the move strip.
 - Buttons are laid out like a CSS flex row: if they don't fit at their size, they all shrink equally.
-- Main row, from the left: move (the only place from which a drag moves the window), flip, size, reset (trash can) and edit; on the right, backward, forward and close. Held down, the arrows go to the start and the end of the line.
+- Main row, from the left: eye (while the finger is on it the window is hidden: `isHidden`), move (the only place from which a drag moves the window), flip, size, reset (trash can) and edit; on the right, backward, forward and close. Held down, the arrows go to the start and the end of the line.
 - A button that would do nothing comes with `enabled = false`, and `hit` treats it like the row between buttons (`{ zone = "button" }` without `button`). `hit` counts the thin window border as part of the neighboring zone; with the window closed it returns `nil`.
 
 **`model/session.lua`**

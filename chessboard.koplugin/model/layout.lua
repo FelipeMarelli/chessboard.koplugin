@@ -10,15 +10,17 @@ local FILES = 8
 
 -- The rows of buttons under the board, by name. Each has its buttons from the left edge and from
 -- the right edge, in order. The main row shows first; a button of OPENS shows another row instead
--- of acting, and the back button of any row shows the main one again. "move" is the one to drag
--- the window by; "backward" and "forward" step along the line of moves, next to close. A row with
+-- of acting, and the back button of any row shows the main one again. "peek" hides the window
+-- while the finger is on it; "move" is the one to drag the window by; "backward" and "forward"
+-- step along the line of moves, next to close. A row with
 -- upper buttons puts them, from the left, in the place of the strip of moves (after the others,
 -- when there is no strip).
 local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
+local PEEK_BUTTON = "peek"
 local BACK_BUTTON = "back"
 local ROWS = {
-    main = { left = { MOVE_BUTTON, "flip", "size", "reset", "edit" },
+    main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "size", "reset", "edit" },
         right = { "close", "forward", "backward" } },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
     edit = { left = { BACK_BUTTON, "clear", "erase" }, right = {},
@@ -363,7 +365,8 @@ end
 
 -- Drags. A drag runs from the finger down to the finger up and is the window's when it starts on
 -- the window, wherever the finger goes after. Only a drag that starts on the move button moves the
--- window; from anywhere else it does nothing, and from the board above all, which is for playing.
+-- window; one that starts on the eye hides it until the finger is lifted; from anywhere else it
+-- does nothing, and from the board above all, which is for playing.
 
 -- Starts a drag with the finger down at x, y. False when the point is off the window: the drag is
 -- the reader's. Called again with the same point, it goes on with the drag already started. With
@@ -374,12 +377,19 @@ function Layout:startDrag(x, y, flipped, locked)
         return true
     end
     local hit = self:hit(x, y, flipped)
-    self.drag = hit and { x = x, y = y, moves = not locked and hit.button == MOVE_BUTTON } or nil
+    self.drag = hit and { x = x, y = y, moves = not locked and hit.button == MOVE_BUTTON,
+        hides = hit.button == PEEK_BUTTON } or nil
     return self.drag ~= nil
 end
 
 function Layout:isDragging()
     return self.drag ~= nil
+end
+
+-- True while the finger that went down on the eye is still down: the window is not shown.
+function Layout:isHidden()
+    local d = self.drag
+    return d ~= nil and d.hides
 end
 
 -- The id of the button held down to drag the window, so that it can be marked while the finger is
