@@ -10,6 +10,7 @@ local Device = require("device")
 local Event = require("ui/event")
 local Geom = require("ui/geometry")
 local UIManager = require("ui/uimanager")
+local dump = require("dump")
 local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
 
@@ -1081,8 +1082,53 @@ local function readme(t, plugin)
     return steps
 end
 
+-- H17: holding the eye shows the page under the window, and lifting the finger brings it back.
+local function h17(t, plugin)
+    local layout, session = plugin.layout, plugin.session
+    local steps, step = new_steps(plugin)
+    local eye
+    step(function()
+        t.page_pixels = grab(layout:rects().window)
+        t.place = reading_position(plugin.ui)
+        plugin:toggle()
+        tap_squares(t, plugin, "e2", "e4", "g8")
+    end)
+    step(function()
+        t.before = layout:rects()
+        t.view = session:view()
+        eye = center(layout:buttonRect("peek"))
+        t:watchRepaints()
+        t:touch(eye)
+    end)
+    step(function()
+        t:shot("hidden")
+        t:check("the finger on the eye hides the window", layout:isHidden())
+        t:repaintedOnce("hiding repaints the window once", t.before.window, "ui")
+        local diff = differences(t.page_pixels, grab(t.before.window))
+        t:check("the page under it is seen whole", diff == 0, diff .. " pixels differ")
+        t:press(eye, offset(eye, -80, -250), false)
+    end)
+    step(function()
+        t:check("moving the finger does not bring the window back", layout:isHidden())
+        t.repaints = {}
+        t:lift(eye, offset(eye, -80, -250), "pan_release")
+    end)
+    step(function()
+        t:shot("back")
+        t:check("lifting the finger brings the window back", not layout:isHidden())
+        t:repaintedOnce("showing repaints the window once, with a flash", t.before.window,
+            "flashui")
+        t:check("in the same place and size", same_rect(layout:rects().window, t.before.window))
+        t:check("with the same position, selection and row",
+            dump(session:view()) == dump(t.view) and layout:shownRow() == "main")
+        t:check("the reader did not turn the page", reading_position(plugin.ui) == t.place)
+        plugin:toggle()
+    end)
+    return steps
+end
+
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit,
-    line = line, h16 = h16, readme = readme }
+    line = line, h16 = h16, h17 = h17, readme = readme }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
