@@ -214,11 +214,16 @@ function Window:ownsDrag(ges)
 end
 
 -- True when the gesture belongs to a drag of the window. The button held down to drag it is
--- marked once, when the drag starts, and not repainted again until the finger is lifted.
+-- marked once, when the drag starts, and not repainted again until the finger is lifted. A drag
+-- that starts on the eye takes the window off the page until the finger is lifted.
 function Window:onDrag(ges)
     local marked = self.layout:pressedButton()
+    local hidden = self.layout:isHidden()
     if not self:ownsDrag(ges) then
         return false
+    end
+    if self.layout:isHidden() and not hidden then
+        self:refresh(self.layout:dirtyRect())
     end
     if ges.ges == "hold" then
         self:hold(ges.pos)
@@ -234,11 +239,12 @@ function Window:onDrag(ges)
 end
 
 -- Ends the drag with the finger lifted at pos, if there is one. A window that moved is repainted
--- whole, in the old place and the new one; one that did not only loses the mark of the button it
--- was held by.
+-- whole, in the old place and the new one, and so is one that was hidden; one that did not move
+-- only loses the mark of the button it was held by.
 function Window:drop(pos, marked)
     local before = self.layout:rects()
-    if self.layout:endDrag(pos.x, pos.y) then
+    local hidden = self.layout:isHidden()
+    if self.layout:endDrag(pos.x, pos.y) or hidden then
         self:refresh(self.layout:dirtyRect(before), true)
     elseif marked then
         self:repaintButton(marked)
@@ -356,7 +362,7 @@ end
 
 -- Called by ReaderView after it paints the page.
 function Window:paintTo(bb)
-    if not self.layout:isOpen() then
+    if not self.layout:isOpen() or self.layout:isHidden() then
         return
     end
     local rects = self.layout:rects()
