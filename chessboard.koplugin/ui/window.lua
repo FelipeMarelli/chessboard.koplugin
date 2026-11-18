@@ -29,11 +29,29 @@ function Window:refresh(rect, covers_text)
     UIManager:setDirty(self.view.dialog, covers_text and "flashui" or "ui", Geom:new(rect))
 end
 
+-- KOReader's double tap holds every tap back for a while, and makes one gesture of two quick taps
+-- close together: squares tapped in a row would be slow and some lost. It is a setting of the
+-- whole reader, read by UIManager from the ReaderUI each time a dialog closes, so it is turned off
+-- there while the window is open, and given back as it was when it closes.
+function Window:holdDoubleTap(open)
+    local ui = self.view.ui
+    if open then
+        self.reader_double_tap_off = ui.disable_double_tap
+        ui.disable_double_tap = true
+    else
+        ui.disable_double_tap = self.reader_double_tap_off
+    end
+    Device.input.disable_double_tap = ui.disable_double_tap
+end
+
 -- Opening or closing ends an edit of the start position, as the main row shows again, and drops
 -- a promotion waiting for its piece.
 function Window:setOpen(open)
     self.session:finishEdit()
     self.session:cancelPromotion()
+    if open ~= self.layout:isOpen() then
+        self:holdDoubleTap(open)
+    end
     self.layout:setOpen(open)
     self:refresh(self.layout:dirtyRect(), open)
 end
