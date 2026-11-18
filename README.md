@@ -2,7 +2,7 @@
 
 A KOReader plugin for reading chess books: an interactive board that floats **over the page of the book**, so you can follow the games and try variations without leaving the reading.
 
-> **Still in development.** It works, but some features are missing and there may be bugs. Found a bug or want a feature? Open an issue at https://github.com/FelipeMarelli/chessboard.koplugin/issues — every report helps.
+> **Early version.** It is ready for reading chess books, and more features are on the way. Found a bug or want a feature? Open an issue at https://github.com/FelipeMarelli/chessboard.koplugin/issues — every report helps.
 
 <img src="screenshots/game.png" width="300" alt="A big board over the page, with the moves played below it"/> <img src="screenshots/reading.png" width="300" alt="A small board in a corner, beside the text being read"/>
 
