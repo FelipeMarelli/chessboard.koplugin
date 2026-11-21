@@ -613,6 +613,13 @@ function Layout:isDragging()
     return self.drag ~= nil
 end
 
+-- True while the finger that went down on the divider of the split screen is still down, so that
+-- it can be marked.
+function Layout:isDividing()
+    local d = self.drag
+    return d ~= nil and d.divides
+end
+
 -- True while the finger that went down on the eye is still down: the window is not shown.
 function Layout:isHidden()
     local d = self.drag

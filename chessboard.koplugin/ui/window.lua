@@ -247,9 +247,13 @@ end
 function Window:onDrag(ges)
     local marked = self.layout:pressedButton()
     local hidden = self.layout:isHidden()
+    local dividing = self.layout:isDividing()
     if not self:ownsDrag(ges) then
         self.area:toReader(ges)
         return false
+    end
+    if self.layout:isDividing() and not dividing then
+        self:repaintDivider()
     end
     if self.layout:isHidden() and not hidden then
         self:refresh(self.layout:dirtyRect())
@@ -273,11 +277,14 @@ end
 function Window:drop(pos, marked)
     local before = self.layout:rects()
     local hidden = self.layout:isHidden()
+    local dividing = self.layout:isDividing()
     if self.layout:endDrag(pos.x, pos.y) or hidden then
         self:refresh(self.layout:dirtyRect(before), true)
         self:fitReader()
     elseif marked then
         self:repaintButton(marked)
+    elseif dividing then
+        self:repaintDivider()
     end
 end
 
@@ -355,15 +362,42 @@ local function paint_button(bb, button, pressed, view, axis)
     end)
 end
 
--- Paints one button straight on the screen and shows it at once, without painting the page again:
--- the way KOReader's own buttons show a press (Button:_doFeedbackHighlight). A whole repaint would
--- make the mark wait for the page. The button lies on the window, so nothing of the page is in it.
+-- The divider of the split screen: a strip with a grip in the middle, laid along it; darker while
+-- held.
+local function paint_divider(bb, rect, held)
+    local style = Theme.DIVIDER
+    Kit.fill(bb, rect, held and style.held or style.ground)
+    local long, thick = Theme.px(style.grip_length), Theme.px(style.grip_width)
+    local w, h = long, thick
+    if rect.h > rect.w then
+        w, h = thick, long
+    end
+    local x, y = Kit.centred(rect, w, h)
+    Kit.fill(bb, { x = x, y = y, w = w, h = h }, style.grip)
+end
+
+-- Shows a part of the window just painted straight on the screen at once, without painting the
+-- page again: the way KOReader's own buttons show a press (Button:_doFeedbackHighlight). A whole
+-- repaint would make the mark wait for the page. The part lies on the window, so nothing of the
+-- page is in it.
+local function show_now(rect)
+    UIManager:setDirty(nil, "fast", Geom:new(rect))
+    UIManager:forceRePaint()
+end
+
+-- Paints one button straight on the screen and shows it at once.
 function Window:repaintButton(id)
     local button = self.layout:button(id)
     paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view(),
         self.layout:splitAxis())
-    UIManager:setDirty(nil, "fast", Geom:new(button.rect))
-    UIManager:forceRePaint()
+    show_now(button.rect)
+end
+
+-- The divider, marked while held, the same way.
+function Window:repaintDivider()
+    local rect = self.layout:rects().divider
+    paint_divider(Screen.bb, rect, self.layout:isDividing())
+    show_now(rect)
 end
 
 local function paint_frame(bb, rects)
@@ -376,19 +410,6 @@ local function paint_frame(bb, rects)
     end
 end
 
--- The divider of the split screen: a strip with a grip in the middle, laid along it.
-local function paint_divider(bb, rect)
-    local style = Theme.DIVIDER
-    Kit.fill(bb, rect, style.ground)
-    local long, thick = Theme.px(style.grip_length), Theme.px(style.grip_width)
-    local w, h = long, thick
-    if rect.h > rect.w then
-        w, h = thick, long
-    end
-    local x, y = Kit.centred(rect, w, h)
-    Kit.fill(bb, { x = x, y = y, w = w, h = h }, style.grip)
-end
-
 -- Called by ReaderView after it paints the page.
 function Window:paintTo(bb)
     if not self.layout:isOpen() or self.layout:isHidden() then
@@ -397,7 +418,7 @@ function Window:paintTo(bb)
     local rects = self.layout:rects()
     paint_frame(bb, rects)
     if rects.divider then
-        paint_divider(bb, rects.divider)
+        paint_divider(bb, rects.divider, self.layout:isDividing())
     end
     local view = self.session:view()
     local strip = rects.notation

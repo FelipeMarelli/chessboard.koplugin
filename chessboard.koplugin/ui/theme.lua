@@ -66,10 +66,11 @@ Theme.BUTTON = {
     unchosen = 0.6,
 }
 
--- The divider of the split screen: a strip in ground, with a grip in the middle, grip_length
--- long along it and grip_width thick, in design pixels.
+-- The divider of the split screen: a strip in ground (held while the finger is on it), with a grip
+-- in the middle, grip_length long along it and grip_width thick, in design pixels.
 Theme.DIVIDER = {
     ground = gray(0xCC),
+    held = gray(0x99),
     grip = gray(0x44),
     grip_length = 60,
     grip_width = 6,
