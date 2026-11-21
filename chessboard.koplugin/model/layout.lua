@@ -20,8 +20,8 @@ local FILES = 8
 -- the right edge, in order. The main row shows first; a button of OPENS shows another row instead
 -- of acting, and the back button of any row shows the main one again. "peek" hides the window
 -- while the finger is on it; "move" is the one to drag the window by; "backward" and "forward"
--- step along the line of moves, next to close; "qr" shows the game as a QR code that opens it on
--- lichess. A row with upper buttons puts them after the others when they all fit there at their
+-- step along the line of moves, next to close; "more" opens a row with the buttons used less
+-- often, among them "qr", which shows the game as a QR code that opens it on lichess. A row with upper buttons puts them after the others when they all fit there at their
 -- usual width, and the window has no strip of moves while it shows; else, from the left, in the
 -- place of the strip.
 local MAIN_ROW = "main"
@@ -29,13 +29,14 @@ local MOVE_BUTTON = "move"
 local PEEK_BUTTON = "peek"
 local BACK_BUTTON = "back"
 local ROWS = {
-    main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "size", "reset", "edit", "split", "qr" },
+    main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "edit", "more" },
         right = { "close", "forward", "backward" } },
+    more = { left = { BACK_BUTTON, "size", "reset", "split", "qr" }, right = {} },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
     edit = { left = { BACK_BUTTON, "clear", "erase" }, right = {},
         upper = { "color", "king", "queen", "rook", "bishop", "knight", "pawn" } },
 }
-local OPENS = { size = "size", edit = "edit" }
+local OPENS = { size = "size", edit = "edit", more = "more" }
 
 -- The buttons of each row while split, in a grid beside the board, from the top left. "swap" puts
 -- the book and the board the other way round, and "float" takes the window back over the page.

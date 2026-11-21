@@ -15,6 +15,7 @@ A KOReader plugin for reading chess books: an interactive board that floats **ov
 - **Position editor**: set up any position from the book, with the side to move; castling rights are deduced from the pieces.
 - **Move and resize**: drag the window anywhere and make it as small or big as you like.
 - **Peek behind the board**: hold the eye to read the text under the window; lift the finger and the board is back.
+- **Analyze on lichess**: a QR code opens the game on the lichess analysis board, on your phone, at the position on the board.
 - **Split screen**: the book on one half of the screen and a big board on the other, with big buttons beside it. The text reflows into its half, in EPUB, PDF and every format KOReader reads; drag the line between them to give the text more or less room.
 - **Made for e-ink**: plain gray squares, sharp Merida pieces at any size, marks that differ by shape and not only by tone, and minimal screen refreshes.
 - **Portrait and landscape.**
@@ -34,12 +35,14 @@ With a book open, the board opens and closes from the reader menu, under Tools �
 
 - **Play**: tap a piece, then the target square.
 - **Walk the line**: the arrows go back and forward one move; held down, they go to the start and the end.
-- **Move and resize**: drag the move button to take the window somewhere else; the size button makes it smaller or bigger.
+- **More buttons**: the three dots show the buttons used less often: size, start over, split screen and QR code. Back shows the main row again.
+- **Move and resize**: drag the move button to take the window somewhere else; the size button, under the three dots, makes it smaller or bigger.
 - **Flip**: the arrows button turns the board around.
 - **Peek**: hold the eye, first in the row, to hide the window and read what is under it; it comes back when you lift the finger.
+- **Analyze on lichess**: the QR code button, under the three dots, shows the game full screen as a QR code; scan it with your phone to open the whole line on the lichess analysis board, at the position on the board. Tap to close it. Very long games do not fit in a QR code.
 - **Set up a position**: the pencil opens the editor, with the pieces, the side to move, an eraser and a trash can that puts the start position or empties the board. Back starts the game from the new position.
-- **Start over**: the trash can in the main row goes back to the start position.
-- **Split the screen**: the split button, after the pencil, puts the book on one half of the screen and the board on the other: the book above in portrait, on the left in landscape. Drag the gray line between them to move it. In the split screen, the swap button puts the book and the board the other way round, and the window button takes the board back over the page.
+- **Start over**: the trash can, under the three dots, goes back to the start position.
+- **Split the screen**: the split button, under the three dots, puts the book on one half of the screen and the board on the other: the book above in portrait, on the left in landscape. Drag the line between them to move it. In the split screen every button shows at once; the swap button puts the book and the board the other way round, and the window button takes the board back over the page.
 
 ## License
 
@@ -56,6 +59,6 @@ The files listed below keep the license of their origin.
 | `chessboard.koplugin/chess/rules.lua` | `ink_knight/chess.lua` from [Ink Knight](https://github.com/beater-studios/ink_knight.koplugin), commit `601acd2`, © 2026 Beater Studios. Modified: names, strict FEN reading, move number, notation with the piece letter apart, position validation; what was specific to Ink Knight games was removed. | GPL-3.0, version 3 only (`chess/LICENSE-GPL-3.0`). Combinable with AGPL-3.0 under section 13 of both. The names "Ink Knight" and "Beater Studios" are not licensed (section 7(e)). |
 | `spec/inkknight_rules_spec.lua`, `spec/perft_spec.lua` | `tests/chess_spec.lua` and `tests/perft_spec.lua` from Ink Knight, same commit, adapted. Not in the package. | GPL-3.0, version 3 only. |
 | `chessboard.koplugin/assets/pieces/merida/*.svg` | Merida pieces by Armando Hernandez Marroquin, taken unchanged from [lichess](https://github.com/lichess-org/lila), commit `8f16c30`, folder `public/piece/merida`. | GPL-2.0 or later according to lichess's `COPYING.md`; used under GPL-3.0, combinable with AGPL-3.0. |
-| `chessboard.koplugin/assets/icons/*.svg` | [Lucide](https://lucide.dev), package `lucide-static` v0.460.0: `arrow-down-up`, `minimize-2`, `move`, `x`, `trash-2`, `arrow-left`, `chevron-left`, `chevron-right`, `minus`, `plus`, `eraser`, `eye`, `square-split-vertical`, `flip-vertical-2`, `flip-horizontal-2` and `picture-in-picture-2`. Modified: `stroke="currentColor"` becomes black. | ISC (`assets/icons/LICENSE-lucide`); parts from Feather, MIT. Compatible with AGPL-3.0. |
+| `chessboard.koplugin/assets/icons/*.svg` | [Lucide](https://lucide.dev), package `lucide-static` v0.460.0: `arrow-down-up`, `minimize-2`, `move`, `x`, `trash-2`, `arrow-left`, `chevron-left`, `chevron-right`, `minus`, `plus`, `eraser`, `eye`, `square-split-vertical`, `flip-vertical-2`, `flip-horizontal-2`, `picture-in-picture-2`, `qr-code` and `ellipsis`. Modified: `stroke="currentColor"` becomes black. | ISC (`assets/icons/LICENSE-lucide`); parts from Feather, MIT. Compatible with AGPL-3.0. |
 | `screenshots/*.png` | Taken in the KOReader emulator over *Chess Fundamentals* by José Raúl Capablanca (1921), from [Project Gutenberg](https://www.gutenberg.org/ebooks/33870). | The book is in the public domain. |
 | `spec/perft/*.perft` | [scalachess](https://github.com/lichess-org/scalachess), commit `fbb8f2c`, via Ink Knight. Collected from chessprogramming.org and the Ethereal engine. | MIT (`spec/perft/LICENSE-scalachess`). |

@@ -45,7 +45,7 @@ end
 
 -- A point of the button row that is on no button: just right of the last button on the left.
 local function between_buttons(layout)
-    local last_left = layout:buttonRect("qr")
+    local last_left = layout:buttonRect("more")
     return { x = last_left.x + last_left.w + 2, y = last_left.y + last_left.h / 2 }
 end
 
@@ -747,6 +747,8 @@ local function h05(t, plugin)
     end)
     step(function()
         t:shot("open")
+        tap("more")
+        row_shown("more", "more")
         tap("size")
         row_shown("size", "size")
         UIManager:forceRePaint()
@@ -800,6 +802,7 @@ local function reset(t, plugin)
     step(function()
         tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1")
         t:shot("played")
+        tap_buttons(t, plugin, "more")
         tap_buttons(t, plugin, "reset")
         t:shot("reset")
         local saved = session.game:serialize()
@@ -953,7 +956,7 @@ local function h16(t, plugin)
         local current = session:view().notation.current
         t:check("going back the strip keeps the line and marks the move on the board",
             shown() == 10 and current == 8, shown() .. " " .. current)
-        tap_buttons(t, plugin, "size")
+        tap_buttons(t, plugin, "more", "size")
         while layout:canResize(-1) do
             tap_buttons(t, plugin, "smaller")
         end
@@ -1051,7 +1054,7 @@ local function readme(t, plugin)
     end
     step(function()
         plugin:toggle()
-        tap_buttons(t, plugin, "size")
+        tap_buttons(t, plugin, "more", "size")
         resize_fully("bigger", 1)
         for _ = 1, README_SHRINK_STEPS do
             tap_buttons(t, plugin, "smaller")
@@ -1076,7 +1079,7 @@ local function readme(t, plugin)
     end)
     step(function()
         t:shot("editor")
-        tap_buttons(t, plugin, "back", "size")
+        tap_buttons(t, plugin, "back", "more", "size")
         resize_fully("smaller", -1)
         tap_buttons(t, plugin, "back")
         move_window(layout.screen_w, layout.screen_h)
@@ -1166,7 +1169,7 @@ local function h18(t, plugin)
     end)
     step(function()
         plugin:toggle()
-        tap_buttons(t, plugin, "split")
+        tap_buttons(t, plugin, "more", "split")
     end)
     step(function()
         t:shot("split")
@@ -1224,7 +1227,7 @@ local function h18(t, plugin)
         t:shot("floating")
         t:check("float takes the window back over the page", not layout:isSplit())
         t:check("and the book has the whole screen again", view_fits(ui, Screen:getSize()))
-        tap_buttons(t, plugin, "split", "close")
+        tap_buttons(t, plugin, "more", "split", "close")
     end)
     step(function()
         t:shot("closed")
@@ -1255,8 +1258,7 @@ end
 -- main row gets, at the width it has with room and as big buttons, with move held down and forward
 -- disabled. It paints straight on the screen, for a screenshot to judge the style by; it checks
 -- nothing.
-local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "qr", "backward",
-    "forward", "close" }
+local KIT_ROW = { "peek", "move", "flip", "edit", "more", "backward", "forward", "close" }
 local KIT_LOOKS = { move = { down = true }, forward = { dim = true } }
 local KIT_SIZES = { { w = 27, h = 39 }, { w = 39, h = 39 }, { w = 54, h = 54 } }
 -- The main row with buttons of a size in design pixels, its top left corner at x, y, framed as in
@@ -1304,7 +1306,7 @@ local function e03(t, plugin)
     step(function() plugin:toggle() end)
     step(function()
         tap_squares(t, plugin, "e2", "e4", "e7", "e5")
-        tap_buttons(t, plugin, "qr")
+        tap_buttons(t, plugin, "more", "qr")
     end)
     step(function()
         local shown = top_widget()

@@ -223,8 +223,10 @@ test("split, the main row has the buttons of the game, QR, swap and float; no ey
             "float", "close" })
     end)
 
-test("the main row of the floating window has the button that splits the screen", function()
-    eq(new(PORTRAIT):button("split").enabled, true)
+test("the more row of the floating window has the button that splits the screen", function()
+    local layout = new(PORTRAIT)
+    layout:showRow("more")
+    eq(layout:button("split").enabled, true)
 end)
 
 test("splitting and floating again show the main row", function()

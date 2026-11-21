@@ -93,8 +93,7 @@ test("C2: the board and a row of buttons under it, inside the window", function(
 end)
 
 -- The buttons of the main row, from left to right.
-local MAIN_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "qr", "backward",
-    "forward", "close" }
+local MAIN_ROW = { "peek", "move", "flip", "edit", "more", "backward", "forward", "close" }
 
 local function ids_of(layout)
     local ids = {}
@@ -140,8 +139,7 @@ local function assert_buttons_fit(layout, scale)
     eq(count, #layout:buttons())
 end
 
-test("C2: eye, move, flip, size, reset, edit, split and QR from the left; backward, forward and "
-    .. "close at the right",
+test("C2: eye, move, flip, edit and more from the left; backward, forward and close at the right",
     function()
         local layout = new(632, 840)
         local row = layout:rects().buttons
@@ -251,10 +249,11 @@ test("C10: taps on the buttons and between them", function()
     local layout = new(632, 840)
     eq(layout:hit(center(layout:buttonRect("close"))), { zone = "button", button = "close" })
     eq(layout:hit(center(layout:buttonRect("flip"))), { zone = "button", button = "flip" })
-    eq(layout:hit(center(layout:buttonRect("reset"))), { zone = "button", button = "reset" })
+    eq(layout:hit(center(layout:buttonRect("edit"))), { zone = "button", button = "edit",
+        opens = "edit" })
     -- On a big screen the row has room between the left buttons and the right ones.
     local big = new(1272, 1696)
-    local last = big:buttonRect("qr")
+    local last = big:buttonRect("more")
     assert(last.x + last.w + 1 < big:buttonRect("backward").x, "no room between the buttons")
     eq(big:hit(last.x + last.w + 1, last.y + 1), { zone = "button" })
 end)
@@ -672,12 +671,12 @@ test("H04 C1: a drag from anywhere on the window but the move button is the wind
     .. "not move it", function()
     local layout = with_gutter(632, 840)
     local r = layout:rects()
-    local move, size = layout:buttonRect("move"), layout:buttonRect("size")
+    local move, more = layout:buttonRect("move"), layout:buttonRect("more")
     local points = {
         { center(layout:buttonRect("close")) }, { center(layout:buttonRect("flip")) },
         { r.window.x, r.window.y }, { r.ranks.x + 2, r.ranks.y + 50 },
         { r.files.x + 50, r.files.y + 2 }, { move.x + move.w, move.y + 2 },
-        { size.x + size.w, size.y + 2 },
+        { more.x + more.w, more.y + 2 },
     }
     for i, p in ipairs(points) do
         eq(layout:startDrag(p[1], p[2], false), true, "point " .. i)
@@ -707,23 +706,36 @@ end
 
 local STEP = 6 -- SIZES.size_step on the emulator
 
-test("H05 C1: the size button shows the size row: back, smaller and bigger", function()
-    local layout = new(632, 840)
-    eq(layout:shownRow(), "main")
-    eq(tap_button(layout, "size"), { zone = "button", button = "size", opens = "size" })
-    layout:showRow("size")
-    eq(ids_of(layout), { "back", "smaller", "bigger" })
-    eq(layout:buttonRect("back").x, layout:rects().buttons.x)
-    eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
-    eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
-    layout:showRow("main")
-    eq(ids_of(layout), MAIN_ROW)
-end)
+test("the more button shows the buttons used less often: back, size, reset, split and QR",
+    function()
+        local layout = new(632, 840)
+        eq(tap_button(layout, "more"), { zone = "button", button = "more", opens = "more" })
+        layout:showRow("more")
+        eq(ids_of(layout), { "back", "size", "reset", "split", "qr" })
+        eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
+        eq(tap_button(layout, "reset"), { zone = "button", button = "reset" })
+    end)
+
+test("H05 C1: the size button, in the more row, shows the size row: back, smaller and bigger",
+    function()
+        local layout = new(632, 840)
+        eq(layout:shownRow(), "main")
+        layout:showRow("more")
+        eq(tap_button(layout, "size"), { zone = "button", button = "size", opens = "size" })
+        layout:showRow("size")
+        eq(ids_of(layout), { "back", "smaller", "bigger" })
+        eq(layout:buttonRect("back").x, layout:rects().buttons.x)
+        eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
+        eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
+        layout:showRow("main")
+        eq(ids_of(layout), MAIN_ROW)
+    end)
 
 test("H05 C2: only the buttons that show a row open one, and back always opens the main row",
     function()
         eq(Layout.rowOpenedBy("size"), "size")
         eq(Layout.rowOpenedBy("edit"), "edit")
+        eq(Layout.rowOpenedBy("more"), "more")
         eq(Layout.rowOpenedBy("back"), "main")
         for _, id in ipairs({ "move", "flip", "close", "smaller", "bigger", "nothing" }) do
             eq(Layout.rowOpenedBy(id), nil, id)
