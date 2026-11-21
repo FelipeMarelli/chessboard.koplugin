@@ -1,5 +1,6 @@
 -- The pieces the window is drawn with: buttons, discs and rings, centred bitmaps and texts. Each
 -- one paints in a rect it is given, with the style of ui/theme.lua, and decides nothing.
+local Blitbuffer = require("ffi/blitbuffer")
 local Theme = require("ui/theme")
 
 local Kit = {}
@@ -46,6 +47,14 @@ function Kit.text(bb, rect, text, size_px, color, bold)
     widget:free()
 end
 
+-- Fades what is painted in a square towards a gray, by a share from 0 to 1. lightenRect fades
+-- towards white only, which would light up a gray ground around an icon.
+function Kit.fade(bb, x, y, side, gray, by)
+    local value = gray:getColor8().a
+    bb:paintRect(x, y, side, side, Blitbuffer.Color8A(value, math.floor(0xFF * by)),
+        bb.setPixelBlend)
+end
+
 -- A square filled with rounded corners. paintRoundedRect leaves them jagged: a thin
 -- anti-aliased border of the same gray goes over its edge.
 function Kit.roundedSquare(bb, x, y, side, radius, color)
@@ -74,17 +83,19 @@ end
 -- look.bare: no card, the icon as big as the button.
 function Kit.button(bb, cell, look, paint_face)
     local style = Theme.BUTTON
+    -- What is under the icon: the ground of the row for a bare button, else the card.
+    local under = look.bare and style.ground or (look.down and style.down or style.face)
     Kit.fill(bb, cell, style.ground)
     if not look.bare then
         local card = card_of(cell)
         Kit.roundedSquare(bb, card.x, card.y, card.w, math.floor(card.w * style.round + 0.5),
-            look.down and style.down or style.face)
+            under)
     end
     paint_face(bb, cell, look.down and style.down_ink or style.ink)
     if look.dim then
         local side = Kit.iconSide(cell, look.bare)
         local x, y = Kit.centred(cell, side, side)
-        bb:lightenRect(x, y, side, side, look.dim)
+        Kit.fade(bb, x, y, side, under, look.dim)
     end
 end
 
