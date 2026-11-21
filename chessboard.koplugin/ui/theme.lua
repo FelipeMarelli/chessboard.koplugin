@@ -38,22 +38,20 @@ Theme.GRAY = {
     gutter = gray(0xFF),
 }
 
--- Buttons (ui/kit.lua): a box with rounded corners and a thin border in each cell of its row,
--- parted from the next by gap, its icon inside by pad. A button held down, or the tool of
--- the editor chosen, has the down ground. A button that would do nothing is lightened by the
--- share disabled. stroke: lines drawn by hand in a button, as thick as those of the icons.
+-- Buttons (ui/kit.lua): an icon on the ground of the row, icon wide and at least inset from the
+-- sides. A button held down gets a frame with rounded corners of radius, inset inside it, as thick
+-- as the strokes of the icons (stroke, also the lines drawn by hand in a button). A button that
+-- would do nothing is lightened by the share disabled; the tools of the editor not chosen by
+-- unchosen, so that the chosen one stands out.
 Theme.BUTTON = {
-    gap = 3,
-    pad = 2,
-    radius = 7,
-    border = 2,
-    icon = 24,
+    icon = 29,
+    inset = 3,
     stroke = 2,
+    radius = 7,
     ground = Theme.GRAY.row,
-    face = gray(0xFF),
-    down = gray(0xBB),
-    edge = gray(0x00),
+    ink = gray(0x00),
     disabled = 0.6,
+    unchosen = 0.6,
 }
 
 -- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.

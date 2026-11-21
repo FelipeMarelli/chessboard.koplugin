@@ -257,7 +257,7 @@ end
 local function paint_color(bb, face, side, color)
     local radius = math.floor(side * 0.4)
     local width = color == "w" and Theme.px(Theme.BUTTON.stroke) or radius
-    Kit.disc(bb, face, radius, Theme.BUTTON.edge, width)
+    Kit.disc(bb, face, radius, Theme.BUTTON.ink, width)
 end
 
 -- The icon of a button; in the edit row, the pieces show in the color they are put in.
@@ -279,10 +279,12 @@ local function tool_of(id)
     return PIECE_BUTTONS[id] or (id == "erase" and id or nil)
 end
 
--- True when the button is the tool of the editor that is chosen.
-local function is_chosen(button, edit)
+-- True when the button is a tool of the editor and another one is chosen: it is drawn lighter, so
+-- that the chosen one stands out.
+local function is_unchosen(button, edit)
+    local chosen = edit and edit.piece
     local tool = tool_of(button.id)
-    return tool ~= nil and edit ~= nil and tool == edit.piece
+    return chosen ~= nil and tool ~= nil and tool ~= chosen
 end
 
 -- Disabled by the layout (a size at its limit) or by the session (an arrow at the end of the line).
@@ -290,13 +292,18 @@ local function is_disabled(button, view)
     return not button.enabled or view.buttons[button.id] == false
 end
 
--- How a button looks: down while it is held to drag the window or is the tool chosen, and
--- lightened when it would do nothing.
+-- How much lighter a button is drawn: when disabled, or when it is a tool not chosen; nil if not.
+local function lightening(button, view)
+    if is_disabled(button, view) then
+        return Theme.BUTTON.disabled
+    elseif is_unchosen(button, view.edit) then
+        return Theme.BUTTON.unchosen
+    end
+end
+
+-- How a button looks: framed while it is held to drag the window, and lighter as lightening says.
 local function look_of(button, pressed, view)
-    return {
-        down = button.id == pressed or is_chosen(button, view.edit),
-        dim = is_disabled(button, view) and Theme.BUTTON.disabled or nil,
-    }
+    return { down = button.id == pressed, dim = lightening(button, view) }
 end
 
 -- One button of the row, whole. view is the session view.

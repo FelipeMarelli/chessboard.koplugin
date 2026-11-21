@@ -1146,7 +1146,7 @@ local function kit_contents(Kit, Theme, side)
         icon("flip"), icon("move"),
         function(bb, face) Kit.bitmap(bb, Theme.pieceIcon("Q", side), face) end,
         function(bb, face)
-            Kit.disc(bb, face, math.floor(side * 0.4), Theme.BUTTON.edge,
+            Kit.disc(bb, face, math.floor(side * 0.4), Theme.BUTTON.ink,
                 Theme.px(Theme.BUTTON.stroke))
         end,
     }
