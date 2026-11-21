@@ -45,6 +45,7 @@ local function is_int(n)
 end
 
 local center, contains, overlap = Rects.center, Rects.contains, Rects.overlap
+local ids_of = Rects.buttonIds
 
 local SCREENS = { { 632, 840 }, { 840, 632 }, { 1072, 1448 }, { 1448, 1072 }, { 300, 220 } }
 
@@ -94,14 +95,6 @@ end)
 
 -- The buttons of the main row, from left to right.
 local MAIN_ROW = { "peek", "move", "flip", "edit", "more", "backward", "forward", "close" }
-
-local function ids_of(layout)
-    local ids = {}
-    for _, button in ipairs(layout:buttons()) do
-        ids[#ids + 1] = button.id
-    end
-    return ids
-end
 
 -- The buttons of the row shown that lie in an area.
 local function buttons_in(layout, area)

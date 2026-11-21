@@ -1,5 +1,15 @@
--- Checks on plain rects { x, y, w, h } shared by the specs of the window geometry.
+-- Checks on plain rects { x, y, w, h } shared by the specs of the window geometry, and the
+-- buttons a layout shows.
 local Rects = {}
+
+-- The ids of the buttons of the row shown, in order.
+function Rects.buttonIds(layout)
+    local ids = {}
+    for _, button in ipairs(layout:buttons()) do
+        ids[#ids + 1] = button.id
+    end
+    return ids
+end
 
 -- The point at the middle of a rect, as two numbers.
 function Rects.center(rect)

@@ -1,17 +1,12 @@
 -- H16: the moves under the board written as in a book (model/notation.lua).
-local Game = require("chess/game")
+local Games = require("games")
 local Helper = require("helper")
 local Notation = require("model/notation")
-local Rules = require("chess/rules")
 local eq, test = Helper.eq, Helper.test
 
 -- The last moves of a game played from a FEN (the usual start when nil), in coordinate notation.
 local function moves_of(fen, ...)
-    local game = assert(Game.new(fen))
-    for _, uci in ipairs({ ... }) do
-        assert(game:play(assert(Rules.parseUci(game:position(), uci))))
-    end
-    return game:recentMoves(100)
+    return Games.of(fen, ...):recentMoves(100)
 end
 
 -- Parts as one text: a figurine as its letter in brackets, a gap as a space.

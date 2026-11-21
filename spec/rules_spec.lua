@@ -1,17 +1,14 @@
 -- H01: acceptance criteria 1 to 8 of chess/rules.lua.
+local Games = require("games")
 local Helper = require("helper")
 local Rules = require("chess/rules")
 local eq, test = Helper.eq, Helper.test
+local move = Games.move
 
 local sq = Rules.squareFromName
 
 local function pos(fen)
     return assert(Rules.fromFen(fen))
-end
-
-local function move(uci)
-    local from, to, promotion = uci:match("^(%a%d)(%a%d)(%a?)$")
-    return { from = sq(from), to = sq(to), promotion = promotion ~= "" and promotion or nil }
 end
 
 local function ucis(moves)

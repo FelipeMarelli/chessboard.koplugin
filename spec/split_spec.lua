@@ -8,6 +8,7 @@ local Rules = require("chess/rules")
 local Split = require("model/split")
 local eq, test = Helper.eq, Helper.test
 local center, contains, overlap = Rects.center, Rects.contains, Rects.overlap
+local ids_of = Rects.buttonIds
 
 -- The sizes of ui/theme.lua, in design pixels; on the emulator one is 1.05 pixels.
 local SIZES = { row = 39, button = 39, border = 2, margin = 11, min_square = 29, size_step = 6,
@@ -32,14 +33,6 @@ end
 
 local function screen_of(size)
     return { x = 0, y = 0, w = size[1], h = size[2] }
-end
-
-local function ids_of(layout)
-    local ids = {}
-    for _, button in ipairs(layout:buttons()) do
-        ids[#ids + 1] = button.id
-    end
-    return ids
 end
 
 -- Drags from the middle of a rect by dx, dy, and lifts the finger there.

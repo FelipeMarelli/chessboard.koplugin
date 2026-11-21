@@ -1,19 +1,11 @@
 -- E03: the game as PGN and as a lichess analysis link (model/export.lua).
 local Export = require("model/export")
-local Game = require("chess/game")
+local Games = require("games")
 local Helper = require("helper")
-local Rules = require("chess/rules")
 local eq, test = Helper.eq, Helper.test
+local game_of = Games.of
 
 local MAX = 2400
-
-local function game_of(start, ...)
-    local game = assert(Game.new(start))
-    for _, uci in ipairs({ ... }) do
-        assert(game:play(assert(Rules.parseUci(game:position(), uci))))
-    end
-    return game
-end
 
 local SCHOLAR = { "e2e4", "e7e5", "d1h5", "b8c6", "f1c4", "g8f6", "h5f7" }
 
