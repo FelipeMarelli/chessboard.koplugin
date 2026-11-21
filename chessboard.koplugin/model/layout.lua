@@ -64,8 +64,9 @@ end
 -- of the button row under the board), button (width of a button), border, margin (to the screen
 -- edge), min_square, size_step (how much the side of a square changes with each step of resize),
 -- gutter (the strips around the board where the coordinates go; 0 or nil to put them on the
--- squares) and notation (height of the strip with the last moves, between the board and
--- the buttons; 0 or nil for none).
+-- squares), notation (height of the strip with the last moves, between the board and
+-- the buttons; 0 or nil for none) and spacing (the gap left in place of the strip when a row
+-- takes it; 0 or nil for none).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local scale = args.scale
@@ -80,6 +81,7 @@ function Layout.new(args)
         size_step = px(sizes.size_step, scale),
         gutter = optional_px(sizes.gutter, scale),
         notation = optional_px(sizes.notation, scale),
+        spacing = optional_px(sizes.spacing, scale),
     }
     self.open = false
     self.row = MAIN_ROW
@@ -165,9 +167,10 @@ function Layout:isOneRow()
     return row.upper ~= nil and count * self.px.button <= self:framedSide()
 end
 
--- The height of the strip of moves: none while the row shown takes all its buttons in one row.
+-- The height of the strip of moves, or, while the row shown takes all its buttons in one row, of
+-- the gap that sets them apart from the board in its place.
 function Layout:stripHeight()
-    return self:isOneRow() and 0 or self.px.notation
+    return self:isOneRow() and self.px.spacing or self.px.notation
 end
 
 function Layout:windowSize()
@@ -252,7 +255,7 @@ function Layout:rects()
         board = { x = left + g, y = top + g, w = side, h = side },
         buttons = { x = left, y = top + framed + n, w = framed, h = p.row },
     }
-    if n > 0 then
+    if n > 0 and not self:isOneRow() then
         rects.notation = { x = left, y = top + framed, w = framed, h = n }
     end
     if g > 0 then

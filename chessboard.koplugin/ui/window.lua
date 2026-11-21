@@ -334,7 +334,8 @@ end
 local function paint_frame(bb, rects)
     local gray = Theme.GRAY
     Kit.fill(bb, rects.window, gray.frame)
-    Kit.fill(bb, rects.buttons, gray.row)
+    -- The whole inside, so the gap between the board and the buttons too, when there is one.
+    Kit.fill(bb, Kit.inset(rects.window, Theme.px(Theme.SIZES.border)), gray.row)
     if rects.board_frame then
         Kit.fill(bb, rects.board_frame, gray.gutter)
     end

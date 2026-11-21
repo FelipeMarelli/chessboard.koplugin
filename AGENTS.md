@@ -201,7 +201,7 @@ layout:dirtyRect(previous_rects)
 layout:serialize()         layout.deserialize(table, screen)
 ```
 
-- `sizes` carries design pixels defined in `ui/theme.lua`, and `scale` is `layout.scaleFor` the screen: `row`, `button`, `border`, `margin`, `min_square`, `size_step` and `notation` (height of the move strip; 0 or nothing, no strip).
+- `sizes` carries design pixels defined in `ui/theme.lua`, and `scale` is `layout.scaleFor` the screen: `row`, `button`, `border`, `margin`, `min_square`, `size_step`, `notation` (height of the move strip; 0 or nothing, no strip) and `spacing` (gap between the board and a row that takes the place of the strip).
 - The window shows one button row at a time, by name (`"main"`, `"size"`, the editor's). A button can open another row instead of acting (`opens`); `"back"` opens the main one; opening or closing the window goes back to the main one. To add a row, declare it in `model/layout.lua` with the button that opens it. A row can have top buttons, in the place of the move strip.
 - Buttons are laid out like a CSS flex row: if they don't fit at their size, they all shrink equally.
 - Main row, from the left: eye (while the finger is on it the window is hidden: `isHidden`), move (the only place from which a drag moves the window), flip, size, reset (trash can) and edit; on the right, backward, forward and close. Held down, the arrows go to the start and the end of the line.

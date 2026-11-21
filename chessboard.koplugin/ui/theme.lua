@@ -24,6 +24,8 @@ Theme.SIZES = {
     size_step = 6,  -- how much the side of a square changes with each tap on smaller or bigger
     gutter = 14,    -- strips for the coordinates outside the board; 0 puts them on the squares
     notation = 26,  -- strip with the last moves, between the board and the buttons (H16)
+    spacing = 8,    -- gap between the board and a row of buttons right under it, so that their
+                    -- white cards do not run into the white border of the board
 }
 
 local function gray(value)

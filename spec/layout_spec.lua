@@ -926,7 +926,7 @@ end)
 -- Decided on 16 November 2026: the color and the pieces go up, in the place of the strip of moves,
 -- so they are not so narrow with a small board.
 -- The edit row with a strip of moves and buttons of 39, and the board at its biggest or smallest.
-local NOTATION_39 = { gutter = 14, notation = 26, button = 39 }
+local NOTATION_39 = { gutter = 14, notation = 26, button = 39, spacing = 8 }
 
 local function edit_row(steps)
     local layout = with_sizes(632, 840, NOTATION_39)
@@ -947,8 +947,10 @@ test("Edit: when all its buttons fit under the board at their width, they go in 
         eq(button.rect.w, 41, button.id) -- 39 on the emulator
         assert(contains(r.buttons, button.rect), button.id)
     end
-    eq(r.buttons.y, r.board_frame.y + r.board_frame.h)
-    eq(r.window.h, main_h:rects().window.h - 27) -- a strip of 26 on the emulator
+    -- A strip of 26 and a gap of 8 on the emulator.
+    eq(r.buttons.y, r.board_frame.y + r.board_frame.h + 8)
+    eq(r.window.h, main_h:rects().window.h - 27 + 8)
+    eq(layout:hit(r.buttons.x + 2, r.buttons.y - 2, false), { zone = "board" })
 end)
 
 test("Edit: when they do not fit, the color and the pieces stay in the place of the strip",
