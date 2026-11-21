@@ -1149,9 +1149,21 @@ local function turn_page(t, plugin)
     t:tap(reader.x + reader.w * 0.9, reader.y + reader.h / 2)
 end
 
+-- Shows the status bar with the page progress, or the mode it had back (mode), without saving the
+-- setting, and lays the book out again for it.
+local function show_footer(ui, mode)
+    local footer = ui.view.footer
+    footer:applyFooterMode(mode or footer.mode_list.page_progress)
+    footer:refreshFooter(true, true)
+end
+
 local function h18(t, plugin)
     local ui, layout = plugin.ui, plugin.layout
     local steps, step = new_steps(plugin)
+    local footer_mode = ui.view.footer.mode
+    step(function()
+        show_footer(ui)
+    end)
     step(function()
         plugin:toggle()
         tap_buttons(t, plugin, "size", "split")
@@ -1193,13 +1205,13 @@ local function h18(t, plugin)
     step(function()
         t:shot("swapped_turned")
         t:check("a tap on the book second turns its page", reading_position(ui) ~= t.place)
-        t.text = layout:textLength()
-        tap_buttons(t, plugin, "swap", "size", "bigger")
+        tap_buttons(t, plugin, "swap")
     end)
     step(function()
-        t:shot("bigger")
-        t:check("the bigger button takes room from the book", layout:textLength() < t.text)
-        tap_buttons(t, plugin, "back", "float")
+        t:shot("swapped_back")
+        t:check("swap again puts the book first", layout:isTextFirst()
+            and view_fits(ui, layout:readerRect()))
+        tap_buttons(t, plugin, "float")
     end)
     step(function()
         t:shot("floating")
@@ -1216,6 +1228,7 @@ local function h18(t, plugin)
         t:check("opened again, it is split again", layout:isSplit()
             and view_fits(ui, layout:readerRect()))
         tap_buttons(t, plugin, "float")
+        show_footer(ui, footer_mode)
     end)
     return steps
 end
