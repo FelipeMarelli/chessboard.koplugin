@@ -16,7 +16,8 @@ vars:
   SCENARIO: h03
   # Read from the selftest itself, so a new scenario needs no change here.
   SCENARIOS:
-    sh: grep '^local SCENARIOS' chessboard.koplugin/selftest.lua | grep -o '[a-z0-9_]* =' | tr -d ' ='
+    # The whole table, which may take more than one line.
+    sh: sed -n '/^local SCENARIOS/,/}/p' chessboard.koplugin/selftest.lua | grep -o '[a-z0-9_]* =' | tr -d ' ='
 
 tasks:
   default:
