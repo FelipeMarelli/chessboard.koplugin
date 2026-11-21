@@ -28,9 +28,9 @@ local MOVE_BUTTON = "move"
 local PEEK_BUTTON = "peek"
 local BACK_BUTTON = "back"
 local ROWS = {
-    main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "size", "reset", "edit" },
+    main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "size", "reset", "edit", "split" },
         right = { "close", "forward", "backward" } },
-    size = { left = { BACK_BUTTON, "smaller", "bigger", "split" }, right = {} },
+    size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
     edit = { left = { BACK_BUTTON, "clear", "erase" }, right = {},
         upper = { "color", "king", "queen", "rook", "bishop", "knight", "pawn" } },
 }
@@ -90,8 +90,9 @@ end
 -- squares), notation (height of the strip with the last moves, between the board and
 -- the buttons; 0 or nil for none), spacing (the gap left in place of the strip when a row
 -- takes it, and between the board and its buttons while split; 0 or nil for none), divider (how
--- thick the divider of the split is) and split_controls (the least room beside the board for its
--- buttons while split).
+-- thick the divider of the split is), split_controls (the least room beside the board for its
+-- buttons while split) and split_button (the biggest side of a button while split; 0 or nil for
+-- no limit).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local scale = args.scale
@@ -109,6 +110,7 @@ function Layout.new(args)
         spacing = optional_px(sizes.spacing, scale),
         divider = optional_px(sizes.divider, scale),
         split_controls = optional_px(sizes.split_controls, scale),
+        split_button = optional_px(sizes.split_button, scale),
     }
     self.open = false
     self.row = MAIN_ROW
@@ -450,7 +452,8 @@ function Layout:buttons()
     if self.split then
         local ids = SPLIT_ROWS[self.row]
         local list = {}
-        for i, cell in ipairs(Split.grid(rects.buttons, #ids)) do
+        local cells = Split.grid(rects.buttons, #ids, self.px.split_button, self:splitAxis())
+        for i, cell in ipairs(cells) do
             local id = ids[i]
             list[i] = { id = id, enabled = self:isEnabled(id), rect = cell,
                 upper = contains_id(row.upper, id) or nil }

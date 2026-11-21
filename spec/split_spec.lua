@@ -10,7 +10,7 @@ local center, contains, overlap = Rects.center, Rects.contains, Rects.overlap
 
 -- The sizes of ui/theme.lua, in design pixels; on the emulator one is 1.05 pixels.
 local SIZES = { row = 39, button = 39, border = 2, margin = 11, min_square = 29, size_step = 6,
-    gutter = 14, notation = 26, spacing = 8, divider = 24, split_controls = 80 }
+    gutter = 14, notation = 26, spacing = 8, divider = 24, split_controls = 80, split_button = 80 }
 local SCALE = Layout.scaleFor(632, 840)
 local MIN_TOUCH = 39 * SCALE
 local PORTRAIT, LANDSCAPE = { 632, 840 }, { 840, 632 }
@@ -71,6 +71,18 @@ test("the cells of a grid are apart, inside it, and the grid is centred", functi
     end
     local right = cells[3].x + cells[3].w
     assert(math.abs((cells[1].x - rect.x) - (rect.x + rect.w - right)) <= 1, "not centred")
+end)
+
+test("the cells of a grid are no bigger than the most asked for", function()
+    local cells = Split.grid({ x = 0, y = 0, w = 300, h = 100 }, 3, 60)
+    eq(cells[1], { x = 60, y = 20, w = 60, h = 60 })
+    eq(cells[3], { x = 180, y = 20, w = 60, h = 60 })
+end)
+
+test("split, a grid goes to the side of its room away from the board", function()
+    local rect = { x = 0, y = 0, w = 300, h = 100 }
+    eq(Split.grid(rect, 3, 60, "y")[1], { x = 120, y = 20, w = 60, h = 60 })
+    eq(Split.grid(rect, 3, 60, "x")[1], { x = 60, y = 40, w = 60, h = 60 })
 end)
 
 -- Limits of the divider ----------------------------------------------------------------------
@@ -140,6 +152,25 @@ test("landscape: the book on the left, the board on the right on top and its but
         assert(r.inner.w - r.board_frame.w < 8, "the board is narrow: " .. r.board_frame.w)
     end)
 
+test("however far the divider goes, the buttons are no bigger than their most", function()
+    for _, size in ipairs({ PORTRAIT, LANDSCAPE }) do
+        local layout = split(size)
+        drag(layout, layout:rects().divider, -800, -800)
+        drag(layout, layout:rects().divider, 800, 800)
+        for _, button in ipairs(layout:buttons()) do
+            assert(button.rect.w <= layout.px.split_button, "wide " .. button.rect.w)
+            assert(button.rect.h <= layout.px.split_button, "high " .. button.rect.h)
+        end
+    end
+end)
+
+test("portrait, the buttons are on the right of their room, the spare room by the board",
+    function()
+        local layout = split(PORTRAIT)
+        local room, last = layout:rects().buttons, layout:buttonRect("close")
+        eq(last.x + last.w, room.x + room.w)
+    end)
+
 test("every part of the split window is inside it, and the board apart from the buttons",
     function()
         for _, size in ipairs(SCREENS) do
@@ -192,15 +223,13 @@ test("split, the main row has the buttons of the game, and swap and float; no ey
             "float", "close" })
     end)
 
-test("the size row of the floating window has the button that splits the screen", function()
-    local layout = new(PORTRAIT)
-    layout:showRow("size")
-    eq(layout:button("split").enabled, true)
+test("the main row of the floating window has the button that splits the screen", function()
+    eq(new(PORTRAIT):button("split").enabled, true)
 end)
 
 test("splitting and floating again show the main row", function()
     local layout = new(PORTRAIT)
-    layout:showRow("size")
+    layout:showRow("edit")
     layout:setSplit(true)
     eq(layout:shownRow(), "main")
     layout:showRow("edit")

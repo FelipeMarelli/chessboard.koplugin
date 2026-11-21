@@ -45,7 +45,7 @@ end
 
 -- A point of the button row that is on no button: just right of the last button on the left.
 local function between_buttons(layout)
-    local last_left = layout:buttonRect("edit")
+    local last_left = layout:buttonRect("split")
     return { x = last_left.x + last_left.w + 2, y = last_left.y + last_left.h / 2 }
 end
 
@@ -1133,7 +1133,7 @@ local function h17(t, plugin)
     return steps
 end
 
--- H18: the split screen. Splits it from the size row, plays a move, turns the page of the book in
+-- H18: the split screen. Splits it from the main row, plays a move, turns the page of the book in
 -- its part, drags the divider, swaps the book and the board, and takes the window back over the
 -- page. It works with any book: BOOK=petroff for a PDF.
 local function view_fits(ui, rect)
@@ -1166,7 +1166,7 @@ local function h18(t, plugin)
     end)
     step(function()
         plugin:toggle()
-        tap_buttons(t, plugin, "size", "split")
+        tap_buttons(t, plugin, "split")
     end)
     step(function()
         t:shot("split")
@@ -1224,7 +1224,7 @@ local function h18(t, plugin)
         t:shot("floating")
         t:check("float takes the window back over the page", not layout:isSplit())
         t:check("and the book has the whole screen again", view_fits(ui, Screen:getSize()))
-        tap_buttons(t, plugin, "size", "split", "close")
+        tap_buttons(t, plugin, "split", "close")
     end)
     step(function()
         t:shot("closed")
@@ -1255,7 +1255,8 @@ end
 -- main row gets, at the width it has with room and as big buttons, with move held down and forward
 -- disabled. It paints straight on the screen, for a screenshot to judge the style by; it checks
 -- nothing.
-local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
+local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "backward", "forward",
+    "close" }
 local KIT_LOOKS = { move = { down = true }, forward = { dim = true } }
 local KIT_SIZES = { { w = 27, h = 39 }, { w = 39, h = 39 }, { w = 54, h = 54 } }
 -- The main row with buttons of a size in design pixels, its top left corner at x, y, framed as in

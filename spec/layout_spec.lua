@@ -93,7 +93,8 @@ test("C2: the board and a row of buttons under it, inside the window", function(
 end)
 
 -- The buttons of the main row, from left to right.
-local MAIN_ROW = { "peek", "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
+local MAIN_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "backward", "forward",
+    "close" }
 
 local function ids_of(layout)
     local ids = {}
@@ -139,8 +140,8 @@ local function assert_buttons_fit(layout, scale)
     eq(count, #layout:buttons())
 end
 
-test("C2: eye, move, flip, size, reset and edit from the left; backward, forward and close at "
-    .. "the right",
+test("C2: eye, move, flip, size, reset, edit and split from the left; backward, forward and close "
+    .. "at the right",
     function()
         local layout = new(632, 840)
         local row = layout:rects().buttons
@@ -253,9 +254,9 @@ test("C10: taps on the buttons and between them", function()
     eq(layout:hit(center(layout:buttonRect("reset"))), { zone = "button", button = "reset" })
     -- On a big screen the row has room between the left buttons and the right ones.
     local big = new(1272, 1696)
-    local edit = big:buttonRect("edit")
-    assert(edit.x + edit.w + 1 < big:buttonRect("backward").x, "no room between the buttons")
-    eq(big:hit(edit.x + edit.w + 1, edit.y + 1), { zone = "button" })
+    local last = big:buttonRect("split")
+    assert(last.x + last.w + 1 < big:buttonRect("backward").x, "no room between the buttons")
+    eq(big:hit(last.x + last.w + 1, last.y + 1), { zone = "button" })
 end)
 
 test("C10: a tap outside the window, or with the window closed, is not the window's", function()
@@ -706,12 +707,12 @@ end
 
 local STEP = 6 -- SIZES.size_step on the emulator
 
-test("H05 C1: the size button shows the size row: back, smaller, bigger and split", function()
+test("H05 C1: the size button shows the size row: back, smaller and bigger", function()
     local layout = new(632, 840)
     eq(layout:shownRow(), "main")
     eq(tap_button(layout, "size"), { zone = "button", button = "size", opens = "size" })
     layout:showRow("size")
-    eq(ids_of(layout), { "back", "smaller", "bigger", "split" })
+    eq(ids_of(layout), { "back", "smaller", "bigger" })
     eq(layout:buttonRect("back").x, layout:rects().buttons.x)
     eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
     eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
