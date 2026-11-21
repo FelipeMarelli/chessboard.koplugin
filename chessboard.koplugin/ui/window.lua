@@ -254,12 +254,16 @@ function Window:drop(pos, marked)
     end
 end
 
--- The color button: a ring when White's pieces are put, a disc when Black's are, like the turn in
--- the corner of the board.
+-- The color button: a white disc with a ring when White's pieces are put, a black disc when
+-- Black's are, like the turn in the corner of the board.
 local function paint_color(bb, face, side, color, ink)
     local radius = math.floor(side * 0.4)
-    local width = color == "w" and Theme.px(Theme.BUTTON.stroke) or radius
-    Kit.disc(bb, face, radius, ink, width)
+    if color == "w" then
+        Kit.disc(bb, face, radius, Theme.BUTTON.face)
+        Kit.disc(bb, face, radius, ink, Theme.px(Theme.BUTTON.stroke))
+    else
+        Kit.disc(bb, face, radius, ink)
+    end
 end
 
 -- The icon of a button, in ink; in the edit row, the pieces show in the color they are put in.
