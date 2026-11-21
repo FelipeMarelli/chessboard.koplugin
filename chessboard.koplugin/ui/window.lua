@@ -8,8 +8,9 @@ local Geom = require("ui/geometry")
 local I18n = require("i18n")
 local InfoMessage = require("ui/widget/infomessage")
 local Kit = require("ui/kit")
-local Rect = require("model/rect")
 local QRMessage = require("ui/widget/qrmessage")
+local Rect = require("model/rect")
+local Session = require("model/session")
 local Strip = require("ui/notation")
 local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
@@ -115,11 +116,6 @@ local function repaint_if(self, changed)
     end
 end
 
--- The piece each button of the edit row puts.
-local PIECE_BUTTONS = {
-    king = "k", queen = "q", rook = "r", bishop = "b", knight = "n", pawn = "p",
-}
-
 local ACTIONS = {
     close = function(self) self:setOpen(false) end,
     flip = function(self)
@@ -137,10 +133,9 @@ local ACTIONS = {
     qr = show_qr,
     clear = function(self) repaint_if(self, self.session:clearBoard()) end,
     color = function(self) repaint_if(self, self.session:toggleColor()) end,
-    erase = function(self) repaint_if(self, self.session:chooseEraser()) end,
 }
-for id, letter in pairs(PIECE_BUTTONS) do
-    ACTIONS[id] = function(self) repaint_if(self, self.session:choosePiece(letter)) end
+for _, id in ipairs(Session.toolButtons()) do
+    ACTIONS[id] = function(self) repaint_if(self, self.session:chooseTool(id)) end
 end
 
 -- What holding a button down does, for the buttons that do something else when held: the arrows
@@ -336,31 +331,16 @@ local function icon_name(id, axis)
 end
 
 -- The icon of a button, in ink; in the edit row, the pieces show in the color they are put in.
--- axis: the one the screen is split along.
-local function paint_icon(bb, id, face, side, edit, ink, axis)
-    local letter = PIECE_BUTTONS[id]
+-- axis: the one the screen is split along. view is the session view.
+local function paint_icon(bb, id, face, side, view, ink, axis)
+    local piece = view.tool_pieces[id]
     if id == "color" then
-        paint_color(bb, face, side, edit.color, ink)
-    elseif letter then
-        local piece = edit.color == "w" and letter:upper() or letter
+        paint_color(bb, face, side, view.edit.color, ink)
+    elseif piece then
         Kit.bitmap(bb, Theme.pieceIcon(piece, side), face)
     else
         Kit.mask(bb, Theme.iconMask(icon_name(id, axis), side), face, ink)
     end
-end
-
--- The tool of the editor a button chooses, as the session view names it: a piece letter or
--- "erase"; nil for the other buttons.
-local function tool_of(id)
-    return PIECE_BUTTONS[id] or (id == "erase" and id or nil)
-end
-
--- True when the button is a tool of the editor and another one is chosen: it is drawn lighter, so
--- that the chosen one stands out.
-local function is_unchosen(button, edit)
-    local chosen = edit and edit.piece
-    local tool = tool_of(button.id)
-    return chosen ~= nil and tool ~= nil and tool ~= chosen
 end
 
 -- Disabled by the layout (a size at its limit) or by the session (an arrow at the end of the line).
@@ -372,7 +352,7 @@ end
 local function lightening(button, view)
     if is_disabled(button, view) then
         return Theme.BUTTON.disabled
-    elseif is_unchosen(button, view.edit) then
+    elseif view.unchosen[button.id] then
         return Theme.BUTTON.unchosen
     end
 end
@@ -387,7 +367,7 @@ end
 local function paint_button(bb, button, pressed, view, axis)
     local side = Kit.iconSide(button.rect, button.upper)
     Kit.button(bb, button.rect, look_of(button, pressed, view), function(target, face, ink)
-        paint_icon(target, button.id, face, side, view.edit, ink, axis)
+        paint_icon(target, button.id, face, side, view, ink, axis)
     end)
 end
 

@@ -406,6 +406,32 @@ test("Edit: a tap puts the chosen piece in the chosen color, and without one doe
         eq(session:view().edit, { color = "b", piece = "q" })
     end)
 
+test("Edit: the tool buttons choose a piece or the eraser, the others show lighter", function()
+    local session = editing_empty()
+    eq(Session.toolButtons(), { "bishop", "erase", "king", "knight", "pawn", "queen", "rook" })
+    eq(session:view().unchosen, {})
+    eq(session:view().tool_pieces, { king = "K", queen = "Q", rook = "R", bishop = "B",
+        knight = "N", pawn = "P" })
+    eq(session:chooseTool("queen"), true)
+    eq(session:chooseTool("queen"), false)
+    eq(session:view().edit.piece, "q")
+    eq(session:view().unchosen, { king = true, rook = true, bishop = true, knight = true,
+        pawn = true, erase = true })
+    session:toggleColor()
+    eq(session:view().tool_pieces.queen, "q")
+    eq(session:view().unchosen.queen, nil)
+    eq(session:chooseTool("erase"), true)
+    eq(session:view().edit.piece, "erase")
+    eq(session:view().unchosen.erase, nil)
+    eq(session:view().unchosen.queen, true)
+end)
+
+test("Edit: out of the editor no button is a piece or lighter", function()
+    local view = session_at():view()
+    eq(view.tool_pieces, {})
+    eq(view.unchosen, {})
+end)
+
 test("Edit: the color chosen when it ends is the side to move", function()
     local session = editing_empty()
     put(session, "k", "e1"); put(session, "p", "e2")

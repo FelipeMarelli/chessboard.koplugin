@@ -147,6 +147,43 @@ function Session:choosePiece(letter)
     return self.editor:setTool(colored(letter, self.editor:turn()))
 end
 
+-- The buttons of the editor's tools, by id, and what each one chooses: a piece or the eraser.
+local TOOL_BUTTONS = {
+    king = "k", queen = "q", rook = "r", bishop = "b", knight = "n", pawn = "p",
+    erase = Editor.ERASER,
+}
+
+-- The ids of the buttons that choose a tool of the editor.
+function Session.toolButtons()
+    local ids = {}
+    for id in pairs(TOOL_BUTTONS) do
+        ids[#ids + 1] = id
+    end
+    table.sort(ids)
+    return ids
+end
+
+-- Chooses the tool of a button of the editor, by its id. Returns whether it changed.
+function Session:chooseTool(id)
+    local tool = TOOL_BUTTONS[id]
+    if tool == Editor.ERASER then
+        return self:chooseEraser()
+    end
+    return self:choosePiece(tool)
+end
+
+-- The piece each piece button of the editor puts now, in the color chosen; and the tool buttons
+-- not chosen while another one is, so that the chosen one stands out.
+local function tools_view(editor)
+    local pieces, unchosen, chosen = {}, {}, editor:tool()
+    for id, tool in pairs(TOOL_BUTTONS) do
+        local put = tool == Editor.ERASER and tool or colored(tool, editor:turn())
+        pieces[id] = put ~= Editor.ERASER and put or nil
+        unchosen[id] = (chosen ~= nil and put ~= chosen) or nil
+    end
+    return pieces, unchosen
+end
+
 -- Ends editing: when the position was changed and is valid, the game starts from it; else the
 -- game and its line stay as they were. The board turns back as it was. False when there was
 -- nothing being edited.
@@ -328,6 +365,7 @@ end
 local function edit_view(self)
     local editor = self.editor
     local piece = editor:tool()
+    local tool_pieces, unchosen = tools_view(editor)
     return {
         squares = squares_of(editor:position()),
         turn = editor:turn(),
@@ -336,12 +374,15 @@ local function edit_view(self)
         edit = { color = editor:turn(), piece = piece and piece:lower() },
         notation = { moves = {}, current = 0, numbered = false },
         buttons = {},
+        tool_pieces = tool_pieces,
+        unchosen = unchosen,
     }
 end
 
 -- What there is to draw: each square with its piece, its marks and whether it is a light one,
 -- whose turn it is, how the game stands, its last move and the ones before it, and which buttons
--- can be used. While editing, see edit_view.
+-- can be used. While editing, see edit_view: tool_pieces has the piece each piece button of the
+-- editor puts, and unchosen the tool buttons to draw lighter.
 function Session:view()
     if self.editor then
         return edit_view(self)
@@ -361,6 +402,8 @@ function Session:view()
         flipped = self.is_flipped,
         buttons = { close = true, flip = true, reset = true,
             backward = self.game:canBack(), forward = self.game:canForward() },
+        tool_pieces = {},
+        unchosen = {},
     }
 end
 
