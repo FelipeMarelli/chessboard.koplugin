@@ -1,0 +1,198 @@
+diff --git a/chessboard.koplugin/selftest.lua b/chessboard.koplugin/selftest.lua
+index 8c329b6..9e3a26a 100644
+--- a/chessboard.koplugin/selftest.lua
++++ b/chessboard.koplugin/selftest.lua
+@@ -1127,8 +1127,180 @@ local function h17(t, plugin)
+     return steps
+ end
+ 
+-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit,
+-    line = line, h16 = h16, h17 = h17, readme = readme }
++-- SPIKE (not to commit): the board on one half of the screen and the book on the other. Portrait:
++-- board at the bottom; landscape: board on the right, so the reader keeps its top left corner.
++local function split_halves()
++    local w, h = Screen:getWidth(), Screen:getHeight()
++    if w > h then
++        local half = math.floor(w / 2)
++        return { x = 0, y = 0, w = half, h = h }, { x = half, y = 0, w = w - half, h = h }
++    end
++    local half = math.floor(h / 2)
++    return { x = 0, y = 0, w = w, h = half }, { x = 0, y = half, w = w, h = h - half }
++end
++
++-- Puts the window, as big as fits, centred in rect.
++local function fill_with_window(layout, rect)
++    local p = layout.px
++    local room_w = rect.w - 2 * p.border - p.gutter
++    local room_h = rect.h - 2 * p.border - p.gutter - p.notation - p.row
++    layout.square = math.floor(math.min(room_w, room_h) / 8)
++    local w, h = layout:windowSize()
++    layout.x = rect.x + math.floor((rect.w - w) / 2)
++    layout.y = rect.y + math.floor((rect.h - h) / 2)
++end
++
++-- EPUB: the extra margin goes on the edge of the board, only where crengine gets it, so the book's
++-- own margin setting does not change.
++local function reserve_margin(ui, board)
++    local doc = ui.document
++    local original = doc.setPageMargins
++    local landscape = board.x > 0
++    doc.setPageMargins = function(d, left, top, right, bottom)
++        if landscape then
++            right = right + board.w
++        else
++            bottom = bottom + board.h
++        end
++        logger.info("SPIKE margins", left, top, right, bottom, "footer", ui.view.footer:getHeight(), "board", board.h)
++        return original(d, left, top, right, bottom)
++    end
++    ui:handleEvent(Event:new("SetPageMargins", ui.typeset.unscaled_margins))
++    return function()
++        doc.setPageMargins = original
++        ui:handleEvent(Event:new("SetPageMargins", ui.typeset.unscaled_margins))
++    end
++end
++
++-- EPUB, second way: crengine's page is the reader half, as after a window resize; ReaderRolling
++-- would set it back to the whole screen on SetDimensions, so the steps are done here.
++local function shrink_page(ui, reader)
++    local function apply(dimen)
++        ui.document:enableInternalHistory(true)
++        ui.document:setViewDimen(dimen)
++        ui.view:onSetDimensions(dimen)
++        ui.view.footer:onSetDimensions()
++        ui.rolling:onUpdatePos()
++        ui.document:enableInternalHistory(false)
++        ui.rolling:onRedrawCurrentView()
++        UIManager:setDirty(ui.dialog, "full")
++    end
++    apply(Geom:new(reader))
++    return function() apply(Screen:getSize()) end
++end
++
++-- PDF: the view shrinks to the reader half, and the zoom fits the page to it.
++local function shrink_view(ui, reader)
++    -- As ReaderView does when the screen turns: the scroll page states keep the old height
++    -- until they are made again.
++    local function apply(dimen)
++        ui:handleEvent(Event:new("SetDimensions", dimen))
++        ui:handleEvent(Event:new("InitScrollPageStates"))
++        UIManager:setDirty(ui.dialog, "full")
++    end
++    apply(Geom:new(reader))
++    return function() apply(Screen:getSize()) end
++end
++
++-- How far down the document the top of the view is, in screen pixels, counting whole pages.
++local function scroll_y(ui)
++    local view = ui.view
++    if view.page_scroll then
++        local state = view.page_states[1]
++        return (state.page - 1) * (state.page_area.h + view.page_gap.height) + state.visible_area.y
++    end
++    return (view.state.page - 1) * view.page_area.h + view.visible_area.y
++end
++
++-- The board half is painted white before the window, so nothing of the page shows around it.
++local function blank_half(plugin, board)
++    local paint = plugin.paintTo
++    plugin.paintTo = function(self, bb)
++        bb:paintRect(board.x, board.y, board.w, board.h, require("ffi/blitbuffer").COLOR_WHITE)
++        return paint(self, bb)
++    end
++    return function() plugin.paintTo = paint end
++end
++
++local function split(t, plugin)
++    local ui, layout = plugin.ui, plugin.layout
++    local steps, step = new_steps(plugin)
++    local reader, board = split_halves()
++    local undo = {}
++    local turns = 0
++    local function turn_page()
++        t.before_y = scroll_y(ui)
++        t:tap(reader.x + reader.w * 0.9, reader.y + reader.h / 2)
++    end
++    local function check_turn()
++        turns = turns + 1
++        t:shot("turn" .. turns)
++        local advance = scroll_y(ui) - t.before_y
++        t:check("turn " .. turns .. " moves on, by no more than the book half",
++            advance > 0 and advance <= reader.h,
++            string.format("advance %d, half %d, view %d", advance, reader.h, ui.view.visible_area.h))
++    end
++    step(function()
++        local scroll = os.getenv("SPIKE_SCROLL")
++        if ui.paging and scroll then
++            ui:handleEvent(Event:new("SetScrollMode", scroll == "1"))
++        end
++    end)
++    step(function()
++        t:shot("whole")
++        local epub = os.getenv("SPIKE_EPUB") == "dimen" and shrink_page
++            or function(u) return reserve_margin(u, board) end
++        undo[1] = ui.rolling and epub(ui, reader) or shrink_view(ui, reader)
++        undo[2] = blank_half(plugin, board)
++        plugin:toggle()
++        fill_with_window(layout, board)
++        UIManager:setDirty(ui.dialog, "full")
++    end)
++    step(function()
++        t:shot("split")
++        if ui.paging then turn_page() end
++    end)
++    for _ = 1, 3 do
++        step(function()
++            if ui.paging then
++                check_turn()
++                turn_page()
++            end
++        end)
++    end
++    step(function()
++        plugin:toggle()
++        undo[2]()
++        undo[1]()
++    end)
++    step(function()
++        t:shot("restored")
++        if ui.paging then
++            local area = ui.view.visible_area
++            t:check("the view is whole again", area.w > reader.w or area.h > reader.h,
++                area.w .. "x" .. area.h)
++        end
++    end)
++    return steps
++end
++
++-- SPIKE: only enters the split and stays, to try it by hand.
++local function splitlive(t, plugin)
++    local ui, layout = plugin.ui, plugin.layout
++    local steps, step = new_steps(plugin)
++    local reader, board = split_halves()
++    step(function()
++        if ui.rolling then shrink_page(ui, reader) else shrink_view(ui, reader) end
++        blank_half(plugin, board)
++        plugin:toggle()
++        fill_with_window(layout, board)
++        UIManager:setDirty(ui.dialog, "full")
++    end)
++    return steps
++end
++
++local SCENARIOS = { splitlive = splitlive, h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit,
++    line = line, h16 = h16, h17 = h17, readme = readme, split = split }
+ 
+ function SelfTest.start(plugin)
+     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
+@@ -1138,7 +1310,9 @@ function SelfTest.start(plugin)
+         lfs.mkdir(t.dir)
+     end
+     local steps = assert(SCENARIOS[t.scenario], "no scenario " .. t.scenario)(t, plugin)
+-    steps[#steps + 1] = function() t:finish(plugin) end
++    if t.scenario ~= "splitlive" then
++        steps[#steps + 1] = function() t:finish(plugin) end
++    end
+     local i = 0
+     t.run = function()
+         i = i + 1
