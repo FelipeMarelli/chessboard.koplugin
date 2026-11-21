@@ -10,7 +10,6 @@ function Kit.fill(bb, rect, color)
     bb:paintRect(rect.x, rect.y, rect.w, rect.h, color)
 end
 
--- A rect made smaller by by pixels on every side.
 -- A frame of the given width inside rect.
 function Kit.frame(bb, rect, width, color)
     Kit.fill(bb, { x = rect.x, y = rect.y, w = rect.w, h = width }, color)
@@ -35,8 +34,8 @@ end
 
 -- A disc centred in rect, or a ring when a line width is given.
 function Kit.disc(bb, rect, radius, color, width)
-    bb:paintCircle(rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), radius,
-        color, width)
+    local x, y = Rect.centred(rect, 0, 0)
+    bb:paintCircle(x, y, radius, color, width)
 end
 
 -- A text size_px high in the interface font, centred in rect.

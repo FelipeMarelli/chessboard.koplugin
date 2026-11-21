@@ -12,11 +12,17 @@ local function square_color(info)
     return info.light and gray.light_square or gray.dark_square
 end
 
-local function paint_squares(bb, layout, view)
+-- Calls paint with each square of the view and its rect on the screen.
+local function each_square(layout, view, paint)
     for sq = 1, 64 do
-        local r = layout:squareRect(sq, view.flipped)
-        Kit.fill(bb, r, square_color(view.squares[sq]))
+        paint(view.squares[sq], layout:squareRect(sq, view.flipped))
     end
+end
+
+local function paint_squares(bb, layout, view)
+    each_square(layout, view, function(info, r)
+        Kit.fill(bb, r, square_color(info))
+    end)
 end
 
 -- A part of a length in pixels, at least one.
@@ -54,14 +60,13 @@ local MARKS = {
 
 local function paint_marks(bb, layout, view)
     local s = layout:squareSize()
-    for sq = 1, 64 do
-        local marks = view.squares[sq].marks
+    each_square(layout, view, function(info, r)
         for _, mark in ipairs(MARKS) do
-            if marks[mark.name] then
-                mark.paint(bb, layout:squareRect(sq, view.flipped), s, Theme.MARK)
+            if info.marks[mark.name] then
+                mark.paint(bb, r, s, Theme.MARK)
             end
         end
-    end
+    end)
 end
 
 -- Where a text of a size goes in a corner of a square.
@@ -101,12 +106,11 @@ local function paint_piece(bb, piece, r)
 end
 
 local function paint_pieces(bb, layout, view)
-    for sq = 1, 64 do
-        local piece = view.squares[sq].piece
-        if piece then
-            paint_piece(bb, piece, layout:squareRect(sq, view.flipped))
+    each_square(layout, view, function(info, r)
+        if info.piece then
+            paint_piece(bb, info.piece, r)
         end
-    end
+    end)
 end
 
 -- While a promotion waits for its piece: the board lightened, and the pieces to choose on white
