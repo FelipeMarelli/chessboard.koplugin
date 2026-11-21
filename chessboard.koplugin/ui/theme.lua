@@ -38,18 +38,24 @@ Theme.GRAY = {
     gutter = gray(0xFF),
 }
 
--- Buttons (ui/kit.lua): an icon on the ground of the row, icon wide and at least inset from the
--- sides. A button held down gets a frame with rounded corners of radius, inset inside it, as thick
--- as the strokes of the icons (stroke, also the lines drawn by hand in a button). A button that
--- would do nothing is lightened by the share disabled; the tools of the editor not chosen by
--- unchosen, so that the chosen one stands out.
+-- Buttons (ui/kit.lua). Each has a square centred in it, square wide, or less to keep gap from
+-- the sides of a narrow button; its icon, in ink on the ground of the row, is icon wide, or less
+-- to keep pad inside the square. A button held down shows the square, in the gray down with
+-- corners rounded by the share round of its side, and its icon in down_ink. stroke: lines drawn
+-- by hand in a button, as thick as those of the icons. A button that would do nothing is
+-- lightened by the share disabled; the tools of the editor not chosen by unchosen, so that the
+-- chosen one stands out.
 Theme.BUTTON = {
-    icon = 29,
-    inset = 3,
+    square = 31,
+    gap = 1,
+    icon = 24,
+    pad = 3,
     stroke = 2,
-    radius = 7,
+    round = 0.25,
     ground = Theme.GRAY.row,
     ink = gray(0x00),
+    down = gray(0xDD),
+    down_ink = gray(0x00),
     disabled = 0.6,
     unchosen = 0.6,
 }
@@ -193,6 +199,27 @@ local ICON_FILES = { clear = "reset" }
 function Theme.icon(name, side)
     local path = string.format("%s/assets/icons/%s.svg", plugin_dir, ICON_FILES[name] or name)
     return cached(cache.icons, name .. "@" .. side, path, side)
+end
+
+-- The alpha of a bitmap as an 8-bit mask, for colorblitFrom to paint it in any gray.
+local function alpha_mask(image)
+    local w, h = image:getWidth(), image:getHeight()
+    local mask = Blitbuffer.new(w, h, Blitbuffer.TYPE_BB8)
+    for y = 0, h - 1 do
+        for x = 0, w - 1 do
+            mask:setPixel(x, y, Blitbuffer.Color8(image:getPixel(x, y):getColor8A().alpha))
+        end
+    end
+    return mask
+end
+
+-- The icon of a button as a mask, side pixels wide, to paint it in a gray of choice.
+function Theme.iconMask(name, side)
+    local key = "mask:" .. name .. "@" .. side
+    if not cache.icons[key] then
+        cache.icons[key] = alpha_mask(Theme.icon(name, side))
+    end
+    return cache.icons[key]
 end
 
 -- A piece drawn as the icon of a button.

@@ -254,22 +254,22 @@ end
 
 -- The color button: a ring when White's pieces are put, a disc when Black's are, like the turn in
 -- the corner of the board.
-local function paint_color(bb, face, side, color)
+local function paint_color(bb, face, side, color, ink)
     local radius = math.floor(side * 0.4)
     local width = color == "w" and Theme.px(Theme.BUTTON.stroke) or radius
-    Kit.disc(bb, face, radius, Theme.BUTTON.ink, width)
+    Kit.disc(bb, face, radius, ink, width)
 end
 
--- The icon of a button; in the edit row, the pieces show in the color they are put in.
-local function paint_icon(bb, id, face, side, edit)
+-- The icon of a button, in ink; in the edit row, the pieces show in the color they are put in.
+local function paint_icon(bb, id, face, side, edit, ink)
     local letter = PIECE_BUTTONS[id]
     if id == "color" then
-        paint_color(bb, face, side, edit.color)
+        paint_color(bb, face, side, edit.color, ink)
     elseif letter then
         local piece = edit.color == "w" and letter:upper() or letter
         Kit.bitmap(bb, Theme.pieceIcon(piece, side), face)
     else
-        Kit.bitmap(bb, Theme.icon(id, side), face)
+        Kit.mask(bb, Theme.iconMask(id, side), face, ink)
     end
 end
 
@@ -301,7 +301,7 @@ local function lightening(button, view)
     end
 end
 
--- How a button looks: framed while it is held to drag the window, and lighter as lightening says.
+-- How a button looks: on a gray square while it is held, and lighter as lightening says.
 local function look_of(button, pressed, view)
     return { down = button.id == pressed, dim = lightening(button, view) }
 end
@@ -309,8 +309,8 @@ end
 -- One button of the row, whole. view is the session view.
 local function paint_button(bb, button, pressed, view)
     local side = Kit.iconSide(button.rect)
-    Kit.button(bb, button.rect, look_of(button, pressed, view), function(target, face)
-        paint_icon(target, button.id, face, side, view.edit)
+    Kit.button(bb, button.rect, look_of(button, pressed, view), function(target, face, ink)
+        paint_icon(target, button.id, face, side, view.edit, ink)
     end)
 end
 

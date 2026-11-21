@@ -1132,37 +1132,25 @@ local function h17(t, plugin)
     return steps
 end
 
--- The kit: every look of a button, at the width of a row with room and at the narrowest one, with
--- the kinds of content a button has. It paints straight on the screen, for a screenshot to judge
--- the style by; it checks nothing.
-local KIT_NARROW = 24 -- about the narrowest a button of the main row gets
-local KIT_LOOKS = { {}, { down = true }, { dim = true } }
-
-local function kit_contents(Kit, Theme, side)
-    local function icon(name)
-        return function(bb, face) Kit.bitmap(bb, Theme.icon(name, side), face) end
-    end
-    return {
-        icon("flip"), icon("move"),
-        function(bb, face) Kit.bitmap(bb, Theme.pieceIcon("Q", side), face) end,
-        function(bb, face)
-            Kit.disc(bb, face, math.floor(side * 0.4), Theme.BUTTON.ink,
-                Theme.px(Theme.BUTTON.stroke))
-        end,
-    }
-end
-
-local function paint_kit_row(Kit, Theme, y, w, h)
-    local x = Theme.px(Theme.SIZES.margin)
+-- The kit: the main row of buttons inside the window frame, at the width of a row with room and
+-- at the narrowest one, with move held down and forward disabled. It paints straight on the
+-- screen, for a screenshot to judge the style by; it checks nothing.
+local KIT_NARROW = 27 -- about the narrowest a button of the main row gets
+local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
+local KIT_LOOKS = { move = { down = true }, forward = { dim = true } }
+-- The main row at a button width, its top left corner at x, y, framed as in the window.
+local function paint_kit_row(Kit, Theme, x, y, w)
+    local h, border = Theme.px(Theme.SIZES.row), Theme.px(Theme.SIZES.border)
+    Kit.fill(Screen.bb, { x = x - border, y = y - border, w = #KIT_ROW * w + 2 * border,
+        h = h + 2 * border }, Theme.GRAY.frame)
     local side = Kit.iconSide({ x = 0, y = 0, w = w, h = h })
-    for _, look in ipairs(KIT_LOOKS) do
+    for i, id in ipairs(KIT_ROW) do
+        local look = KIT_LOOKS[id] or {}
         local shown = { down = look.down, dim = look.dim and Theme.BUTTON.disabled or nil }
-        for _, content in ipairs(kit_contents(Kit, Theme, side)) do
-            Kit.button(Screen.bb, { x = x, y = y, w = w, h = h }, shown, content)
-            x = x + w
-        end
-        x = x + w
+        Kit.button(Screen.bb, { x = x + (i - 1) * w, y = y, w = w, h = h }, shown,
+            function(bb, face, ink) Kit.mask(bb, Theme.iconMask(id, side), face, ink) end)
     end
+    return y + h + 2 * border
 end
 
 local function kit(t, plugin)
@@ -1170,13 +1158,11 @@ local function kit(t, plugin)
     step(function() UIManager:forceRePaint() end)
     step(function()
         local Kit, Theme = require("ui/kit"), require("ui/theme")
-        local sizes = Theme.SIZES
-        local row, gap = Theme.px(sizes.row), Theme.px(sizes.margin)
-        Kit.fill(Screen.bb, { x = 0, y = 0, w = Screen:getWidth(), h = 3 * (row + gap) + gap },
-            Theme.BUTTON.ground)
-        paint_kit_row(Kit, Theme, gap, Theme.px(sizes.button), row)
-        paint_kit_row(Kit, Theme, 2 * gap + row, Theme.px(KIT_NARROW), row)
-        paint_kit_row(Kit, Theme, 3 * gap + 2 * row, Theme.px(KIT_NARROW), Theme.px(sizes.notation))
+        local gap = Theme.px(Theme.SIZES.margin)
+        Kit.fill(Screen.bb, { x = 0, y = 0, w = Screen:getWidth(), h = 3 * gap + 2 * Theme.px(
+            Theme.SIZES.row) + 4 * Theme.px(Theme.SIZES.border) }, Theme.BUTTON.ground)
+        local y = paint_kit_row(Kit, Theme, gap, gap, Theme.px(Theme.SIZES.button)) + gap
+        paint_kit_row(Kit, Theme, gap, y, Theme.px(KIT_NARROW))
         t:save("gallery")
     end)
     return steps

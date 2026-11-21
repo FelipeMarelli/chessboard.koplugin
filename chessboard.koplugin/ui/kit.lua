@@ -25,6 +25,13 @@ function Kit.bitmap(bb, image, rect)
     bb:alphablitFrom(image, x, y, 0, 0, w, h)
 end
 
+-- An icon mask (Theme.iconMask) centred in rect, painted in a gray.
+function Kit.mask(bb, mask, rect, color)
+    local w, h = mask:getWidth(), mask:getHeight()
+    local x, y = Kit.centred(rect, w, h)
+    bb:colorblitFrom(mask, x, y, 0, 0, w, h, color)
+end
+
 -- A disc centred in rect, or a ring when a line width is given.
 function Kit.disc(bb, rect, radius, color, width)
     bb:paintCircle(rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), radius,
@@ -39,31 +46,46 @@ function Kit.text(bb, rect, text, size_px, color, bold)
     widget:free()
 end
 
--- The side of a square icon in a button: Theme.BUTTON.icon, or less in a button narrowed to fit
--- its row.
-function Kit.iconSide(cell)
-    return math.min(Theme.px(Theme.BUTTON.icon), cell.w - 2 * Theme.px(Theme.BUTTON.inset))
+-- A square filled with rounded corners. paintRoundedRect leaves them jagged: a thin
+-- anti-aliased border of the same gray goes over its edge.
+function Kit.roundedSquare(bb, x, y, side, radius, color)
+    bb:paintRoundedRect(x, y, side, side, color, radius)
+    bb:paintBorder(x, y, side, side, Theme.px(Theme.BUTTON.stroke), color, radius, true)
 end
 
--- The frame of a button held down: rounded, inside it.
+-- The side of the square of a button as wide as w: Theme.BUTTON.square, or less in a narrow one.
+-- The smallest window (Theme.SIZES.min_square) leaves room in it for an icon and its pad.
+local function square_side(w)
+    return math.min(Theme.px(Theme.BUTTON.square), w - 2 * Theme.px(Theme.BUTTON.gap))
+end
+
+-- The side of the icon of a button: Theme.BUTTON.icon, or less to keep its pad in the square. It
+-- goes by the width alone, so the pieces of the editor keep their size in the low row above.
+function Kit.iconSide(cell)
+    local style = Theme.BUTTON
+    return math.min(Theme.px(style.icon), square_side(cell.w) - 2 * Theme.px(style.pad))
+end
+
+-- The ground of a button held down: its square, gray with rounded corners.
 local function paint_down(bb, cell)
     local style = Theme.BUTTON
-    local frame = Kit.inset(cell, Theme.px(style.inset))
-    bb:paintBorder(frame.x, frame.y, frame.w, frame.h, Theme.px(style.stroke), style.ink,
-        Theme.px(style.radius), G_reader_settings:nilOrTrue("anti_alias_ui"))
+    local side = math.min(square_side(cell.w), cell.h - 2 * Theme.px(style.gap))
+    local x, y = Kit.centred(cell, side, side)
+    Kit.roundedSquare(bb, x, y, side, math.floor(side * style.round + 0.5), style.down)
 end
 
--- A button in the cell its row gives it: its content, painted by paint_face(bb, cell) on the
--- ground of the row. look.dim: a share to lighten it by, when it does nothing now or is a tool not
--- chosen. look.down: held down, framed.
+-- A button in the cell its row gives it: its content, painted by paint_face(bb, cell, ink) on the
+-- ground of the row, ink the gray of its icon. look.down: held down, on a gray square. look.dim: a
+-- share to lighten it by, when it does nothing now or is a tool not chosen.
 function Kit.button(bb, cell, look, paint_face)
-    Kit.fill(bb, cell, Theme.BUTTON.ground)
-    paint_face(bb, cell)
-    if look.dim then
-        bb:lightenRect(cell.x, cell.y, cell.w, cell.h, look.dim)
-    end
+    local style = Theme.BUTTON
+    Kit.fill(bb, cell, style.ground)
     if look.down then
         paint_down(bb, cell)
+    end
+    paint_face(bb, cell, look.down and style.down_ink or style.ink)
+    if look.dim then
+        bb:lightenRect(cell.x, cell.y, cell.w, cell.h, look.dim)
     end
 end
 
