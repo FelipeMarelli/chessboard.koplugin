@@ -26,14 +26,24 @@ function ReaderArea.new(ui)
     return setmetatable({ ui = ui, rect = nil }, ReaderArea)
 end
 
+-- The book is laid out whole for its part, not partly as KOReader does by default
+-- (ReaderRolling:handleRenderingDelayed): after a partial layout KOReader lays the whole book out
+-- in the background and, once the reader is idle for some seconds, reloads it, which opens it
+-- again on the whole screen and the plugin with it, the board gone. When the screen turned, KOReader
+-- has laid it out partly for the whole screen already: laid out whole now, that reload is called
+-- off.
 local function fit_rolling(ui, dimen)
     local document = ui.document
+    document:enablePartialRerendering(false)
     -- crengine keeps the reading position across the new layout with its own history.
     document:enableInternalHistory(true)
     document:setViewDimen(dimen)
     ui.view:onSetDimensions(dimen)
     ui.rolling:onUpdatePos()
     document:enableInternalHistory(false)
+    document:enablePartialRerendering(ui.rolling.partial_rerendering)
+    ui.rolling:tearDownRerenderingAutomation()
+    ui.rolling.rendering_state = nil
     ui.rolling:onRedrawCurrentView()
 end
 

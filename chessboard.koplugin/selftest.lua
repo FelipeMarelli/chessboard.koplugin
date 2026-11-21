@@ -1364,9 +1364,46 @@ local function dark(t, plugin)
     return steps
 end
 
+-- H18: split, the book stays open while the reader is idle. Laid out partly, as KOReader does by
+-- default and does itself for a turned screen, the book would be laid out whole in the background
+-- and opened again some seconds later, the board gone; the scenario would then start over, in the
+-- reader opened again.
+local IDLE_STEPS = 30
+local split_reader -- the reader the scenario idle split; any other one is the book opened again
+
+local function idle(t, plugin)
+    local ui = plugin.ui
+    local steps, step = new_steps(plugin)
+    if split_reader then
+        step(function() t:check("split and idle, the book is not opened again", false) end)
+        return steps
+    end
+    split_reader = ui
+    step(function()
+        plugin:toggle()
+        tap_buttons(t, plugin, "more", "split")
+    end)
+    step(function()
+        t.rotation = Screen:getRotationMode()
+        ui:handleEvent(Event:new("SetRotationMode", (t.rotation + 1) % 4))
+    end)
+    for _ = 1, IDLE_STEPS do
+        step(function() end)
+    end
+    step(function()
+        t:check("split and idle, the book is not opened again", plugin.layout:isSplit())
+        ui:handleEvent(Event:new("SetRotationMode", t.rotation))
+    end)
+    step(function()
+        tap_buttons(t, plugin, "float")
+        plugin:toggle()
+    end)
+    return steps
+end
+
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
     edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, e03 = e03, readme = readme,
-    kit = kit, dark = dark }
+    kit = kit, dark = dark, idle = idle }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
