@@ -3,6 +3,7 @@
 -- figurines (KOReader finds them in FreeSerif, one of its fallback fonts).
 local Kit = require("ui/kit")
 local Notation = require("model/notation")
+local Rect = require("model/rect")
 local Theme = require("ui/theme")
 
 local Strip = {}
@@ -51,15 +52,12 @@ local function measurer(sizes)
     end
 end
 
-local function middle(rect, h)
-    return rect.y + math.floor((rect.h - h) / 2)
-end
-
 -- How each kind of part is painted at x on the strip; a gap is only room.
 local PAINT = {
     text = function(bb, part, x, rect, sizes)
         local text = text_widget(part, sizes)
-        text:paintTo(bb, x, middle(rect, text:getSize().h))
+        local _, y = Rect.centred(rect, 0, text:getSize().h)
+        text:paintTo(bb, x, y)
         text:free()
     end,
     gap = function() end,

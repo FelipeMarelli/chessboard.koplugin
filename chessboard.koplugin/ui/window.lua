@@ -8,6 +8,7 @@ local Geom = require("ui/geometry")
 local I18n = require("i18n")
 local InfoMessage = require("ui/widget/infomessage")
 local Kit = require("ui/kit")
+local Rect = require("model/rect")
 local QRMessage = require("ui/widget/qrmessage")
 local Strip = require("ui/notation")
 local Theme = require("ui/theme")
@@ -392,7 +393,7 @@ end
 
 -- The inside of the window, within its thin frame.
 local function inside_frame(rects)
-    return Kit.inset(rects.window, Theme.px(Theme.SIZES.border))
+    return Rect.inset(rects.window, Theme.px(Theme.SIZES.border))
 end
 
 -- The divider of the split screen: the ground of the window with a short grip in the middle, laid
@@ -406,7 +407,7 @@ local function paint_divider(bb, rects, held)
     if rect.h > rect.w then
         w, h = thick, long
     end
-    local x, y = Kit.centred(rect, w, h)
+    local x, y = Rect.centred(rect, w, h)
     Kit.fill(bb, { x = x, y = y, w = w, h = h }, style.grip)
 end
 

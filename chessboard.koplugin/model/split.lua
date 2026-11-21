@@ -5,6 +5,8 @@
 -- its buttons go beside it, on the far side from the book: to its right in portrait, under it in
 -- landscape. A divider on the edge of the board's part, next to the book, is dragged to give
 -- the book more or less room. Rectangles are plain tables { x, y, w, h } in whole pixels.
+local Rect = require("model/rect")
+
 local Split = {}
 
 local FILES = 8
@@ -104,15 +106,14 @@ end
 -- The buttons at the foot of the room beside the board, in a grid (see Split.grid) under at least
 -- one line of moves and the gap after it, and the moves over the room left above them.
 local function place_controls(axis, controls, px, count)
+    local bottom = controls.y + controls.h
     local below = controls.y + (px.notation > 0 and px.notation + px.spacing or 0)
-    local room = { x = controls.x, y = below, w = controls.w, h = controls.y + controls.h - below }
-    local top = Split.grid(room, count, px.split_button, axis)[1].y
-    local buttons = { x = controls.x, y = top, w = controls.w, h = controls.y + controls.h - top }
+    local top = Split.grid(Rect.band(controls, below, bottom), count, px.split_button, axis)[1].y
+    local buttons = Rect.band(controls, top, bottom)
     if px.notation == 0 then
         return nil, buttons
     end
-    local moves = top - px.spacing - controls.y
-    return { x = controls.x, y = controls.y, w = controls.w, h = moves }, buttons
+    return Rect.band(controls, controls.y, top - px.spacing), buttons
 end
 
 -- Every rect of the split, as Layout:rects names them, and the side of a square. args: screen_w,

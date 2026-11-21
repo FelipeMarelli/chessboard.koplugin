@@ -1,6 +1,7 @@
 -- The pieces the window is drawn with: buttons, discs and rings, centred bitmaps and texts. Each
 -- one paints in a rect it is given, with the style of ui/theme.lua, and decides nothing.
 local Blitbuffer = require("ffi/blitbuffer")
+local Rect = require("model/rect")
 local Theme = require("ui/theme")
 
 local Kit = {}
@@ -18,26 +19,17 @@ function Kit.frame(bb, rect, width, color)
     Kit.fill(bb, { x = rect.x + rect.w - width, y = rect.y, w = width, h = rect.h }, color)
 end
 
-function Kit.inset(rect, by)
-    return { x = rect.x + by, y = rect.y + by, w = rect.w - 2 * by, h = rect.h - 2 * by }
-end
-
--- The top left corner of something w by h centred in rect.
-function Kit.centred(rect, w, h)
-    return rect.x + math.floor((rect.w - w) / 2), rect.y + math.floor((rect.h - h) / 2)
-end
-
 -- A bitmap with straight alpha (pieces, icons), centred in rect.
 function Kit.bitmap(bb, image, rect)
     local w, h = image:getWidth(), image:getHeight()
-    local x, y = Kit.centred(rect, w, h)
+    local x, y = Rect.centred(rect, w, h)
     bb:alphablitFrom(image, x, y, 0, 0, w, h)
 end
 
 -- An icon mask (Theme.iconMask) centred in rect, painted in a gray.
 function Kit.mask(bb, mask, rect, color)
     local w, h = mask:getWidth(), mask:getHeight()
-    local x, y = Kit.centred(rect, w, h)
+    local x, y = Rect.centred(rect, w, h)
     bb:colorblitFrom(mask, x, y, 0, 0, w, h, color)
 end
 
@@ -51,7 +43,7 @@ end
 function Kit.text(bb, rect, text, size_px, color, bold)
     local widget = Theme.text(text, size_px, color, bold)
     local size = widget:getSize()
-    widget:paintTo(bb, Kit.centred(rect, size.w, size.h))
+    widget:paintTo(bb, Rect.centred(rect, size.w, size.h))
     widget:free()
 end
 
@@ -73,7 +65,7 @@ end
 -- The card of a button: a square as big as fits in its cell leaving Theme.BUTTON.gap around it.
 local function card_of(cell)
     local side = math.min(cell.w, cell.h) - 2 * Theme.px(Theme.BUTTON.gap)
-    local x, y = Kit.centred(cell, side, side)
+    local x, y = Rect.centred(cell, side, side)
     return { x = x, y = y, w = side, h = side }
 end
 
@@ -102,7 +94,7 @@ function Kit.button(bb, cell, look, paint_face)
     paint_face(bb, cell, look.down and style.down_ink or style.ink)
     if look.dim then
         local side = Kit.iconSide(cell, look.bare)
-        local x, y = Kit.centred(cell, side, side)
+        local x, y = Rect.centred(cell, side, side)
         Kit.fade(bb, x, y, side, under, look.dim)
     end
 end

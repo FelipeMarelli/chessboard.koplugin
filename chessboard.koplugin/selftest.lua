@@ -10,6 +10,7 @@ local Device = require("device")
 local Event = require("ui/event")
 local Geom = require("ui/geometry")
 local I18n = require("i18n")
+local Rect = require("model/rect")
 local UIManager = require("ui/uimanager")
 local dump = require("dump")
 local lfs = require("libs/libkoreader-lfs")
@@ -258,9 +259,7 @@ local function changed_outside(copy, rect, hole)
     local count = 0
     for y = rect.y, rect.y + rect.h - 1 do
         for x = rect.x, rect.x + rect.w - 1 do
-            local in_hole = x >= hole.x and x < hole.x + hole.w and y >= hole.y
-                and y < hole.y + hole.h
-            if not in_hole and copy:getPixel(x, y):getColor8().a
+            if not Rect.hasPoint(hole, x, y) and copy:getPixel(x, y):getColor8().a
                     ~= Screen.bb:getPixel(x, y):getColor8().a then
                 count = count + 1
             end

@@ -78,9 +78,6 @@ local function optional_px(size, scale)
     return (size or 0) > 0 and Layout.px(size, scale) or 0
 end
 
-local function inside(rect, x, y)
-    return x >= rect.x and x < rect.x + rect.w and y >= rect.y and y < rect.y + rect.h
-end
 
 local function clamp(value, low, high)
     return math.max(low, math.min(high, value))
@@ -414,7 +411,7 @@ function Layout:rects()
     local framed = self:framedSide()
     local rects = {
         window = { x = self.x, y = self.y, w = w, h = h },
-        inner = { x = left, y = top, w = w - 2 * p.border, h = h - 2 * p.border },
+        inner = Rect.inset({ x = self.x, y = self.y, w = w, h = h }, p.border),
         board = { x = left + g, y = top + g, w = side, h = side },
         buttons = { x = left, y = top + framed + n, w = framed, h = p.row },
     }
@@ -570,24 +567,24 @@ end
 -- like the row between buttons; one that shows another row says which, in opens.
 function Layout:hit(x, y, flipped)
     local r = self:rects()
-    if not (self.open and inside(r.window, x, y)) then
+    if not (self.open and Rect.hasPoint(r.window, x, y)) then
         return nil
-    elseif r.divider and inside(r.divider, x, y) then
+    elseif r.divider and Rect.hasPoint(r.divider, x, y) then
         return { zone = "divider" }
     end
     local board, inner = r.board, r.inner
     x = clamp(x, inner.x, inner.x + inner.w - 1)
     y = clamp(y, inner.y, inner.y + inner.h - 1)
     for _, button in ipairs(self:buttons()) do
-        if inside(button.rect, x, y) and button.enabled then
+        if Rect.hasPoint(button.rect, x, y) and button.enabled then
             return { zone = "button", button = button.id, opens = Layout.rowOpenedBy(button.id) }
         end
     end
-    if inside(board, x, y) then
+    if Rect.hasPoint(board, x, y) then
         return { zone = "board", square = square_at(board, self.square, x, y, flipped) }
-    elseif r.notation and inside(r.notation, x, y) then
+    elseif r.notation and Rect.hasPoint(r.notation, x, y) then
         return { zone = "notation" }
-    elseif not inside(r.buttons, x, y) then
+    elseif not Rect.hasPoint(r.buttons, x, y) then
         return { zone = "board" }
     end
     return { zone = "button" }
@@ -672,14 +669,7 @@ end
 -- it is now. Without previous rects, the window as it is.
 function Layout:dirtyRect(previous)
     local now = self:rects().window
-    local before = previous and previous.window
-    if not before then
-        return { x = now.x, y = now.y, w = now.w, h = now.h }
-    end
-    local x, y = math.min(now.x, before.x), math.min(now.y, before.y)
-    local right = math.max(now.x + now.w, before.x + before.w)
-    local bottom = math.max(now.y + now.h, before.y + before.h)
-    return { x = x, y = y, w = right - x, h = bottom - y }
+    return Rect.union(now, previous and previous.window or now)
 end
 
 return Layout

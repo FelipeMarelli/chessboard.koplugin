@@ -1,6 +1,7 @@
 -- Paints the board: squares, marks, coordinate labels, pieces, whose turn it is and the promotion
 -- selector, from the session view.
 local Kit = require("ui/kit")
+local Rect = require("model/rect")
 local Rules = require("chess/rules")
 local Theme = require("ui/theme")
 
@@ -86,7 +87,7 @@ local function paint_labels(bb, layout, view)
             gutters and style.on_gutter or color, style.bold)
         if gutters then
             local size = text:getSize()
-            text:paintTo(bb, Kit.centred(label.rect, size.w, size.h))
+            text:paintTo(bb, Rect.centred(label.rect, size.w, size.h))
         else
             local corner = CORNERS[is_file and style.file_corner or style.rank_corner]
             text:paintTo(bb, corner(label.rect, text:getSize(), pad))
