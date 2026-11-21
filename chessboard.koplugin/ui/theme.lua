@@ -24,17 +24,6 @@ Theme.SIZES = {
     notation = 4.5, -- strip with the last moves, between the board and the buttons (H16)
 }
 
-Theme.ICON = 5          -- icon side, mm
-
--- A disabled button is drawn over with white by this share, so that its icon looks lighter.
-Theme.DISABLED = 0.6
--- The tools of the editor not chosen are drawn lighter by this share, so the chosen one stands out.
-Theme.UNCHOSEN = 0.6
-
--- The border that marks a button held down, in mm: as thick as the strokes of the icons, inside
--- the button by inset, with rounded corners like theirs.
-Theme.PRESSED = { width = 0.4, inset = 0.5, radius = 1.2 }
-
 local function gray(value)
     return Blitbuffer.Color8(value)
 end
@@ -45,6 +34,24 @@ Theme.GRAY = {
     light_square = gray(0xEE),
     dark_square = gray(0xAA),
     gutter = gray(0xFF),
+}
+
+-- Buttons (ui/kit.lua): a box with rounded corners and a thin border in each cell of its row,
+-- parted from the next by gap, its icon inside by pad; in mm. A button held down, or the tool of
+-- the editor chosen, has the down ground. A button that would do nothing is lightened by the
+-- share disabled. stroke: lines drawn by hand in a button, as thick as those of the icons.
+Theme.BUTTON = {
+    gap = 0.5,
+    pad = 0.4,
+    radius = 1.2,
+    border = 0.3,
+    icon = 4.2,
+    stroke = 0.4,
+    ground = Theme.GRAY.row,
+    face = gray(0xFF),
+    down = gray(0xBB),
+    edge = gray(0x00),
+    disabled = 0.6,
 }
 
 -- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.
@@ -180,9 +187,8 @@ end
 -- Buttons whose icon is the file of another one.
 local ICON_FILES = { clear = "reset" }
 
--- The icon of a button, side pixels wide (Theme.ICON when not given).
+-- The icon of a button, side pixels wide.
 function Theme.icon(name, side)
-    side = side or Theme.px(Theme.ICON)
     local path = string.format("%s/assets/icons/%s.svg", plugin_dir, ICON_FILES[name] or name)
     return cached(cache.icons, name .. "@" .. side, path, side)
 end

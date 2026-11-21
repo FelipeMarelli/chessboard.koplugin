@@ -26,12 +26,17 @@ local function orientation()
     return Screen:getWidth() > Screen:getHeight() and "h" or "v"
 end
 
-function SelfTest:shot(name)
-    -- Paint what is pending first: setDirty only paints on a later turn of the event loop.
-    UIManager:forceRePaint()
+-- Saves the screen as it is now.
+function SelfTest:save(name)
     self.shots = self.shots + 1
     Screen.bb:writePNG(string.format("%s/%s_%s_%02d_%s.png", self.dir, self.scenario,
         orientation(), self.shots, name))
+end
+
+function SelfTest:shot(name)
+    -- Paint what is pending first: setDirty only paints on a later turn of the event loop.
+    UIManager:forceRePaint()
+    self:save(name)
 end
 
 local function center(rect)
@@ -1127,8 +1132,58 @@ local function h17(t, plugin)
     return steps
 end
 
-local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset, edit = edit,
-    line = line, h16 = h16, h17 = h17, readme = readme }
+-- The kit: every look of a button, at the width of a row with room and at the narrowest one, with
+-- the kinds of content a button has. It paints straight on the screen, for a screenshot to judge
+-- the style by; it checks nothing.
+local KIT_NARROW = 4.2 -- mm, about the narrowest a button of the main row gets
+local KIT_LOOKS = { {}, { down = true }, { dim = true } }
+
+local function kit_contents(Kit, Theme, side)
+    local function icon(name)
+        return function(bb, face) Kit.bitmap(bb, Theme.icon(name, side), face) end
+    end
+    return {
+        icon("flip"), icon("move"),
+        function(bb, face) Kit.bitmap(bb, Theme.pieceIcon("Q", side), face) end,
+        function(bb, face)
+            Kit.disc(bb, face, math.floor(side * 0.4), Theme.BUTTON.edge,
+                Theme.px(Theme.BUTTON.stroke))
+        end,
+    }
+end
+
+local function paint_kit_row(Kit, Theme, y, w, h)
+    local x = Theme.px(Theme.SIZES.margin)
+    local side = Kit.iconSide({ x = 0, y = 0, w = w, h = h })
+    for _, look in ipairs(KIT_LOOKS) do
+        local shown = { down = look.down, dim = look.dim and Theme.BUTTON.disabled or nil }
+        for _, content in ipairs(kit_contents(Kit, Theme, side)) do
+            Kit.button(Screen.bb, { x = x, y = y, w = w, h = h }, shown, content)
+            x = x + w
+        end
+        x = x + w
+    end
+end
+
+local function kit(t, plugin)
+    local steps, step = new_steps(plugin)
+    step(function() UIManager:forceRePaint() end)
+    step(function()
+        local Kit, Theme = require("ui/kit"), require("ui/theme")
+        local sizes = Theme.SIZES
+        local row, gap = Theme.px(sizes.row), Theme.px(sizes.margin)
+        Kit.fill(Screen.bb, { x = 0, y = 0, w = Screen:getWidth(), h = 3 * (row + gap) + gap },
+            Theme.BUTTON.ground)
+        paint_kit_row(Kit, Theme, gap, Theme.px(sizes.button), row)
+        paint_kit_row(Kit, Theme, 2 * gap + row, Theme.px(KIT_NARROW), row)
+        paint_kit_row(Kit, Theme, 3 * gap + 2 * row, Theme.px(KIT_NARROW), Theme.px(sizes.notation))
+        t:save("gallery")
+    end)
+    return steps
+end
+
+local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
+    edit = edit, line = line, h16 = h16, h17 = h17, readme = readme, kit = kit }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)

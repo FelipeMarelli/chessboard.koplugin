@@ -5,6 +5,7 @@
 local Board = require("ui/board")
 local Device = require("device")
 local Geom = require("ui/geometry")
+local Kit = require("ui/kit")
 local Strip = require("ui/notation")
 local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
@@ -251,37 +252,24 @@ function Window:drop(pos, marked)
     end
 end
 
--- The side of the icons in a button: Theme.ICON, or less in a button narrowed to fit its row.
-local function icon_side(rect)
-    return math.min(Theme.px(Theme.ICON), rect.w - Theme.px(Theme.PRESSED.inset) * 2)
-end
-
-local function centre_bitmap(bb, icon, rect)
-    local w, h = icon:getWidth(), icon:getHeight()
-    bb:alphablitFrom(icon, rect.x + math.floor((rect.w - w) / 2),
-        rect.y + math.floor((rect.h - h) / 2), 0, 0, w, h)
-end
-
 -- The color button: a ring when White's pieces are put, a disc when Black's are, like the turn in
 -- the corner of the board.
-local function paint_color(bb, rect, color)
-    local radius = math.floor(icon_side(rect) * 0.4)
-    local width = color == "w" and Theme.px(Theme.PRESSED.width) or radius
-    bb:paintCircle(rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2), radius,
-        Theme.GRAY.frame, width)
+local function paint_color(bb, face, side, color)
+    local radius = math.floor(side * 0.4)
+    local width = color == "w" and Theme.px(Theme.BUTTON.stroke) or radius
+    Kit.disc(bb, face, radius, Theme.BUTTON.edge, width)
 end
 
 -- The icon of a button; in the edit row, the pieces show in the color they are put in.
-local function paint_icon(bb, id, rect, edit)
-    local side = icon_side(rect)
+local function paint_icon(bb, id, face, side, edit)
     local letter = PIECE_BUTTONS[id]
     if id == "color" then
-        paint_color(bb, rect, edit.color)
+        paint_color(bb, face, side, edit.color)
     elseif letter then
-        centre_bitmap(bb, Theme.pieceIcon(edit.color == "w" and letter:upper() or letter, side),
-            rect)
+        local piece = edit.color == "w" and letter:upper() or letter
+        Kit.bitmap(bb, Theme.pieceIcon(piece, side), face)
     else
-        centre_bitmap(bb, Theme.icon(id, side), rect)
+        Kit.bitmap(bb, Theme.icon(id, side), face)
     end
 end
 
@@ -291,21 +279,10 @@ local function tool_of(id)
     return PIECE_BUTTONS[id] or (id == "erase" and id or nil)
 end
 
--- True when the button is a tool of the editor and another one is chosen: it is drawn lighter, so
--- that the chosen one stands out.
-local function is_unchosen(button, edit)
-    local chosen = edit and edit.piece
+-- True when the button is the tool of the editor that is chosen.
+local function is_chosen(button, edit)
     local tool = tool_of(button.id)
-    return chosen ~= nil and tool ~= nil and tool ~= chosen
-end
-
--- A rounded border inside a button, to show that it is held down.
-local function paint_pressed(bb, rect)
-    local p = Theme.PRESSED
-    local inset = Theme.px(p.inset)
-    bb:paintBorder(rect.x + inset, rect.y + inset, rect.w - 2 * inset, rect.h - 2 * inset,
-        Theme.px(p.width), Theme.GRAY.frame, Theme.px(p.radius),
-        G_reader_settings:nilOrTrue("anti_alias_ui"))
+    return tool ~= nil and edit ~= nil and tool == edit.piece
 end
 
 -- Disabled by the layout (a size at its limit) or by the session (an arrow at the end of the line).
@@ -313,28 +290,21 @@ local function is_disabled(button, view)
     return not button.enabled or view.buttons[button.id] == false
 end
 
--- How much lighter a button is drawn: when disabled, or when it is a tool not chosen; nil if not.
-local function lightening(button, view)
-    if is_disabled(button, view) then
-        return Theme.DISABLED
-    elseif is_unchosen(button, view.edit) then
-        return Theme.UNCHOSEN
-    end
+-- How a button looks: down while it is held to drag the window or is the tool chosen, and
+-- lightened when it would do nothing.
+local function look_of(button, pressed, view)
+    return {
+        down = button.id == pressed or is_chosen(button, view.edit),
+        dim = is_disabled(button, view) and Theme.BUTTON.disabled or nil,
+    }
 end
 
--- One button of the row, whole: its background, its icon, lighter as lightening says, and, if it
--- is held down to drag the window, its mark. view is the session view.
+-- One button of the row, whole. view is the session view.
 local function paint_button(bb, button, pressed, view)
-    local rect = button.rect
-    bb:paintRect(rect.x, rect.y, rect.w, rect.h, Theme.GRAY.row)
-    paint_icon(bb, button.id, rect, view.edit)
-    local share = lightening(button, view)
-    if share then
-        bb:lightenRect(rect.x, rect.y, rect.w, rect.h, share)
-    end
-    if button.id == pressed then
-        paint_pressed(bb, rect)
-    end
+    local side = Kit.iconSide(button.rect)
+    Kit.button(bb, button.rect, look_of(button, pressed, view), function(target, face)
+        paint_icon(target, button.id, face, side, view.edit)
+    end)
 end
 
 -- Paints one button straight on the screen and shows it at once, without painting the page again:
@@ -349,14 +319,13 @@ end
 
 local function paint_frame(bb, rects)
     local gray = Theme.GRAY
-    local w = rects.window
-    bb:paintRect(w.x, w.y, w.w, w.h, gray.frame)
-    local row = rects.buttons
-    bb:paintRect(row.x, row.y, row.w, row.h, gray.row)
+    Kit.fill(bb, rects.window, gray.frame)
+    Kit.fill(bb, rects.buttons, gray.row)
     local ranks, files = rects.ranks, rects.files
     if ranks then
         -- From the top of the ranks strip to the bottom of the files one, corner included.
-        bb:paintRect(ranks.x, ranks.y, ranks.w + files.w, ranks.h + files.h, gray.gutter)
+        Kit.fill(bb, { x = ranks.x, y = ranks.y, w = ranks.w + files.w, h = ranks.h + files.h },
+            gray.gutter)
     end
 end
 
@@ -371,7 +340,7 @@ function Window:paintTo(bb)
     local strip = rects.notation
     if strip and view.edit then
         -- While editing, the strip holds the upper buttons of the edit row.
-        bb:paintRect(strip.x, strip.y, strip.w, strip.h, Theme.GRAY.row)
+        Kit.fill(bb, strip, Theme.GRAY.row)
     elseif strip then
         Strip.paint(bb, strip, view.notation)
     end

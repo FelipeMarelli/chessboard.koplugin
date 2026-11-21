@@ -1,5 +1,6 @@
 -- Paints the board: squares, marks, coordinate labels, pieces, whose turn it is and the promotion
 -- selector, from the session view.
+local Kit = require("ui/kit")
 local Rules = require("chess/rules")
 local Theme = require("ui/theme")
 
@@ -13,18 +14,13 @@ end
 local function paint_squares(bb, layout, view)
     for sq = 1, 64 do
         local r = layout:squareRect(sq, view.flipped)
-        bb:paintRect(r.x, r.y, r.w, r.h, square_color(view.squares[sq]))
+        Kit.fill(bb, r, square_color(view.squares[sq]))
     end
 end
 
 -- A part of a length in pixels, at least one.
 local function share(length, part)
     return math.max(1, math.floor(length * part + 0.5))
-end
-
--- A disc centred in a rect, or a ring when a line width is given.
-local function paint_disc(bb, r, radius, color, width)
-    bb:paintCircle(r.x + math.floor(r.w / 2), r.y + math.floor(r.h / 2), radius, color, width)
 end
 
 -- A right triangle in each corner of a square, legs along its sides.
@@ -42,13 +38,13 @@ end
 -- How each mark is drawn on a square of side s, in the order they are drawn.
 local MARKS = {
     { name = "check", paint = function(bb, r, s, m)
-        paint_disc(bb, r, share(s, m.check_radius), m.check)
+        Kit.disc(bb, r, share(s, m.check_radius), m.check)
     end },
     { name = "selected", paint = function(bb, r, s, m)
         bb:paintInnerBorder(r.x, r.y, r.w, r.h, share(s, m.selected_width), m.selected)
     end },
     { name = "target", paint = function(bb, r, s, m)
-        paint_disc(bb, r, share(s, m.target_radius), m.target)
+        Kit.disc(bb, r, share(s, m.target_radius), m.target)
     end },
     { name = "capture", paint = function(bb, r, s, m)
         paint_corners(bb, r, share(s, m.capture_leg), m.capture)
@@ -75,10 +71,6 @@ local CORNERS = {
     bottom_right = function(r, size, pad) return r.x + r.w - size.w - pad, r.y + r.h - size.h end,
 }
 
-local function centred(r, size)
-    return r.x + math.floor((r.w - size.w) / 2), r.y + math.floor((r.h - size.h) / 2)
-end
-
 -- Labels go in a corner of their square, or centred in the gutters when the layout has them.
 local function paint_labels(bb, layout, view)
     local style = Theme.LABEL
@@ -93,7 +85,8 @@ local function paint_labels(bb, layout, view)
         local text = Theme.text(is_file and name:sub(1, 1) or name:sub(2, 2), size_px,
             gutters and style.on_gutter or color, style.bold)
         if gutters then
-            text:paintTo(bb, centred(label.rect, text:getSize()))
+            local size = text:getSize()
+            text:paintTo(bb, Kit.centred(label.rect, size.w, size.h))
         else
             local corner = CORNERS[is_file and style.file_corner or style.rank_corner]
             text:paintTo(bb, corner(label.rect, text:getSize(), pad))
@@ -103,8 +96,7 @@ local function paint_labels(bb, layout, view)
 end
 
 local function paint_piece(bb, piece, r)
-    local image = Theme.piece(piece, r.w)
-    bb:alphablitFrom(image, r.x, r.y, 0, 0, image:getWidth(), image:getHeight())
+    Kit.bitmap(bb, Theme.piece(piece, r.w), r)
 end
 
 local function paint_pieces(bb, layout, view)
@@ -128,7 +120,7 @@ local function paint_promotion(bb, layout, view)
     local frame = share(layout:squareSize(), style.frame_width)
     for _, choice in ipairs(view.promotion.choices) do
         local r = layout:squareRect(choice.square, view.flipped)
-        bb:paintRect(r.x, r.y, r.w, r.h, style.background)
+        Kit.fill(bb, r, style.background)
         bb:paintInnerBorder(r.x, r.y, r.w, r.h, frame, style.frame)
         paint_piece(bb, choice.piece, r)
     end
@@ -147,12 +139,10 @@ local function paint_status(bb, layout, view)
     local style = Theme.STATUS
     local ending = ENDINGS[view.status]
     if ending then
-        local text = Theme.text(ending, math.floor(r.h * style.text_share), style.color, true)
-        text:paintTo(bb, centred(r, text:getSize()))
-        text:free()
+        Kit.text(bb, r, ending, math.floor(r.h * style.text_share), style.color, true)
     else
         local radius = share(r.h, style.radius)
-        paint_disc(bb, r, radius, style.color,
+        Kit.disc(bb, r, radius, style.color,
             view.turn == "w" and share(r.h, style.ring_width) or radius)
     end
 end

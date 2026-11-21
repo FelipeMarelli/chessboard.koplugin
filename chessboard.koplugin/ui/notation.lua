@@ -1,6 +1,7 @@
 -- Paints the strip under the board with the moves of the line, as model/notation.lua writes them,
 -- the one that led to the position shown in bold, with the chess characters of the font as
 -- figurines (KOReader finds them in FreeSerif, one of its fallback fonts).
+local Kit = require("ui/kit")
 local Notation = require("model/notation")
 local Theme = require("ui/theme")
 
@@ -68,7 +69,7 @@ local PAINT = {
 -- not fit whole are left out.
 function Strip.paint(bb, rect, notation)
     local style = Theme.NOTATION
-    bb:paintRect(rect.x, rect.y, rect.w, rect.h, style.background)
+    Kit.fill(bb, rect, style.background)
     local sizes = sizes_of(rect.h)
     local width_of = measurer(sizes)
     local x, right = rect.x + sizes.pad, rect.x + rect.w - sizes.pad
