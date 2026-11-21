@@ -10,7 +10,11 @@ local Device = require("device")
 local Event = require("ui/event")
 local Geom = require("ui/geometry")
 local I18n = require("i18n")
+local Kit = require("ui/kit")
+local Layout = require("model/layout")
 local Rect = require("model/rect")
+local Rules = require("chess/rules")
+local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
 local dump = require("dump")
 local lfs = require("libs/libkoreader-lfs")
@@ -223,8 +227,6 @@ end
 
 -- A layout whose board has squares of the minimum size: one for a screen just big enough.
 function SelfTest:minimumLayout()
-    local Layout = require("model/layout")
-    local Theme = require("ui/theme")
     local min_px = Theme.px(Theme.SIZES.min_square)
     local side = math.ceil(8 * min_px / 0.6) + 1
     local layout = Layout.new{ screen_w = side, screen_h = side + 2 * Theme.px(Theme.SIZES.row),
@@ -582,7 +584,6 @@ end
 
 -- Taps squares of the board by name, one after another, forgetting the repaints so far.
 local function tap_squares(t, plugin, ...)
-    local Rules = require("chess/rules")
     t.repaints = {}
     for _, name in ipairs({ ... }) do
         t:tapRect(plugin.layout:squareRect(Rules.squareFromName(name), plugin.session:flipped()))
@@ -604,7 +605,6 @@ end
 
 -- What the session view shows on a square, by name: its piece and its marks.
 local function square_view(plugin, name)
-    local Rules = require("chess/rules")
     return plugin.session:view().squares[Rules.squareFromName(name)]
 end
 
@@ -616,7 +616,6 @@ end
 
 -- H07: play moves with two taps, and the marks that go with them.
 local function h07(t, plugin)
-    local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
     local steps, step = new_steps(plugin)
     local function info(name)
@@ -808,7 +807,6 @@ end
 
 -- The reset button: back to the start position, dropping the moves and the selection.
 local function reset(t, plugin)
-    local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
     local steps, step = new_steps(plugin)
     step(function()
@@ -838,7 +836,6 @@ end
 -- Editing the start position: unchanged it keeps the line, then the flow the story describes, then
 -- an invalid position.
 local function edit(t, plugin)
-    local Rules = require("chess/rules")
     local layout, session = plugin.layout, plugin.session
     local steps, step = new_steps(plugin)
     local function start()
@@ -944,7 +941,7 @@ local function h16(t, plugin)
     local steps, step = new_steps(plugin)
     -- How many pixels of the strip are darker than its ground: none when it is empty.
     local function inked()
-        local ground = require("ui/theme").NOTATION.background:getColor8().a
+        local ground = Theme.NOTATION.background:getColor8().a
         local count = 0
         for _, value in ipairs(grab(layout:rects().notation)) do
             count = count + (value < ground and 1 or 0)
@@ -1295,7 +1292,6 @@ local function kit(t, plugin)
     local steps, step = new_steps(plugin)
     step(function() UIManager:forceRePaint() end)
     step(function()
-        local Kit, Theme = require("ui/kit"), require("ui/theme")
         local gap = Theme.px(Theme.SIZES.margin)
         Kit.fill(Screen.bb, { x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() },
             Theme.GRAY.light_square)
