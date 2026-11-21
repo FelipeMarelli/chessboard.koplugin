@@ -313,3 +313,16 @@ test("C8: each invalid position says why", function()
         eq(ok, nil, case[1]); eq(reason, case[2], case[1])
     end
 end)
+
+test("a piece in upper case is White's, in lower case Black's", function()
+    eq(Rules.colorOf("K"), "w")
+    eq(Rules.colorOf("p"), "b")
+end)
+
+test("a move captures when it takes a piece on its target, or a pawn en passant", function()
+    local position = pos("4k3/8/8/3pP3/8/8/8/R3K3 w - d6 0 1")
+    eq(Rules.isCapture(position, move("e5d6")), true)
+    eq(Rules.isCapture(position, move("e5e6")), false)
+    eq(Rules.isCapture(position, move("a1a8")), false)
+    eq(Rules.isCapture(pos("r3k3/8/8/8/8/8/8/R3K3 w - - 0 1"), move("a1a8")), true)
+end)

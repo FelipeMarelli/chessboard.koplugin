@@ -7,7 +7,8 @@
 -- Modified for chessboard.koplugin in November 2026: names and signatures follow the contract in
 -- AGENTS.md; FEN is read strictly and keeps the move number; notation hands the piece
 -- letter apart so a figurine can replace it; moves are checked before they are applied; positions
--- can be validated; the helpers tied to Ink Knight's games and screens were removed.
+-- can be validated; the helpers tied to Ink Knight's games and screens were removed; the color of
+-- a piece and whether a move captures are public.
 --
 -- Unlike the rest of the plugin (AGPL-3.0), this file is licensed under the GNU General Public
 -- License, version 3 only: see LICENSE-GPL-3.0 in this folder. Section 13 of both licenses allows
@@ -219,6 +220,19 @@ end
 
 function Rules.pieceAt(position, square)
     return position.board[square]
+end
+
+-- The color of a piece letter: "w" for White's (upper case), "b" for Black's.
+function Rules.colorOf(piece)
+    return is_white(piece) and "w" or "b"
+end
+
+-- Whether a move from the position takes a piece; en passant takes a pawn that is not on the
+-- target square.
+function Rules.isCapture(position, move)
+    local piece = position.board[move.from]
+    return position.board[move.to] ~= nil
+        or (piece ~= nil and piece:lower() == "p" and move.to == position.passant)
 end
 
 function Rules.turn(position)
@@ -625,8 +639,7 @@ function Rules.san(position, move)
         parts.text = file_of(move.to) == 7 and "O-O" or "O-O-O"
     else
         local to = Rules.squareName(move.to)
-        local takes = position.board[move.to] ~= nil
-            or (kind == "p" and move.to == position.passant)
+        local takes = Rules.isCapture(position, move)
         if kind == "p" then
             parts.text = (takes and (Rules.squareName(move.from):sub(1, 1) .. "x") or "") .. to
             if move.promotion then

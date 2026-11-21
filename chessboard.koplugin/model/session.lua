@@ -27,10 +27,6 @@ local function clear_selection(self)
     select(self, nil, nil)
 end
 
-local function color_of(piece)
-    return piece:match("%u") and "w" or "b"
-end
-
 -- A piece letter ("k", "q", ...) in a color.
 local function colored(letter, color)
     return color == "w" and letter:upper() or letter:lower()
@@ -39,7 +35,7 @@ end
 -- The legal moves of the piece on a square, when it is one of the side to move and has any.
 local function movable(position, sq)
     local piece = Rules.pieceAt(position, sq)
-    if not piece or color_of(piece) ~= Rules.turn(position) then
+    if not piece or Rules.colorOf(piece) ~= Rules.turn(position) then
         return nil
     end
     local moves = Rules.legalMovesFrom(position, sq)
@@ -309,12 +305,6 @@ local function is_light(sq)
     return (Rules.fileOf(sq) + Rules.rankOf(sq)) % 2 == 1
 end
 
--- En passant takes a pawn that is not on the target square.
-local function is_capture(position, move)
-    return Rules.pieceAt(position, move.to) ~= nil
-        or (Rules.pieceAt(position, move.from):lower() == "p" and move.to == position.passant)
-end
-
 local function mark(squares, sq, name)
     squares[sq].marks[name] = true
 end
@@ -325,7 +315,7 @@ local function mark_selection(squares, position, selected, moves)
     end
     mark(squares, selected, "selected")
     for _, move in ipairs(moves) do
-        mark(squares, move.to, is_capture(position, move) and "capture" or "target")
+        mark(squares, move.to, Rules.isCapture(position, move) and "capture" or "target")
     end
 end
 

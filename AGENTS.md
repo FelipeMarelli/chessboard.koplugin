@@ -143,6 +143,8 @@ rules.fromFen(fen, chess960)  -- -> position | nil, err
 rules.toFen(position)         -- -> string
 rules.pieceAt(position, sq)   -- -> letter | nil
 rules.turn(position)          -- -> "w" | "b"
+rules.colorOf(letter)         -- -> "w" | "b"
+rules.isCapture(position, move) -- -> boolean   (en passant too)
 rules.kingSquare(position, color) -- -> square | nil
 rules.legalMoves(position)    -- -> { move, ... }
 rules.legalMovesFrom(position, sq) -- -> { move, ... }

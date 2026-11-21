@@ -32,12 +32,12 @@ end
 
 -- A game from a FEN, the usual start position when there is none.
 function Game.new(start_fen)
-    local position, err = start_position(start_fen)
-    if not position then
+    local game = setmetatable({}, Game)
+    local ok, err = game:reset(start_fen)
+    if not ok then
         return nil, err
     end
-    local root = new_node(nil, nil, position)
-    return setmetatable({ root = root, cursor = root }, Game)
+    return game
 end
 
 -- Starts again from a position, dropping every move. An invalid FEN changes nothing.
