@@ -1,6 +1,7 @@
 -- What the reader does with the board and what has to be drawn for it: selecting a piece, moving
 -- it with a second tap, and the marks that go with that.
 local Editor = require("model/editor")
+local Export = require("model/export")
 local Rules = require("chess/rules")
 
 local Session = {}
@@ -235,6 +236,12 @@ function Session:reset()
     forget_choice(self)
     assert(self.game:reset())
     return true
+end
+
+-- The link that opens the game on the lichess analysis board, at the current position; nil and
+-- why when it is longer than max characters (see Export.lichessUrl).
+function Session:lichessUrl(max)
+    return Export.lichessUrl(self.game, max)
 end
 
 -- The game's step for each way to go along the line.

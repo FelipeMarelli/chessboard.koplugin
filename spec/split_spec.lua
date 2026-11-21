@@ -217,9 +217,9 @@ end)
 
 -- Buttons ------------------------------------------------------------------------------------
 
-test("split, the main row has the buttons of the game, and swap and float; no eye, move or size",
+test("split, the main row has the buttons of the game, QR, swap and float; no eye, move or size",
     function()
-        eq(ids_of(split(PORTRAIT)), { "backward", "forward", "flip", "reset", "edit", "swap",
+        eq(ids_of(split(PORTRAIT)), { "backward", "forward", "flip", "reset", "edit", "qr", "swap",
             "float", "close" })
     end)
 

@@ -5,7 +5,10 @@
 local Board = require("ui/board")
 local Device = require("device")
 local Geom = require("ui/geometry")
+local I18n = require("i18n")
+local InfoMessage = require("ui/widget/infomessage")
 local Kit = require("ui/kit")
+local QRMessage = require("ui/widget/qrmessage")
 local Strip = require("ui/notation")
 local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
@@ -88,6 +91,19 @@ local function split(self, on)
     end
 end
 
+-- The longest link shown as a QR code. QRWidget cuts text longer than 2953 bytes, and newer
+-- KOReader versions cut it into several codes; a link cut opens nothing.
+local QR_MAX = 2400
+
+-- Shows the game as a QR code that opens it on lichess, over the whole screen, or why it cannot.
+-- A tap closes it.
+local function show_qr(self)
+    local url, err = self.session:lichessUrl(QR_MAX)
+    UIManager:show(url
+        and QRMessage:new{ text = url, width = Screen:getWidth(), height = Screen:getHeight() }
+        or InfoMessage:new{ text = I18n.t(err) })
+end
+
 -- Repaints the window when a tap changed what it shows.
 local function repaint_if(self, changed)
     if changed then
@@ -114,6 +130,7 @@ local ACTIONS = {
     split = function(self) split(self, true) end,
     float = function(self) split(self, false) end,
     swap = function(self) repaint_if(self, self.layout:swapSplit()) end,
+    qr = show_qr,
     clear = function(self) repaint_if(self, self.session:clearBoard()) end,
     color = function(self) repaint_if(self, self.session:toggleColor()) end,
     erase = function(self) repaint_if(self, self.session:chooseEraser()) end,

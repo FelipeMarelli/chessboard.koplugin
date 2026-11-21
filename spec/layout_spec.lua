@@ -93,8 +93,8 @@ test("C2: the board and a row of buttons under it, inside the window", function(
 end)
 
 -- The buttons of the main row, from left to right.
-local MAIN_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "backward", "forward",
-    "close" }
+local MAIN_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "qr", "backward",
+    "forward", "close" }
 
 local function ids_of(layout)
     local ids = {}
@@ -140,8 +140,8 @@ local function assert_buttons_fit(layout, scale)
     eq(count, #layout:buttons())
 end
 
-test("C2: eye, move, flip, size, reset, edit and split from the left; backward, forward and close "
-    .. "at the right",
+test("C2: eye, move, flip, size, reset, edit, split and QR from the left; backward, forward and "
+    .. "close at the right",
     function()
         local layout = new(632, 840)
         local row = layout:rects().buttons
@@ -254,7 +254,7 @@ test("C10: taps on the buttons and between them", function()
     eq(layout:hit(center(layout:buttonRect("reset"))), { zone = "button", button = "reset" })
     -- On a big screen the row has room between the left buttons and the right ones.
     local big = new(1272, 1696)
-    local last = big:buttonRect("split")
+    local last = big:buttonRect("qr")
     assert(last.x + last.w + 1 < big:buttonRect("backward").x, "no room between the buttons")
     eq(big:hit(last.x + last.w + 1, last.y + 1), { zone = "button" })
 end)

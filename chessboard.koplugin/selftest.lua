@@ -45,7 +45,7 @@ end
 
 -- A point of the button row that is on no button: just right of the last button on the left.
 local function between_buttons(layout)
-    local last_left = layout:buttonRect("split")
+    local last_left = layout:buttonRect("qr")
     return { x = last_left.x + last_left.w + 2, y = last_left.y + last_left.h / 2 }
 end
 
@@ -1255,8 +1255,8 @@ end
 -- main row gets, at the width it has with room and as big buttons, with move held down and forward
 -- disabled. It paints straight on the screen, for a screenshot to judge the style by; it checks
 -- nothing.
-local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "backward", "forward",
-    "close" }
+local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "split", "qr", "backward",
+    "forward", "close" }
 local KIT_LOOKS = { move = { down = true }, forward = { dim = true } }
 local KIT_SIZES = { { w = 27, h = 39 }, { w = 39, h = 39 }, { w = 54, h = 54 } }
 -- The main row with buttons of a size in design pixels, its top left corner at x, y, framed as in
@@ -1292,8 +1292,38 @@ local function kit(t, plugin)
     return steps
 end
 
+-- The widget shown on top of every other, by UIManager.
+local function top_widget()
+    local stack = UIManager._window_stack
+    return stack[#stack].widget
+end
+
+-- E03: the QR code button shows the game as a lichess link, and closing it leaves the window.
+local function e03(t, plugin)
+    local steps, step = new_steps(plugin)
+    step(function() plugin:toggle() end)
+    step(function()
+        tap_squares(t, plugin, "e2", "e4", "e7", "e5")
+        tap_buttons(t, plugin, "qr")
+    end)
+    step(function()
+        local shown = top_widget()
+        t:check("the QR code button shows the lichess link of the game",
+            shown.text == "https://lichess.org/analysis/pgn/1._e4_e5_%2A#2", shown.text)
+        t:shot("qr")
+        UIManager:close(shown)
+    end)
+    step(function()
+        t:check("closing the QR code leaves the window open", plugin.layout:isOpen())
+        t:shot("closed_qr")
+        plugin:toggle()
+    end)
+    return steps
+end
+
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
-    edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, readme = readme, kit = kit }
+    edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, e03 = e03, readme = readme,
+    kit = kit }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
