@@ -61,8 +61,7 @@ end
 -- Opening or closing ends an edit of the start position, as the main row shows again, and drops
 -- a promotion waiting for its piece.
 function Window:setOpen(open)
-    self.session:finishEdit()
-    self.session:cancelPromotion()
+    self.session:interrupt()
     if open ~= self.layout:isOpen() then
         self:holdDoubleTap(open)
     end
@@ -75,22 +74,24 @@ function Window:toggle()
     self:setOpen(not self.layout:isOpen())
 end
 
--- Grows (steps > 0) or shrinks the board. The window is repainted where it was and where it is,
--- with a flash when it grows over the page.
-local function resize(self, steps)
+-- Changes the window with a method of the layout that says whether it changed; when it did, the
+-- window is repainted where it was and where it is, with a flash when it covers new text.
+local function reshape(self, covers_text, method, ...)
     local before = self.layout:rects()
-    if self.layout:resize(steps) then
-        self:refresh(self.layout:dirtyRect(before), steps > 0)
+    if method(self.layout, ...) then
+        self:refresh(self.layout:dirtyRect(before), covers_text)
     end
+end
+
+-- Grows (steps > 0) or shrinks the board.
+local function resize(self, steps)
+    reshape(self, steps > 0, self.layout.resize, steps)
 end
 
 -- Splits the screen between the book and the board, or takes the window back over the page.
 local function split(self, on)
     self.session:finishEdit()
-    local before = self.layout:rects()
-    if self.layout:setSplit(on) then
-        self:refresh(self.layout:dirtyRect(before), true)
-    end
+    reshape(self, true, self.layout.setSplit, on)
 end
 
 -- How long the hint on moving the window stays.

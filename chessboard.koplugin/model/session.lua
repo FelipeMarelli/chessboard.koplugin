@@ -257,6 +257,14 @@ function Session:isPromoting()
     return self.pending ~= nil
 end
 
+-- Ends what was left going: an edit of the start position (see finishEdit) and a promotion waiting
+-- for its piece. Returns whether either was going.
+function Session:interrupt()
+    local edited = self:finishEdit()
+    local promoting = self:cancelPromotion()
+    return edited or promoting
+end
+
 -- True when a reset would change nothing: the usual start position, no moves, nothing chosen.
 local function is_fresh(self)
     local saved = self.game:serialize()
