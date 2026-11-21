@@ -13,6 +13,7 @@
 local Device = require("device")
 local Event = require("ui/event")
 local Geom = require("ui/geometry")
+local Rect = require("model/rect")
 local UIManager = require("ui/uimanager")
 
 local Screen = Device.screen
@@ -23,13 +24,6 @@ ReaderArea.__index = ReaderArea
 -- ui: the ReaderUI.
 function ReaderArea.new(ui)
     return setmetatable({ ui = ui, rect = nil }, ReaderArea)
-end
-
-local function same(a, b)
-    if a == nil or b == nil then
-        return a == b
-    end
-    return a.x == b.x and a.y == b.y and a.w == b.w and a.h == b.h
 end
 
 local function fit_rolling(ui, dimen)
@@ -130,7 +124,7 @@ end
 -- already fitted to it, unless forced (the screen turned, and KOReader fitted it to the whole
 -- screen). True when it changed: the whole screen has to be painted again.
 function ReaderArea:fit(rect, force)
-    if same(rect, self.rect) and not (force and rect) then
+    if Rect.same(rect, self.rect) and not (force and rect) then
         return false
     end
     self.rect = rect and { x = rect.x, y = rect.y, w = rect.w, h = rect.h } or nil
