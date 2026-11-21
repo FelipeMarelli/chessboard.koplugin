@@ -1133,6 +1133,83 @@ local function h17(t, plugin)
     return steps
 end
 
+-- H18: the split screen. Splits it from the size row, plays a move, turns the page of the book in
+-- its part, drags the divider, swaps the book and the board, and takes the window back over the
+-- page. It works with any book: BOOK=petroff for a PDF.
+local function view_fits(ui, rect)
+    local dimen = ui.view.dimen
+    return dimen.w == rect.w and dimen.h == rect.h, string.format("view %dx%d, part %dx%d",
+        dimen.w, dimen.h, rect.w, rect.h)
+end
+
+local function h18(t, plugin)
+    local ui, layout = plugin.ui, plugin.layout
+    local steps, step = new_steps(plugin)
+    step(function()
+        plugin:toggle()
+        tap_buttons(t, plugin, "size", "split")
+    end)
+    step(function()
+        t:shot("split")
+        t:check("the split button splits the screen", layout:isSplit())
+        t:check("the book is fitted to its part", view_fits(ui, layout:readerRect()))
+        local footer = ui.view.footer
+        t:check("the status bar is as wide as the book's part",
+            footer.dimen.w == layout:readerRect().w, footer.dimen.w)
+        tap_squares(t, plugin, "e2", "e4")
+    end)
+    step(function()
+        t:check("the board plays", square_view(plugin, "e4").piece == "P")
+        t.place = reading_position(ui)
+        local reader = layout:readerRect()
+        t:tap(reader.x + reader.w * 0.9, reader.y + reader.h / 2)
+    end)
+    step(function()
+        t:shot("turned")
+        t:check("a tap on the book turns its page", reading_position(ui) ~= t.place)
+        t.text = layout:textLength()
+        local from = center(layout:rects().divider)
+        local travel = layout:splitAxis() == "y" and { 0, -100 } or { 100, 0 }
+        t:drag(from, offset(from, travel[1], travel[2]), "pan_release")
+    end)
+    step(function()
+        t:shot("divider")
+        t:check("dragging the divider gives the book another room", layout:textLength() ~= t.text,
+            t.text .. " to " .. layout:textLength())
+        t:check("and the book is fitted to it", view_fits(ui, layout:readerRect()))
+        tap_buttons(t, plugin, "swap")
+    end)
+    step(function()
+        t:shot("swapped")
+        t:check("swap puts the book second", not layout:isTextFirst())
+        t:check("the book is fitted to its new part", view_fits(ui, layout:readerRect()))
+        t.text = layout:textLength()
+        tap_buttons(t, plugin, "swap", "size", "bigger")
+    end)
+    step(function()
+        t:shot("bigger")
+        t:check("the bigger button takes room from the book", layout:textLength() < t.text)
+        tap_buttons(t, plugin, "back", "float")
+    end)
+    step(function()
+        t:shot("floating")
+        t:check("float takes the window back over the page", not layout:isSplit())
+        t:check("and the book has the whole screen again", view_fits(ui, Screen:getSize()))
+        tap_buttons(t, plugin, "size", "split", "close")
+    end)
+    step(function()
+        t:shot("closed")
+        t:check("closed split, the book has the whole screen", view_fits(ui, Screen:getSize()))
+        plugin:toggle()
+    end)
+    step(function()
+        t:check("opened again, it is split again", layout:isSplit()
+            and view_fits(ui, layout:readerRect()))
+        tap_buttons(t, plugin, "float")
+    end)
+    return steps
+end
+
 -- The kit: the main row of buttons inside the window frame, at the narrowest width a button of the
 -- main row gets, at the width it has with room and as big buttons, with move held down and forward
 -- disabled. It paints straight on the screen, for a screenshot to judge the style by; it checks
@@ -1174,7 +1251,7 @@ local function kit(t, plugin)
 end
 
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
-    edit = edit, line = line, h16 = h16, h17 = h17, readme = readme, kit = kit }
+    edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, readme = readme, kit = kit }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
