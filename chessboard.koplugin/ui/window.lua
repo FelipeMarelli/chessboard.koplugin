@@ -184,6 +184,7 @@ function Window:onTap(ges)
     self:drop(ges.pos, self.layout:pressedButton())
     local hit = self.layout:hit(ges.pos.x, ges.pos.y, self.session:flipped())
     if not hit then
+        self.area:toReader(ges)
         return false
     end
     if hit.square then
@@ -247,6 +248,7 @@ function Window:onDrag(ges)
     local marked = self.layout:pressedButton()
     local hidden = self.layout:isHidden()
     if not self:ownsDrag(ges) then
+        self.area:toReader(ges)
         return false
     end
     if self.layout:isHidden() and not hidden then
