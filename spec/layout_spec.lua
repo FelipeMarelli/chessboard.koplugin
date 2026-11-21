@@ -1,6 +1,7 @@
 -- H03: geometry of the floating window (model/layout.lua).
 local Helper = require("helper")
 local Layout = require("model/layout")
+local Rects = require("rects")
 local Rules = require("chess/rules")
 local eq, test = Helper.eq, Helper.test
 
@@ -43,14 +44,7 @@ local function is_int(n)
     return type(n) == "number" and n % 1 == 0
 end
 
-local function center(rect)
-    return rect.x + math.floor(rect.w / 2), rect.y + math.floor(rect.h / 2)
-end
-
-local function contains(outer, inner)
-    return inner.x >= outer.x and inner.y >= outer.y and inner.x + inner.w <= outer.x + outer.w
-        and inner.y + inner.h <= outer.y + outer.h
-end
+local center, contains, overlap = Rects.center, Rects.contains, Rects.overlap
 
 local SCREENS = { { 632, 840 }, { 840, 632 }, { 1072, 1448 }, { 1448, 1072 }, { 300, 220 } }
 
@@ -324,10 +318,6 @@ test("the same screen size keeps the window where it is", function()
 end)
 
 -- H04. Moving the window -----------------------------------------------------------------------
-
-local function overlap(a, b)
-    return a.x < b.x + b.w and b.x < a.x + a.w and a.y < b.y + b.h and b.y < a.y + a.h
-end
 
 -- H17 C1 put the eye before it, first of the row.
 test("H04 C1: the move button comes after the eye, on the same grid as the others", function()
@@ -716,12 +706,12 @@ end
 
 local STEP = 6 -- SIZES.size_step on the emulator
 
-test("H05 C1: the size button shows the size row: back, smaller and bigger", function()
+test("H05 C1: the size button shows the size row: back, smaller, bigger and split", function()
     local layout = new(632, 840)
     eq(layout:shownRow(), "main")
     eq(tap_button(layout, "size"), { zone = "button", button = "size", opens = "size" })
     layout:showRow("size")
-    eq(ids_of(layout), { "back", "smaller", "bigger" })
+    eq(ids_of(layout), { "back", "smaller", "bigger", "split" })
     eq(layout:buttonRect("back").x, layout:rects().buttons.x)
     eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
     eq(tap_button(layout, "bigger"), { zone = "button", button = "bigger" })
