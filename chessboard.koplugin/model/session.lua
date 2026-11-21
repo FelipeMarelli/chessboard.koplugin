@@ -306,8 +306,9 @@ local function squares_of(position)
     return squares
 end
 
--- The most moves the strip under the board can show: more than fit in the widest window.
-local NOTATION_MOVES = 16
+-- The most moves the strip can show: more than fit in the widest window, or in the lines of moves
+-- beside the board while split.
+local NOTATION_MOVES = 40
 
 -- The moves of the line around the position shown, for the strip under the board (see
 -- model/notation.lua): the last ones up to it and the next ones, current the index of the one

@@ -2,6 +2,7 @@
 -- the split state of model/layout.lua).
 local Helper = require("helper")
 local Layout = require("model/layout")
+local Rect = require("model/rect")
 local Rects = require("rects")
 local Rules = require("chess/rules")
 local Split = require("model/split")
@@ -79,9 +80,9 @@ test("the cells of a grid are no bigger than the most asked for", function()
     eq(cells[3], { x = 180, y = 20, w = 60, h = 60 })
 end)
 
-test("split, a grid goes to the side of its room away from the board", function()
+test("split, a grid goes to the foot of its room, and in portrait to the right", function()
     local rect = { x = 0, y = 0, w = 300, h = 100 }
-    eq(Split.grid(rect, 3, 60, "y")[1], { x = 120, y = 20, w = 60, h = 60 })
+    eq(Split.grid(rect, 3, 60, "y")[1], { x = 120, y = 40, w = 60, h = 60 })
     eq(Split.grid(rect, 3, 60, "x")[1], { x = 60, y = 40, w = 60, h = 60 })
 end)
 
@@ -170,6 +171,31 @@ test("portrait, the buttons are on the right of their room, the spare room by th
         local room, last = layout:rects().buttons, layout:buttonRect("close")
         eq(last.x + last.w, room.x + room.w)
     end)
+
+test("split, the moves take the room above the buttons, wherever the divider is", function()
+    for _, size in ipairs({ PORTRAIT, LANDSCAPE }) do
+        local layout = split(size)
+        local function check(where)
+            local moves, top = layout:rects().notation, layout:buttons()[1].rect.y
+            assert(moves.h >= layout.px.notation, "no line of moves " .. where)
+            eq(top - (moves.y + moves.h), layout.px.spacing, where)
+        end
+        check("at first")
+        drag(layout, layout:rects().divider, -800, -800)
+        check("one way")
+        drag(layout, layout:rects().divider, 800, 800)
+        check("the other way")
+    end
+end)
+
+test("split, a row with buttons in another place repaints more than the row", function()
+    for _, size in ipairs({ PORTRAIT, LANDSCAPE }) do
+        local layout = split(size)
+        local main = layout:rects().buttons
+        local changed = layout:showRow("edit")
+        eq(changed, not Rect.same(main, layout:rects().buttons))
+    end
+end)
 
 test("every part of the split window is inside it, and the board apart from the buttons",
     function()

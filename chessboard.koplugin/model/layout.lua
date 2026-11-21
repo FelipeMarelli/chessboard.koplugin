@@ -5,6 +5,7 @@
 --
 -- The window is either floating over the page or split: on a part of the screen of its own, with
 -- the book on the other part (model/split.lua).
+local Rect = require("model/rect")
 local Split = require("model/split")
 
 local Layout = {}
@@ -279,7 +280,7 @@ end
 
 function Layout:splitRects()
     return Split.rects{ screen_w = self.screen_w, screen_h = self.screen_h, px = self.px,
-        text_first = self.text_first, text = self:textLength() }
+        text_first = self.text_first, text = self:textLength(), count = #SPLIT_ROWS[self.row] }
 end
 
 -- The board takes the biggest square that fits its part of the screen.
@@ -354,15 +355,18 @@ function Layout:shownRow()
 end
 
 -- Shows a row of buttons by its name. The window is shorter while a row fits in one line (see
--- ROWS), and is kept on the screen when it grows back. Returns whether the window changed size
--- and whether it grew.
+-- ROWS), and is kept on the screen when it grows back. Returns whether the window changed size, or
+-- its buttons their place while split (they take more or less room from the moves), and whether
+-- it grew.
 function Layout:showRow(name)
     assert(ROWS[name] and (SPLIT_ROWS[name] or not self.split), "no such row")
     local _, before = self:windowSize()
+    local buttons = self:rects().buttons
     self.row = name
     self:moveTo(self.x, self.y)
     local _, after = self:windowSize()
-    return after ~= before, after > before
+    local moved = not Rect.same(buttons, self:rects().buttons) and self.split
+    return after ~= before or moved, after > before
 end
 
 -- The name of the row a button shows when tapped, or nil when the button acts instead.

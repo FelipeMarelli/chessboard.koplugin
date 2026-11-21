@@ -590,6 +590,11 @@ local function tap_squares(t, plugin, ...)
     end
 end
 
+-- The squares tapped to play the Ruy Lopez up to 9...d5, the Marshall Attack.
+local RUY_LOPEZ = { "e2", "e4", "e7", "e5", "g1", "f3", "b8", "c6", "f1", "b5", "a7", "a6", "b5",
+    "a4", "g8", "f6", "e1", "g1", "f8", "e7", "f1", "e1", "b7", "b5", "a4", "b3", "e8", "g8", "c2",
+    "c3", "d7", "d5" }
+
 -- Taps buttons of the row shown, by id, one after another, forgetting the repaints so far.
 local function tap_buttons(t, plugin, ...)
     t.repaints = {}
@@ -955,8 +960,7 @@ local function h16(t, plugin)
     end)
     step(function()
         t:check("at the start the strip is empty", inked() == 0, inked())
-        tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1", "f3", "b8", "c6", "f1", "b5",
-            "a7", "a6", "b5", "a4", "g8", "f6", "e1", "g1", "f8", "e7")
+        tap_squares(t, plugin, unpack(RUY_LOPEZ, 1, 20))
     end)
     step(function()
         t:shot("line")
@@ -1076,9 +1080,7 @@ local function readme(t, plugin)
         move_window(math.floor((layout.screen_w - w) / 2), math.floor((layout.screen_h - h) / 2))
     end)
     step(function()
-        tap_squares(t, plugin, "e2", "e4", "e7", "e5", "g1", "f3", "b8", "c6", "f1", "b5",
-            "a7", "a6", "b5", "a4", "g8", "f6", "e1", "g1", "f8", "e7", "f1", "e1", "b7", "b5",
-            "a4", "b3", "e8", "g8", "c2", "c3", "d7", "d5")
+        tap_squares(t, plugin, unpack(RUY_LOPEZ))
     end)
     step(function()
         t:shot("game")
@@ -1190,10 +1192,11 @@ local function h18(t, plugin)
         local footer = ui.view.footer
         t:check("the status bar is as wide as the book's part",
             footer.dimen.w == layout:readerRect().w, footer.dimen.w)
-        tap_squares(t, plugin, "e2", "e4")
+        tap_squares(t, plugin, unpack(RUY_LOPEZ))
     end)
     step(function()
-        t:check("the board plays", square_view(plugin, "e4").piece == "P")
+        t:shot("line")
+        t:check("the board plays", square_view(plugin, "d5").piece == "p")
         turn_page(t, plugin)
     end)
     step(function()

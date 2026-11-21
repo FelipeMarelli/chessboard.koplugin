@@ -101,9 +101,24 @@ local function place_board(axis, inner, px)
     return square, frame, controls
 end
 
+-- The buttons at the foot of the room beside the board, in a grid (see Split.grid) under at least
+-- one line of moves and the gap after it, and the moves over the room left above them.
+local function place_controls(axis, controls, px, count)
+    local below = controls.y + (px.notation > 0 and px.notation + px.spacing or 0)
+    local room = { x = controls.x, y = below, w = controls.w, h = controls.y + controls.h - below }
+    local top = Split.grid(room, count, px.split_button, axis)[1].y
+    local buttons = { x = controls.x, y = top, w = controls.w, h = controls.y + controls.h - top }
+    if px.notation == 0 then
+        return nil, buttons
+    end
+    local moves = top - px.spacing - controls.y
+    return { x = controls.x, y = controls.y, w = controls.w, h = moves }, buttons
+end
+
 -- Every rect of the split, as Layout:rects names them, and the side of a square. args: screen_w,
 -- screen_h, px (the sizes in pixels, as Layout keeps them), text_first (the book above or on the
--- left) and text (its room along the split, from Split.textLength).
+-- left), text (its room along the split, from Split.textLength) and count (how many buttons the
+-- row shown has).
 function Split.rects(args)
     local px = args.px
     local axis = Split.axis(args.screen_w, args.screen_h)
@@ -112,19 +127,15 @@ function Split.rects(args)
     local square, frame, controls = place_board(axis, rects.inner, px)
     local g, side = px.gutter, FILES * square
     rects.board = { x = frame.x + g, y = frame.y + g, w = side, h = side }
-    if px.notation > 0 then
-        rects.notation = { x = controls.x, y = controls.y, w = controls.w, h = px.notation }
-    end
-    rects.buttons = { x = controls.x, y = controls.y + px.notation, w = controls.w,
-        h = controls.h - px.notation }
+    rects.notation, rects.buttons = place_controls(axis, controls, px, args.count)
     return rects, square, frame
 end
 
 -- The cells of a grid of count buttons in rect, from the top left, row by row: as many columns as
 -- make the smaller side of a cell the biggest, all the same size and no bigger than max (none when
--- 0 or nil). The grid is centred in rect; given the axis of the split, it goes to the far side of
--- rect from the board instead (the right in portrait, the bottom in landscape), so that the room
--- left over is between the board and the buttons.
+-- 0 or nil). The grid is centred in rect; given the axis of the split, it goes to the foot of rect
+-- instead, and in portrait to its right, the far side from the board, so that the room left over
+-- is between the board and the buttons, and above them for the moves.
 function Split.grid(rect, count, max, axis)
     local cap = (max or 0) > 0 and max or math.huge
     local best
@@ -138,7 +149,7 @@ function Split.grid(rect, count, max, axis)
     end
     local spare_w, spare_h = rect.w - best.columns * best.w, rect.h - best.rows * best.h
     local x0 = rect.x + (axis == "y" and spare_w or math.floor(spare_w / 2))
-    local y0 = rect.y + (axis == "x" and spare_h or math.floor(spare_h / 2))
+    local y0 = rect.y + (axis and spare_h or math.floor(spare_h / 2))
     local cells = {}
     for i = 1, count do
         local col, row = (i - 1) % best.columns, math.floor((i - 1) / best.columns)

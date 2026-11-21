@@ -42,7 +42,7 @@ With a book open, the board opens and closes from the reader menu, under Tools â
 - **Analyze on lichess**: the QR code button, under the three dots, shows the game full screen as a QR code; scan it with your phone to open the whole line on the lichess analysis board, at the position on the board. Tap to close it. Very long games do not fit in a QR code.
 - **Set up a position**: the pencil opens the editor, with the pieces, the side to move, an eraser and a trash can that puts the start position or empties the board. Back starts the game from the new position.
 - **Start over**: the trash can, under the three dots, goes back to the start position.
-- **Split the screen**: the split button, under the three dots, puts the book on one half of the screen and the board on the other: the book above in portrait, on the left in landscape. Drag the line between them to move it. In the split screen every button shows at once; the swap button puts the book and the board the other way round, and the window button takes the board back over the page.
+- **Split the screen**: the split button, under the three dots, puts the book on one half of the screen and the board on the other: the book above in portrait, on the left in landscape. Drag the line between them to move it. In the split screen every button shows at once; the swap button puts the book and the board the other way round, and the window button takes the board back over the page. Beside the board, the moves of the line take every row that fits above the buttons.
 
 ## License
 

@@ -65,16 +65,10 @@ local PAINT = {
     gap = function() end,
 }
 
--- Paints the strip in rect with the moves of the session view (view.notation). The parts that do
--- not fit whole are left out.
-function Strip.paint(bb, rect, notation)
-    local style = Theme.NOTATION
-    Kit.fill(bb, rect, style.background)
-    local sizes = sizes_of(rect.h)
-    local width_of = measurer(sizes)
+-- Paints the parts of one line on the strip, from its left; the parts that do not fit whole are
+-- left out.
+local function paint_line(bb, rect, parts, sizes, width_of)
     local x, right = rect.x + sizes.pad, rect.x + rect.w - sizes.pad
-    local parts = Notation.fit(notation.moves, notation.numbered, width_of, right - x,
-        notation.current)
     for _, part in ipairs(parts) do
         local w = width_of(part)
         if x + w > right then
@@ -83,6 +77,21 @@ function Strip.paint(bb, rect, notation)
         local shown = as_text(part)
         PAINT[shown.kind](bb, shown, x, rect, sizes)
         x = x + w
+    end
+end
+
+-- Paints the strip in rect with the moves of the session view (view.notation), in as many lines
+-- of the height of the strip under the board as fit in it.
+function Strip.paint(bb, rect, notation)
+    Kit.fill(bb, rect, Theme.NOTATION.background)
+    local line_h = math.min(rect.h, Theme.px(Theme.SIZES.notation))
+    local sizes = sizes_of(line_h)
+    local width_of = measurer(sizes)
+    local lines = Notation.lines(notation.moves, notation.numbered, width_of,
+        rect.w - 2 * sizes.pad, math.floor(rect.h / line_h), notation.current)
+    for i, parts in ipairs(lines) do
+        local line = { x = rect.x, y = rect.y + (i - 1) * line_h, w = rect.w, h = line_h }
+        paint_line(bb, line, parts, sizes, width_of)
     end
 end
 
