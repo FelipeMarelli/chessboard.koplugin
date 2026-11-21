@@ -2,6 +2,11 @@
 --
 -- Rectangles are plain tables { x, y, w, h } in whole pixels. Sizes come in design pixels, the
 -- pixels of a reference screen of 600 by 800, and are scaled to the screen (Layout.scaleFor).
+--
+-- The window is either floating over the page or split: on a part of the screen of its own, with
+-- the book on the other part (model/split.lua).
+local Split = require("model/split")
+
 local Layout = {}
 Layout.__index = Layout
 
@@ -25,15 +30,35 @@ local BACK_BUTTON = "back"
 local ROWS = {
     main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "size", "reset", "edit" },
         right = { "close", "forward", "backward" } },
-    size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
+    size = { left = { BACK_BUTTON, "smaller", "bigger", "split" }, right = {} },
     edit = { left = { BACK_BUTTON, "clear", "erase" }, right = {},
         upper = { "color", "king", "queen", "rook", "bishop", "knight", "pawn" } },
 }
 local OPENS = { size = "size", edit = "edit" }
 
+-- The buttons of each row while split, in a grid beside the board, from the top left. The size
+-- row moves the divider; "swap" puts the book and the board the other way round, and "float"
+-- takes the window back over the page. The eye has no page under the board to show.
+local SPLIT_ROWS = {
+    main = { "backward", "forward", "flip", "reset", "edit", "size", MOVE_BUTTON, "swap",
+        "float", "close" },
+    size = { BACK_BUTTON, "smaller", "bigger" },
+    edit = { "color", "king", "queen", "rook", "bishop", "knight", "pawn", BACK_BUTTON, "clear",
+        "erase" },
+}
+
 -- Buttons that resize the board, with how many steps each takes. Each is disabled at the limit it
 -- goes towards.
 local RESIZES = { smaller = -1, bigger = 1 }
+
+local function contains_id(ids, id)
+    for _, each in ipairs(ids or {}) do
+        if each == id then
+            return true
+        end
+    end
+    return false
+end
 
 -- How many pixels of a screen a design pixel takes: as much as the reference screen grows to fit
 -- in it, by its short and long sides, so turning the screen does not change it.
@@ -65,8 +90,10 @@ end
 -- edge), min_square, size_step (how much the side of a square changes with each step of resize),
 -- gutter (the strips around the board where the coordinates go; 0 or nil to put them on the
 -- squares), notation (height of the strip with the last moves, between the board and
--- the buttons; 0 or nil for none) and spacing (the gap left in place of the strip when a row
--- takes it; 0 or nil for none).
+-- the buttons; 0 or nil for none), spacing (the gap left in place of the strip when a row
+-- takes it, and between the board and its buttons while split; 0 or nil for none), divider (how
+-- thick the divider of the split is) and split_controls (the least room beside the board for its
+-- buttons while split).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
     local scale = args.scale
@@ -82,9 +109,14 @@ function Layout.new(args)
         gutter = optional_px(sizes.gutter, scale),
         notation = optional_px(sizes.notation, scale),
         spacing = optional_px(sizes.spacing, scale),
+        divider = optional_px(sizes.divider, scale),
+        split_controls = optional_px(sizes.split_controls, scale),
     }
     self.open = false
     self.row = MAIN_ROW
+    self.split = false
+    self.text_first = true
+    self.text_share = Split.TEXT_SHARE
     self:setScreen(args.screen_w, args.screen_h)
     return self
 end
@@ -114,7 +146,12 @@ end
 function Layout:setScreen(screen_w, screen_h)
     local same = screen_w == self.screen_w and screen_h == self.screen_h
     self.screen_w, self.screen_h = screen_w, screen_h
-    if same then
+    if self.split then
+        -- The floating window goes back to the default place on a turned screen.
+        self.floating = same and self.floating or nil
+        self.drag = same and self.drag or nil
+        self:fitSplit()
+    elseif same then
         self.square = self:fittedSquare(self.square)
         self:moveTo(self.x, self.y)
     else
@@ -199,20 +236,126 @@ function Layout:resizedSquare(steps)
     return self:fittedSquare(self.square + steps * self.px.size_step)
 end
 
+-- While split, the room for the book after some steps of resize: each step takes from it as much
+-- as the board would grow.
+function Layout:resizedText(steps)
+    return Split.fitText(self.screen_w, self.screen_h, self.px,
+        self:textLength() - steps * FILES * self.px.size_step)
+end
+
 -- True when some steps of resize would change the size: false at the limit they go towards.
+-- While split, they move the divider.
 function Layout:canResize(steps)
+    if self.split then
+        return self:resizedText(steps) ~= self:textLength()
+    end
     return self:resizedSquare(steps) ~= self.square
 end
 
 -- Grows (steps > 0) or shrinks the board by some steps, up to its limits. The top left corner
--- stays, unless the window would go off the screen. True when the size changed.
+-- stays, unless the window would go off the screen. While split, the divider moves by as much as
+-- the board would grow. True when the size changed.
 function Layout:resize(steps)
     if not self:canResize(steps) then
         return false
+    elseif self.split then
+        return self:setTextLength(self:resizedText(steps))
     end
     self.square = self:resizedSquare(steps)
     self:moveTo(self.x, self.y)
     return true
+end
+
+-- Split ----------------------------------------------------------------------------------------
+
+function Layout:isSplit()
+    return self.split
+end
+
+-- True when the book is above the board (portrait) or on its left (landscape).
+function Layout:isTextFirst()
+    return self.text_first
+end
+
+-- The axis the screen is split along: "y" in portrait, "x" in landscape.
+function Layout:splitAxis()
+    return Split.axis(self.screen_w, self.screen_h)
+end
+
+-- The room the book takes along the split.
+function Layout:textLength()
+    return Split.textLength(self.screen_w, self.screen_h, self.px, self.text_share)
+end
+
+function Layout:splitRects()
+    return Split.rects{ screen_w = self.screen_w, screen_h = self.screen_h, px = self.px,
+        text_first = self.text_first, text = self:textLength() }
+end
+
+-- The board takes the biggest square that fits its part of the screen.
+function Layout:fitSplit()
+    local _, square = self:splitRects()
+    self.square = square
+end
+
+-- Splits the screen (true) or takes the window back over the page (false), with the main row.
+-- The floating window comes back where it was and as big, unless the screen turned meanwhile.
+-- True when it changed.
+function Layout:setSplit(split)
+    split = split and true or false
+    if split == self.split then
+        return false
+    end
+    self.drag = nil
+    self.row = MAIN_ROW
+    self.split = split
+    if split then
+        self.floating = { square = self.square, x = self.x, y = self.y }
+        self:fitSplit()
+        return true
+    end
+    local floating = self.floating
+    self.floating = nil
+    if floating then
+        self.square = self:fittedSquare(floating.square)
+        self:moveTo(floating.x, floating.y)
+    else
+        self.square = self:defaultSquare()
+        self:placeDefault()
+    end
+    return true
+end
+
+-- Puts the book and the board the other way round. True when split.
+function Layout:swapSplit()
+    if not self.split then
+        return false
+    end
+    self.text_first = not self.text_first
+    return true
+end
+
+-- Gives the book a room along the split, within its limits. True when the divider moved.
+function Layout:setTextLength(text)
+    local before = self:textLength()
+    local fitted = Split.fitText(self.screen_w, self.screen_h, self.px, text)
+    self.text_share = Split.shareOf(self.screen_w, self.screen_h, fitted)
+    self:fitSplit()
+    return self:textLength() ~= before
+end
+
+-- Moves the divider by some pixels along the split, towards the board when positive.
+function Layout:moveDivider(travel)
+    local text = self:textLength()
+    return self:setTextLength(self.text_first and text + travel or text - travel)
+end
+
+-- The part of the screen the book is to be shown in while split and open; nil when it has the
+-- whole screen.
+function Layout:readerRect()
+    if self.open and self.split then
+        return self:splitRects().reader
+    end
 end
 
 -- The name of the row of buttons shown.
@@ -243,7 +386,32 @@ function Layout:isEnabled(id)
     return steps == nil or self:canResize(steps)
 end
 
+-- Adds to rects the board with the strips of coordinates around it, in frame: ranks left and
+-- right, files under and over it. g: the width of a strip.
+local function add_gutters(rects, frame, g)
+    if g <= 0 then
+        return
+    end
+    local left, top, side = frame.x, frame.y, frame.w - 2 * g
+    rects.board_frame = frame
+    rects.ranks = { x = left, y = top + g, w = g, h = side }
+    rects.ranks_right = { x = left + g + side, y = top + g, w = g, h = side }
+    rects.files = { x = left + g, y = top + g + side, w = side, h = g }
+    rects.files_top = { x = left + g, y = top, w = side, h = g }
+    -- The corner where the left and the bottom strips meet shows whose turn it is.
+    rects.status = { x = left, y = top + g + side, w = g, h = g }
+end
+
+-- The rects of the window: window, board, buttons (the row or the grid of buttons), inner (inside
+-- the border, where a point is taken to the nearest part), and notation, board_frame and the
+-- strips of coordinates when there are. While split, also reader (the book's part of the screen)
+-- and divider.
 function Layout:rects()
+    if self.split then
+        local rects, _, frame = self:splitRects()
+        add_gutters(rects, frame, self.px.gutter)
+        return rects
+    end
     local p = self.px
     local w, h = self:windowSize()
     local side = FILES * self.square
@@ -252,33 +420,15 @@ function Layout:rects()
     local framed = self:framedSide()
     local rects = {
         window = { x = self.x, y = self.y, w = w, h = h },
+        inner = { x = left, y = top, w = w - 2 * p.border, h = h - 2 * p.border },
         board = { x = left + g, y = top + g, w = side, h = side },
         buttons = { x = left, y = top + framed + n, w = framed, h = p.row },
     }
     if n > 0 and not self:isOneRow() then
         rects.notation = { x = left, y = top + framed, w = framed, h = n }
     end
-    if g > 0 then
-        -- The board with the strips of coordinates around it: ranks left and right, files under
-        -- and over it.
-        rects.board_frame = { x = left, y = top, w = framed, h = framed }
-        rects.ranks = { x = left, y = top + g, w = g, h = side }
-        rects.ranks_right = { x = left + g + side, y = top + g, w = g, h = side }
-        rects.files = { x = left + g, y = top + g + side, w = side, h = g }
-        rects.files_top = { x = left + g, y = top, w = side, h = g }
-        -- The corner where the left and the bottom strips meet shows whose turn it is.
-        rects.status = { x = left, y = top + g + side, w = g, h = g }
-    end
+    add_gutters(rects, { x = left, y = top, w = framed, h = framed }, g)
     return rects
-end
-
-local function contains_id(ids, id)
-    for _, each in ipairs(ids or {}) do
-        if each == id then
-            return true
-        end
-    end
-    return false
 end
 
 local function concat(a, b)
@@ -311,6 +461,16 @@ end
 function Layout:buttons()
     local rects = self:rects()
     local row = ROWS[self.row]
+    if self.split then
+        local ids = SPLIT_ROWS[self.row]
+        local list = {}
+        for i, cell in ipairs(Split.grid(rects.buttons, #ids)) do
+            local id = ids[i]
+            list[i] = { id = id, enabled = self:isEnabled(id), rect = cell,
+                upper = contains_id(row.upper, id) or nil }
+        end
+        return list
+    end
     local left, upper = row.left, row.upper
     if upper and not rects.notation then
         left, upper = concat(left, upper), nil
@@ -417,10 +577,12 @@ function Layout:hit(x, y, flipped)
     local r = self:rects()
     if not (self.open and inside(r.window, x, y)) then
         return nil
+    elseif r.divider and inside(r.divider, x, y) then
+        return { zone = "divider" }
     end
-    local board, inner = r.board, r.buttons
+    local board, inner = r.board, r.inner
     x = clamp(x, inner.x, inner.x + inner.w - 1)
-    y = clamp(y, r.window.y + self.px.border, inner.y + inner.h - 1)
+    y = clamp(y, inner.y, inner.y + inner.h - 1)
     for _, button in ipairs(self:buttons()) do
         if inside(button.rect, x, y) and button.enabled then
             return { zone = "button", button = button.id, opens = Layout.rowOpenedBy(button.id) }
@@ -430,7 +592,7 @@ function Layout:hit(x, y, flipped)
         return { zone = "board", square = square_at(board, self.square, x, y, flipped) }
     elseif r.notation and inside(r.notation, x, y) then
         return { zone = "notation" }
-    elseif y < r.buttons.y then
+    elseif not inside(r.buttons, x, y) then
         return { zone = "board" }
     end
     return { zone = "button" }
@@ -438,8 +600,9 @@ end
 
 -- Drags. A drag runs from the finger down to the finger up and is the window's when it starts on
 -- the window, wherever the finger goes after. Only a drag that starts on the move button moves the
--- window; one that starts on the eye hides it until the finger is lifted; from anywhere else it
--- does nothing, and from the board above all, which is for playing.
+-- window, or, while split, the divider, as one that starts on the divider does; one that starts on
+-- the eye hides it until the finger is lifted; from anywhere else it does nothing, and from the
+-- board above all, which is for playing.
 
 -- Starts a drag with the finger down at x, y. False when the point is off the window: the drag is
 -- the reader's. Called again with the same point, it goes on with the drag already started. With
@@ -450,9 +613,16 @@ function Layout:startDrag(x, y, flipped, locked)
         return true
     end
     local hit = self:hit(x, y, flipped)
-    self.drag = hit and { x = x, y = y, moves = not locked and hit.button == MOVE_BUTTON,
-        hides = hit.button == PEEK_BUTTON } or nil
-    return self.drag ~= nil
+    if not hit then
+        self.drag = nil
+        return false
+    end
+    local on_move = not locked and hit.button == MOVE_BUTTON
+    self.drag = { x = x, y = y, pressed = on_move and MOVE_BUTTON or nil,
+        moves = on_move and not self.split,
+        divides = self.split and not locked and (on_move or hit.zone == "divider"),
+        hides = hit.button == PEEK_BUTTON }
+    return true
 end
 
 function Layout:isDragging()
@@ -465,11 +635,11 @@ function Layout:isHidden()
     return d ~= nil and d.hides
 end
 
--- The id of the button held down to drag the window, so that it can be marked while the finger is
--- on it; nil when no drag that moves the window is going on.
+-- The id of the button held down to drag the window or the divider, so that it can be marked
+-- while the finger is on it; nil when no such drag is going on.
 function Layout:pressedButton()
     local d = self.drag
-    return d and d.moves and MOVE_BUTTON or nil
+    return d and d.pressed
 end
 
 -- Where the window would be if the finger, now at x, y, were lifted: a window rect, kept on the
@@ -482,11 +652,15 @@ function Layout:dragRect(x, y)
     return self:fittedRect(self.x + x - d.x, self.y + y - d.y)
 end
 
--- Ends the drag with the finger lifted at x, y, and leaves the window there. True when it moved.
+-- Ends the drag with the finger lifted at x, y, and leaves the window, or the divider, there. True
+-- when it moved.
 function Layout:endDrag(x, y)
+    local d = self.drag
     local target = self:dragRect(x, y)
     self.drag = nil
-    if not target or (target.x == self.x and target.y == self.y) then
+    if d and d.divides then
+        return self:moveDivider(Split.travel(self.screen_w, self.screen_h, d.x, d.y, x, y))
+    elseif not target or (target.x == self.x and target.y == self.y) then
         return false
     end
     self:moveTo(target.x, target.y)
