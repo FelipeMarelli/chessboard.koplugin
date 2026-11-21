@@ -923,11 +923,12 @@ end
 local function h16(t, plugin)
     local layout, session = plugin.layout, plugin.session
     local steps, step = new_steps(plugin)
-    -- How many pixels of the strip are not white: none when it is empty.
+    -- How many pixels of the strip are darker than its ground: none when it is empty.
     local function inked()
+        local ground = require("ui/theme").NOTATION.background:getColor8().a
         local count = 0
         for _, value in ipairs(grab(layout:rects().notation)) do
-            count = count + (value < 0xFF and 1 or 0)
+            count = count + (value < ground and 1 or 0)
         end
         return count
     end
@@ -1132,15 +1133,17 @@ local function h17(t, plugin)
     return steps
 end
 
--- The kit: the main row of buttons inside the window frame, at the width of a row with room and
--- at the narrowest one, with move held down and forward disabled. It paints straight on the
--- screen, for a screenshot to judge the style by; it checks nothing.
-local KIT_NARROW = 27 -- about the narrowest a button of the main row gets
+-- The kit: the main row of buttons inside the window frame, at the narrowest width a button of the
+-- main row gets, at the width it has with room and as big buttons, with move held down and forward
+-- disabled. It paints straight on the screen, for a screenshot to judge the style by; it checks
+-- nothing.
 local KIT_ROW = { "peek", "move", "flip", "size", "reset", "edit", "backward", "forward", "close" }
 local KIT_LOOKS = { move = { down = true }, forward = { dim = true } }
--- The main row at a button width, its top left corner at x, y, framed as in the window.
-local function paint_kit_row(Kit, Theme, x, y, w)
-    local h, border = Theme.px(Theme.SIZES.row), Theme.px(Theme.SIZES.border)
+local KIT_SIZES = { { w = 27, h = 39 }, { w = 39, h = 39 }, { w = 54, h = 54 } }
+-- The main row with buttons of a size in design pixels, its top left corner at x, y, framed as in
+-- the window.
+local function paint_kit_row(Kit, Theme, x, y, size)
+    local w, h, border = Theme.px(size.w), Theme.px(size.h), Theme.px(Theme.SIZES.border)
     Kit.fill(Screen.bb, { x = x - border, y = y - border, w = #KIT_ROW * w + 2 * border,
         h = h + 2 * border }, Theme.GRAY.frame)
     local side = Kit.iconSide({ x = 0, y = 0, w = w, h = h })
@@ -1159,10 +1162,12 @@ local function kit(t, plugin)
     step(function()
         local Kit, Theme = require("ui/kit"), require("ui/theme")
         local gap = Theme.px(Theme.SIZES.margin)
-        Kit.fill(Screen.bb, { x = 0, y = 0, w = Screen:getWidth(), h = 3 * gap + 2 * Theme.px(
-            Theme.SIZES.row) + 4 * Theme.px(Theme.SIZES.border) }, Theme.BUTTON.ground)
-        local y = paint_kit_row(Kit, Theme, gap, gap, Theme.px(Theme.SIZES.button)) + gap
-        paint_kit_row(Kit, Theme, gap, y, Theme.px(KIT_NARROW))
+        Kit.fill(Screen.bb, { x = 0, y = 0, w = Screen:getWidth(), h = Screen:getHeight() },
+            Theme.GRAY.light_square)
+        local y = gap
+        for _, size in ipairs(KIT_SIZES) do
+            y = paint_kit_row(Kit, Theme, gap, y, size) + gap
+        end
         t:save("gallery")
     end)
     return steps

@@ -616,24 +616,33 @@ test("C7: without gutters each label is centred in its own square", function()
     end
 end)
 
-test("C7: with gutters, ranks go in a strip left of the board and files in one under it",
+-- This criterion changed on 21 November 2026: the coordinates go all around the board, on white,
+-- instead of only on its left and under it.
+test("C7: with gutters, ranks go in strips left and right of the board and files under and over it",
     function()
         for _, size in ipairs(SCREENS) do
             local layout = with_gutter(size[1], size[2])
             local r = layout:rects()
-            local g = 15 -- a gutter of 14 on the emulator
-            eq(r.ranks, { x = r.board.x - g, y = r.board.y, w = g, h = r.board.h })
-            eq(r.files, { x = r.board.x, y = r.board.y + r.board.h, w = r.board.w, h = g })
+            local b, g = r.board, 15 -- a gutter of 14 on the emulator
+            eq(r.ranks, { x = b.x - g, y = b.y, w = g, h = b.h })
+            eq(r.ranks_right, { x = b.x + b.w, y = b.y, w = g, h = b.h })
+            eq(r.files, { x = b.x, y = b.y + b.h, w = b.w, h = g })
+            eq(r.files_top, { x = b.x, y = b.y - g, w = b.w, h = g })
+            eq(r.board_frame, { x = b.x - g, y = b.y - g, w = b.w + 2 * g, h = b.h + 2 * g })
             eq(r.buttons.y, r.files.y + g)
-            eq(r.buttons.x, r.ranks.x); eq(r.buttons.w, r.board.w + g)
-            for _, part in ipairs({ "ranks", "files", "board", "buttons" }) do
+            eq(r.buttons.x, r.ranks.x); eq(r.buttons.w, r.board_frame.w)
+            for _, part in ipairs({ "board_frame", "buttons" }) do
                 assert(contains(r.window, r[part]), part)
             end
             for _, flipped in ipairs({ false, true }) do
-                for _, label in ipairs(layout:labels(flipped)) do
+                local labels = layout:labels(flipped)
+                eq(#labels, 32)
+                local strips = { file = { r.files, r.files_top },
+                    rank = { r.ranks, r.ranks_right } }
+                for i, label in ipairs(labels) do
                     local sq = layout:squareRect(label.square, flipped)
-                    local strip = label.kind == "file" and r.files or r.ranks
-                    assert(contains(strip, label.rect))
+                    -- Each square has its label in the near strip, then in the far one.
+                    assert(contains(strips[label.kind][2 - i % 2], label.rect))
                     if label.kind == "file" then
                         eq(label.rect.x, sq.x); eq(label.rect.w, sq.w)
                     else
@@ -653,6 +662,8 @@ test("C10: a tap on a gutter is the window's but not a square", function()
     local r = layout:rects()
     eq(layout:hit(r.ranks.x + 2, r.ranks.y + 50, false), { zone = "board" })
     eq(layout:hit(r.files.x + 50, r.files.y + 2, false), { zone = "board" })
+    eq(layout:hit(r.ranks_right.x + 2, r.ranks_right.y + 50, false), { zone = "board" })
+    eq(layout:hit(r.files_top.x + 50, r.files_top.y + 2, false), { zone = "board" })
     for square = 1, 64 do
         local x, y = center(layout:squareRect(square, true))
         eq(layout:hit(x, y, true), { zone = "board", square = square })
@@ -914,6 +925,7 @@ end)
 
 -- Decided on 16 November 2026: the color and the pieces go up, in the place of the strip of moves,
 -- so they are not so narrow with a small board.
+-- The edit row with a strip of moves and buttons of 39, and the board at its biggest or smallest.
 test("Edit, H16: the color and the six pieces take the place of the strip of moves", function()
     local layout = with_sizes(632, 840, NOTATION)
     layout:showRow("edit")

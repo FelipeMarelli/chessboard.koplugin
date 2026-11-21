@@ -30,31 +30,33 @@ local function gray(value)
     return Blitbuffer.Color8(value)
 end
 
+-- surface: the ground of the window under the board (the button rows and the strip of moves). The
+-- coordinates go on white, a border that sets the board apart from it.
 Theme.GRAY = {
     frame = gray(0x00),
-    row = gray(0xFF),
+    surface = gray(0xEE),
     light_square = gray(0xEE),
     dark_square = gray(0xAA),
     gutter = gray(0xFF),
 }
+Theme.GRAY.row = Theme.GRAY.surface
 
--- Buttons (ui/kit.lua). Each has a square centred in it, square wide, or less to keep gap from
--- the sides of a narrow button; its icon, in ink on the ground of the row, is icon wide, or less
--- to keep pad inside the square. A button held down shows the square, in the gray down with
--- corners rounded by the share round of its side, and its icon in down_ink. stroke: lines drawn
--- by hand in a button, as thick as those of the icons. A button that would do nothing is
--- lightened by the share disabled; the tools of the editor not chosen by unchosen, so that the
--- chosen one stands out.
+-- Buttons (ui/kit.lua): a card on the ground of the row, a square in the face gray with no border,
+-- as big as fits in the button leaving gap on each side, with corners rounded by the share round of
+-- its side. Its icon, in ink, takes the share icon of the card, so a big button looks like a small
+-- one, only bigger. A button held down has its card in down and its icon in down_ink. stroke:
+-- lines drawn by hand in a button, as thick as those of the icons. The icon of a button that would
+-- do nothing is lightened by the share disabled; those of the tools of the editor not chosen by
+-- unchosen, so that the chosen one stands out.
 Theme.BUTTON = {
-    square = 31,
-    gap = 1,
-    icon = 24,
-    pad = 3,
+    gap = 2,
+    round = 0.22,
+    icon = 0.66,
     stroke = 2,
-    round = 0.25,
-    ground = Theme.GRAY.row,
+    ground = Theme.GRAY.surface,
+    face = gray(0xFF),
     ink = gray(0x00),
-    down = gray(0xDD),
+    down = gray(0xBB),
     down_ink = gray(0x00),
     disabled = 0.6,
     unchosen = 0.6,
@@ -97,7 +99,7 @@ Theme.STATUS = {
 -- The strip with the last moves. text_share: text height as a share of the strip;
 -- gap (between moves) and pad (at the ends).
 Theme.NOTATION = {
-    background = gray(0xFF),
+    background = Theme.GRAY.surface,
     color = gray(0x00),
     text_share = 0.6,
     gap = 9,

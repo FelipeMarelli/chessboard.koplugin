@@ -53,39 +53,32 @@ function Kit.roundedSquare(bb, x, y, side, radius, color)
     bb:paintBorder(x, y, side, side, Theme.px(Theme.BUTTON.stroke), color, radius, true)
 end
 
--- The side of the square of a button as wide as w: Theme.BUTTON.square, or less in a narrow one.
--- The smallest window (Theme.SIZES.min_square) leaves room in it for an icon and its pad.
-local function square_side(w)
-    return math.min(Theme.px(Theme.BUTTON.square), w - 2 * Theme.px(Theme.BUTTON.gap))
-end
-
--- The side of the icon of a button: Theme.BUTTON.icon, or less to keep its pad in the square. It
--- goes by the width alone, so the pieces of the editor keep their size in the low row above.
-function Kit.iconSide(cell)
-    local style = Theme.BUTTON
-    return math.min(Theme.px(style.icon), square_side(cell.w) - 2 * Theme.px(style.pad))
-end
-
--- The ground of a button held down: its square, gray with rounded corners.
-local function paint_down(bb, cell)
-    local style = Theme.BUTTON
-    local side = math.min(square_side(cell.w), cell.h - 2 * Theme.px(style.gap))
+-- The card of a button: a square as big as fits in its cell leaving Theme.BUTTON.gap around it.
+local function card_of(cell)
+    local side = math.min(cell.w, cell.h) - 2 * Theme.px(Theme.BUTTON.gap)
     local x, y = Kit.centred(cell, side, side)
-    Kit.roundedSquare(bb, x, y, side, math.floor(side * style.round + 0.5), style.down)
+    return { x = x, y = y, w = side, h = side }
 end
 
--- A button in the cell its row gives it: its content, painted by paint_face(bb, cell, ink) on the
--- ground of the row, ink the gray of its icon. look.down: held down, on a gray square. look.dim: a
--- share to lighten it by, when it does nothing now or is a tool not chosen.
+-- The side of the icon of a button: its share of the card.
+function Kit.iconSide(cell)
+    return math.floor(card_of(cell).w * Theme.BUTTON.icon + 0.5)
+end
+
+-- A button in the cell its row gives it: a card on the ground of the row, with its content painted
+-- by paint_face(bb, cell, ink), ink the gray of its icon. look.down: held down, the card darker.
+-- look.dim: a share to lighten the icon by, when it does nothing now or is a tool not chosen.
 function Kit.button(bb, cell, look, paint_face)
     local style = Theme.BUTTON
+    local card = card_of(cell)
     Kit.fill(bb, cell, style.ground)
-    if look.down then
-        paint_down(bb, cell)
-    end
+    Kit.roundedSquare(bb, card.x, card.y, card.w, math.floor(card.w * style.round + 0.5),
+        look.down and style.down or style.face)
     paint_face(bb, cell, look.down and style.down_ink or style.ink)
     if look.dim then
-        bb:lightenRect(cell.x, cell.y, cell.w, cell.h, look.dim)
+        local side = Kit.iconSide(cell)
+        local x, y = Kit.centred(cell, side, side)
+        bb:lightenRect(x, y, side, side, look.dim)
     end
 end
 

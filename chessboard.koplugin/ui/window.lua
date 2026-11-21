@@ -301,7 +301,7 @@ local function lightening(button, view)
     end
 end
 
--- How a button looks: on a gray square while it is held, and lighter as lightening says.
+-- How a button looks: its card darker while it is held, and lighter as lightening says.
 local function look_of(button, pressed, view)
     return { down = button.id == pressed, dim = lightening(button, view) }
 end
@@ -328,11 +328,8 @@ local function paint_frame(bb, rects)
     local gray = Theme.GRAY
     Kit.fill(bb, rects.window, gray.frame)
     Kit.fill(bb, rects.buttons, gray.row)
-    local ranks, files = rects.ranks, rects.files
-    if ranks then
-        -- From the top of the ranks strip to the bottom of the files one, corner included.
-        Kit.fill(bb, { x = ranks.x, y = ranks.y, w = ranks.w + files.w, h = ranks.h + files.h },
-            gray.gutter)
+    if rects.board_frame then
+        Kit.fill(bb, rects.board_frame, gray.gutter)
     end
 end
 

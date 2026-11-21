@@ -63,8 +63,8 @@ end
 -- A layout for a screen. scale: Layout.scaleFor the screen. sizes, in design pixels: row (height
 -- of the button row under the board), button (width of a button), border, margin (to the screen
 -- edge), min_square, size_step (how much the side of a square changes with each step of resize),
--- gutter (the strips left of and under the board where the coordinates go; 0 or nil to put them
--- on the squares) and notation (height of the strip with the last moves, between the board and
+-- gutter (the strips around the board where the coordinates go; 0 or nil to put them on the
+-- squares) and notation (height of the strip with the last moves, between the board and
 -- the buttons; 0 or nil for none).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
@@ -90,8 +90,8 @@ end
 -- The biggest square size that fits the screen with the controls, and never under the minimum.
 function Layout:maxSquare()
     local p = self.px
-    local room_w = self.screen_w - 2 * (p.margin + p.border) - p.gutter
-    local room_h = self.screen_h - 2 * (p.margin + p.border) - p.gutter - p.notation - p.row
+    local room_w = self.screen_w - 2 * (p.margin + p.border + p.gutter)
+    local room_h = self.screen_h - 2 * (p.margin + p.border + p.gutter) - p.notation - p.row
     return math.max(p.min_square, math.floor(math.min(room_w, room_h) / FILES))
 end
 
@@ -152,10 +152,15 @@ function Layout:moveTo(x, y)
     self.x, self.y = rect.x, rect.y
 end
 
+-- The side of the board with the strips of coordinates around it, as wide as the rows below it.
+function Layout:framedSide()
+    return FILES * self.square + 2 * self.px.gutter
+end
+
 function Layout:windowSize()
     local p = self.px
-    local side = FILES * self.square
-    return side + p.gutter + 2 * p.border, side + p.gutter + p.notation + p.row + 2 * p.border
+    local framed = self:framedSide()
+    return framed + 2 * p.border, framed + p.notation + p.row + 2 * p.border
 end
 
 -- Opening or closing the window drops the drag and shows the main row.
@@ -222,19 +227,25 @@ function Layout:rects()
     local side = FILES * self.square
     local left, top = self.x + p.border, self.y + p.border
     local g, n = p.gutter, p.notation
+    local framed = self:framedSide()
     local rects = {
         window = { x = self.x, y = self.y, w = w, h = h },
-        board = { x = left + g, y = top, w = side, h = side },
-        buttons = { x = left, y = top + side + g + n, w = side + g, h = p.row },
+        board = { x = left + g, y = top + g, w = side, h = side },
+        buttons = { x = left, y = top + framed + n, w = framed, h = p.row },
     }
     if n > 0 then
-        rects.notation = { x = left, y = top + side + g, w = side + g, h = n }
+        rects.notation = { x = left, y = top + framed, w = framed, h = n }
     end
     if g > 0 then
-        rects.ranks = { x = left, y = top, w = g, h = side }
-        rects.files = { x = left + g, y = top + side, w = side, h = g }
-        -- The corner where the two strips meet shows whose turn it is.
-        rects.status = { x = left, y = top + side, w = g, h = g }
+        -- The board with the strips of coordinates around it: ranks left and right, files under
+        -- and over it.
+        rects.board_frame = { x = left, y = top, w = framed, h = framed }
+        rects.ranks = { x = left, y = top + g, w = g, h = side }
+        rects.ranks_right = { x = left + g + side, y = top + g, w = g, h = side }
+        rects.files = { x = left + g, y = top + g + side, w = side, h = g }
+        rects.files_top = { x = left + g, y = top, w = side, h = g }
+        -- The corner where the left and the bottom strips meet shows whose turn it is.
+        rects.status = { x = left, y = top + g + side, w = g, h = g }
     end
     return rects
 end
@@ -323,19 +334,33 @@ function Layout.labelSquares(flipped)
     return list
 end
 
--- Each coordinate label with its square, its kind and the rect it is centred in: the gutter cell
--- next to the square when there are gutters, else the square itself.
+-- The cell of a gutter strip next to a square: in line with its column for a strip of files, with
+-- its row for one of ranks.
+local function gutter_cell(strip, sq, kind)
+    if kind == "file" then
+        return { x = sq.x, y = strip.y, w = sq.w, h = strip.h }
+    end
+    return { x = strip.x, y = sq.y, w = strip.w, h = sq.h }
+end
+
+-- The strips each kind of label goes in when there are gutters: both sides of the board.
+local STRIPS = { file = { "files", "files_top" }, rank = { "ranks", "ranks_right" } }
+
+-- Each coordinate label with its square, its kind and the rect it is centred in: without gutters
+-- the square itself; with them, the cell next to the square in each strip of its kind, so every
+-- file shows over and under the board and every rank on its left and its right.
 function Layout:labels(flipped)
     local r = self:rects()
-    local list = Layout.labelSquares(flipped)
-    for _, label in ipairs(list) do
+    local list = {}
+    for _, label in ipairs(Layout.labelSquares(flipped)) do
         local sq = self:squareRect(label.square, flipped)
         if not r.files then
-            label.rect = sq
-        elseif label.kind == "file" then
-            label.rect = { x = sq.x, y = r.files.y, w = sq.w, h = r.files.h }
+            list[#list + 1] = { square = label.square, kind = label.kind, rect = sq }
         else
-            label.rect = { x = r.ranks.x, y = sq.y, w = r.ranks.w, h = sq.h }
+            for _, strip in ipairs(STRIPS[label.kind]) do
+                list[#list + 1] = { square = label.square, kind = label.kind,
+                    rect = gutter_cell(r[strip], sq, label.kind) }
+            end
         end
     end
     return list
@@ -358,9 +383,9 @@ function Layout:hit(x, y, flipped)
     if not (self.open and inside(r.window, x, y)) then
         return nil
     end
-    local board = r.board
-    x = clamp(x, r.buttons.x, board.x + board.w - 1)
-    y = clamp(y, board.y, r.buttons.y + r.buttons.h - 1)
+    local board, inner = r.board, r.buttons
+    x = clamp(x, inner.x, inner.x + inner.w - 1)
+    y = clamp(y, r.window.y + self.px.border, inner.y + inner.h - 1)
     for _, button in ipairs(self:buttons()) do
         if inside(button.rect, x, y) and button.enabled then
             return { zone = "button", button = button.id, opens = Layout.rowOpenedBy(button.id) }
