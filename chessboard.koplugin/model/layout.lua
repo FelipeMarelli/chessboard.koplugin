@@ -218,11 +218,16 @@ function Layout:windowSize()
     return framed + 2 * p.border, framed + self:stripHeight() + p.row + 2 * p.border
 end
 
+-- Drops the drag going on, and shows the main row.
+local function back_to_main(self)
+    self.drag = nil
+    self.row = MAIN_ROW
+end
+
 -- Opening or closing the window drops the drag and shows the main row.
 function Layout:setOpen(open)
     self.open = open and true or false
-    self.drag = nil
-    self.row = MAIN_ROW
+    back_to_main(self)
 end
 
 function Layout:isOpen()
@@ -294,8 +299,7 @@ function Layout:setSplit(split)
     if split == self.split then
         return false
     end
-    self.drag = nil
-    self.row = MAIN_ROW
+    back_to_main(self)
     self.split = split
     if split then
         self.floating = { square = self.square, x = self.x, y = self.y }
@@ -619,33 +623,36 @@ function Layout:isDragging()
     return self.drag ~= nil
 end
 
+-- Whether a drag is going on that started as name says ("moves", "divides" or "hides").
+local function drag_is(self, name)
+    local d = self.drag
+    return d ~= nil and d[name]
+end
+
 -- True while the finger that went down on the divider of the split screen is still down, so that
 -- it can be marked.
 function Layout:isDividing()
-    local d = self.drag
-    return d ~= nil and d.divides
+    return drag_is(self, "divides")
 end
 
 -- True while the finger that went down on the eye is still down: the window is not shown.
 function Layout:isHidden()
-    local d = self.drag
-    return d ~= nil and d.hides
+    return drag_is(self, "hides")
 end
 
 -- The id of the button held down to drag the window, so that it can be marked while the finger is
 -- on it; nil when no drag that moves the window is going on.
 function Layout:pressedButton()
-    local d = self.drag
-    return d and d.moves and MOVE_BUTTON or nil
+    return drag_is(self, "moves") and MOVE_BUTTON or nil
 end
 
 -- Where the window would be if the finger, now at x, y, were lifted: a window rect, kept on the
 -- screen. Nil when no drag that moves the window is going on.
 function Layout:dragRect(x, y)
-    local d = self.drag
-    if not (d and d.moves) then
+    if not drag_is(self, "moves") then
         return nil
     end
+    local d = self.drag
     return self:fittedRect(self.x + x - d.x, self.y + y - d.y)
 end
 
@@ -659,7 +666,7 @@ function Layout:endDrag(x, y)
     if d and d.divides then
         return self:moveDivider(Split.travel(self.screen_w, self.screen_h, d.x, d.y, x, y))
     elseif not target or (target.x == self.x and target.y == self.y) then
-        return false, d ~= nil and d.moves
+        return false, target ~= nil
     end
     self:moveTo(target.x, target.y)
     return true
