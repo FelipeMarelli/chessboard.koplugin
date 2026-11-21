@@ -28,6 +28,8 @@ Theme.SIZES = {
                     -- white cards do not run into the white border of the board
     divider = 24,   -- the strip dragged to move the edge of the split screen (H18)
     split_controls = 80, -- the least room beside the board for its buttons, split
+    split_button = 80, -- the biggest a button gets, split; the room left is between the board
+                       -- and the buttons
 }
 
 local function gray(value)

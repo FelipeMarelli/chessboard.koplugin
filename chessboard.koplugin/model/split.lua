@@ -121,18 +121,24 @@ function Split.rects(args)
 end
 
 -- The cells of a grid of count buttons in rect, from the top left, row by row: as many columns as
--- make the smaller side of a cell the biggest, all the same size, the grid centred in rect.
-function Split.grid(rect, count)
+-- make the smaller side of a cell the biggest, all the same size and no bigger than max (none when
+-- 0 or nil). The grid is centred in rect; given the axis of the split, it goes to the far side of
+-- rect from the board instead (the right in portrait, the bottom in landscape), so that the room
+-- left over is between the board and the buttons.
+function Split.grid(rect, count, max, axis)
+    local cap = (max or 0) > 0 and max or math.huge
     local best
     for columns = 1, count do
         local rows = math.ceil(count / columns)
-        local w, h = math.floor(rect.w / columns), math.floor(rect.h / rows)
+        local w = math.min(cap, math.floor(rect.w / columns))
+        local h = math.min(cap, math.floor(rect.h / rows))
         if not best or math.min(w, h) > math.min(best.w, best.h) then
             best = { columns = columns, rows = rows, w = w, h = h }
         end
     end
-    local x0 = rect.x + math.floor((rect.w - best.columns * best.w) / 2)
-    local y0 = rect.y + math.floor((rect.h - best.rows * best.h) / 2)
+    local spare_w, spare_h = rect.w - best.columns * best.w, rect.h - best.rows * best.h
+    local x0 = rect.x + (axis == "y" and spare_w or math.floor(spare_w / 2))
+    local y0 = rect.y + (axis == "x" and spare_h or math.floor(spare_h / 2))
     local cells = {}
     for i = 1, count do
         local col, row = (i - 1) % best.columns, math.floor((i - 1) / best.columns)
