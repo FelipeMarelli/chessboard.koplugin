@@ -362,11 +362,17 @@ local function paint_button(bb, button, pressed, view, axis)
     end)
 end
 
--- The divider of the split screen: a strip with a grip in the middle, laid along it; darker while
--- held.
-local function paint_divider(bb, rect, held)
+-- The inside of the window, within its thin frame.
+local function inside_frame(rects)
+    return Kit.inset(rects.window, Theme.px(Theme.SIZES.border))
+end
+
+-- The divider of the split screen: the ground of the window with a short grip in the middle, laid
+-- along it; gray while held. The thin frame of the window is left as the line next to the book.
+local function paint_divider(bb, rects, held)
     local style = Theme.DIVIDER
-    Kit.fill(bb, rect, held and style.held or style.ground)
+    local rect = Geom:new(rects.divider):intersect(Geom:new(inside_frame(rects)))
+    Kit.fill(bb, rect, held and style.held or Theme.GRAY.row)
     local long, thick = Theme.px(style.grip_length), Theme.px(style.grip_width)
     local w, h = long, thick
     if rect.h > rect.w then
@@ -395,16 +401,16 @@ end
 
 -- The divider, marked while held, the same way.
 function Window:repaintDivider()
-    local rect = self.layout:rects().divider
-    paint_divider(Screen.bb, rect, self.layout:isDividing())
-    show_now(rect)
+    local rects = self.layout:rects()
+    paint_divider(Screen.bb, rects, self.layout:isDividing())
+    show_now(rects.divider)
 end
 
 local function paint_frame(bb, rects)
     local gray = Theme.GRAY
     Kit.fill(bb, rects.window, gray.frame)
     -- The whole inside, so the gap between the board and the buttons too, when there is one.
-    Kit.fill(bb, Kit.inset(rects.window, Theme.px(Theme.SIZES.border)), gray.row)
+    Kit.fill(bb, inside_frame(rects), gray.row)
     if rects.board_frame then
         Kit.fill(bb, rects.board_frame, gray.gutter)
     end
@@ -418,7 +424,7 @@ function Window:paintTo(bb)
     local rects = self.layout:rects()
     paint_frame(bb, rects)
     if rects.divider then
-        paint_divider(bb, rects.divider, self.layout:isDividing())
+        paint_divider(bb, rects, self.layout:isDividing())
     end
     local view = self.session:view()
     local strip = rects.notation

@@ -71,11 +71,10 @@ Theme.BUTTON = {
 -- The divider of the split screen: a strip in ground (held while the finger is on it), with a grip
 -- in the middle, grip_length long along it and grip_width thick, in design pixels.
 Theme.DIVIDER = {
-    ground = gray(0xCC),
-    held = gray(0x99),
-    grip = gray(0x44),
-    grip_length = 60,
-    grip_width = 6,
+    held = gray(0xCC),
+    grip = gray(0x88),
+    grip_length = 40,
+    grip_width = 4,
 }
 
 -- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.
