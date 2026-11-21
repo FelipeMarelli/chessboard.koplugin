@@ -38,6 +38,13 @@ function Kit.disc(bb, rect, radius, color, width)
     bb:paintCircle(x, y, radius, color, width)
 end
 
+-- A side, "w" or "b", as a disc of its color with a ring in ink around it: a white disc ringed
+-- in black on a light ground, a black one ringed in white on a dark one.
+function Kit.side(bb, rect, radius, stroke, side, ink)
+    Kit.disc(bb, rect, radius, Theme.SIDE[side])
+    Kit.disc(bb, rect, radius, ink, stroke)
+end
+
 -- A text size_px high in the interface font, centred in rect.
 function Kit.text(bb, rect, text, size_px, color, bold)
     local widget = Theme.text(text, size_px, color, bold)
@@ -82,9 +89,10 @@ end
 -- look.bare: no card, the icon as big as the button.
 function Kit.button(bb, cell, look, paint_face)
     local style = Theme.BUTTON
-    -- What is under the icon: the ground of the row for a bare button, else the card.
-    local under = look.bare and style.ground or (look.down and style.down or style.face)
-    Kit.fill(bb, cell, style.ground)
+    -- What is under the icon: the tray for a bare button, else the card on the ground of the row.
+    local ground = look.bare and style.tray or style.ground
+    local under = look.bare and ground or (look.down and style.down or style.face)
+    Kit.fill(bb, cell, ground)
     if not look.bare then
         local card = card_of(cell)
         Kit.roundedSquare(bb, card.x, card.y, card.w, math.floor(card.w * style.round + 0.5),

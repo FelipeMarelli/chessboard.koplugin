@@ -712,12 +712,12 @@ end
 
 local STEP = 6 -- SIZES.size_step on the emulator
 
-test("the more button shows the buttons used less often: back, size, reset, split and QR",
+test("the more button shows the buttons used less often: back, size, reset, split, QR, dark",
     function()
         local layout = new(632, 840)
         eq(tap_button(layout, "more"), { zone = "button", button = "more", opens = "more" })
         layout:showRow("more")
-        eq(ids_of(layout), { "back", "size", "reset", "split", "qr" })
+        eq(ids_of(layout), { "back", "size", "reset", "split", "qr", "dark" })
         eq(tap_button(layout, "back"), { zone = "button", button = "back", opens = "main" })
         eq(tap_button(layout, "reset"), { zone = "button", button = "reset" })
     end)

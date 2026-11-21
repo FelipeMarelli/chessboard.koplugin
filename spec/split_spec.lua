@@ -161,8 +161,12 @@ end)
 test("portrait, the buttons are on the right of their room, the spare room by the board",
     function()
         local layout = split(PORTRAIT)
-        local room, last = layout:rects().buttons, layout:buttonRect("close")
-        eq(last.x + last.w, room.x + room.w)
+        local right = 0
+        for _, button in ipairs(layout:buttons()) do
+            right = math.max(right, button.rect.x + button.rect.w)
+        end
+        local room = layout:rects().buttons
+        eq(right, room.x + room.w)
     end)
 
 test("split, the moves take the room above the buttons, wherever the divider is", function()
@@ -236,10 +240,10 @@ end)
 
 -- Buttons ------------------------------------------------------------------------------------
 
-test("split, the main row has the buttons of the game, QR, swap and float; no eye, move or size",
+test("split, the main row has the buttons of the game, QR, dark, swap and float; no eye or size",
     function()
-        eq(ids_of(split(PORTRAIT)), { "backward", "forward", "flip", "reset", "edit", "qr", "swap",
-            "float", "close" })
+        eq(ids_of(split(PORTRAIT)), { "backward", "forward", "flip", "reset", "edit", "qr", "dark",
+            "swap", "float", "close" })
     end)
 
 test("the more row of the floating window has the button that splits the screen", function()

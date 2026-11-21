@@ -132,6 +132,7 @@ local ACTIONS = {
     float = function(self) split(self, false) end,
     swap = function(self) repaint_if(self, self.layout:swapSplit()) end,
     qr = show_qr,
+    dark = function(self) repaint_if(self, self.session:toggleDark()) end,
     clear = function(self) repaint_if(self, self.session:clearBoard()) end,
     color = function(self) repaint_if(self, self.session:toggleColor()) end,
 }
@@ -319,21 +320,18 @@ function Window:drop(pos)
     end
 end
 
--- The color button: a white disc with a ring when White's pieces are put, a black disc when
--- Black's are, like the turn in the corner of the board.
+-- The color button: a disc of the color of the pieces put, like the turn in the corner of the
+-- board.
 local function paint_color(bb, face, side, color, ink)
-    local radius = math.floor(side * 0.4)
-    if color == "w" then
-        Kit.disc(bb, face, radius, Theme.BUTTON.face)
-        Kit.disc(bb, face, radius, ink, Theme.px(Theme.BUTTON.stroke))
-    else
-        Kit.disc(bb, face, radius, ink)
-    end
+    Kit.side(bb, face, math.floor(side * 0.4), Theme.px(Theme.BUTTON.stroke), color, ink)
 end
 
 -- The file of the icon of a button: the one that swaps the book and the board points the way the
--- screen is split.
-local function icon_name(id, axis)
+-- screen is split, and the dark one shows the look it switches to.
+local function icon_name(id, axis, dark)
+    if id == "dark" then
+        return dark and "sun" or "moon"
+    end
     return (id == "swap" and axis == "x") and "swap-x" or id
 end
 
@@ -346,7 +344,7 @@ local function paint_icon(bb, id, face, side, view, ink, axis)
     elseif piece then
         Kit.bitmap(bb, Theme.pieceIcon(piece, side), face)
     else
-        Kit.mask(bb, Theme.iconMask(icon_name(id, axis), side), face, ink)
+        Kit.mask(bb, Theme.iconMask(icon_name(id, axis, view.dark), side), face, ink)
     end
 end
 
@@ -412,20 +410,27 @@ local function paint_lift(bb, rects)
     Kit.frame(bb, rects.window, Theme.px(Theme.SIZES.lift), Theme.GRAY.frame)
 end
 
+-- What the session shows, with the theme set to its look, light or dark, before painting it.
+function Window:sessionView()
+    local view = self.session:view()
+    Theme.useDark(view.dark)
+    return view
+end
+
 -- Paints the button held down straight on the screen and shows it at once, with the frame of the
 -- window held by it.
 function Window:repaintButton(id)
     local button, rects = self.layout:button(id), self.layout:rects()
-    paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view(),
-        self.layout:splitAxis())
+    local view = self:sessionView()
+    paint_button(Screen.bb, button, self.layout:pressedButton(), view, self.layout:splitAxis())
     paint_lift(Screen.bb, rects)
     show_now(rects.window)
 end
 
-
 -- The divider, marked while held, the same way.
 function Window:repaintDivider()
     local rects = self.layout:rects()
+    self:sessionView()
     paint_divider(Screen.bb, rects, self.layout:isDividing())
     show_now(rects.divider)
 end
@@ -446,15 +451,15 @@ function Window:paintTo(bb)
         return
     end
     local rects = self.layout:rects()
+    local view = self:sessionView()
     paint_frame(bb, rects)
     if rects.divider then
         paint_divider(bb, rects, self.layout:isDividing())
     end
-    local view = self.session:view()
     local strip = rects.notation
     if strip and view.edit then
         -- While editing, the strip holds the upper buttons of the edit row.
-        Kit.fill(bb, strip, Theme.GRAY.row)
+        Kit.fill(bb, strip, Theme.BUTTON.tray)
     elseif strip then
         Strip.paint(bb, strip, view.notation)
     end

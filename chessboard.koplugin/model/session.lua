@@ -8,7 +8,17 @@ local Session = {}
 Session.__index = Session
 
 function Session.new(game)
-    return setmetatable({ game = game, is_flipped = false }, Session)
+    return setmetatable({ game = game, is_flipped = false, is_dark = false }, Session)
+end
+
+-- Switches between the window drawn light and drawn dark. Returns whether it changed.
+function Session:toggleDark()
+    self.is_dark = not self.is_dark
+    return true
+end
+
+function Session:isDark()
+    return self.is_dark
 end
 
 function Session:flip()
@@ -369,6 +379,7 @@ local function edit_view(self)
         turn = editor:turn(),
         status = "ongoing",
         flipped = self.is_flipped,
+        dark = self.is_dark,
         edit = { color = editor:turn(), piece = piece and piece:lower() },
         notation = { moves = {}, current = 0, numbered = false },
         buttons = {},
@@ -398,6 +409,7 @@ function Session:view()
         notation = notation_of(self.game),
         promotion = promotion_view(self.pending, position),
         flipped = self.is_flipped,
+        dark = self.is_dark,
         buttons = { close = true, flip = true, reset = true,
             backward = self.game:canBack(), forward = self.game:canForward() },
         tool_pieces = {},

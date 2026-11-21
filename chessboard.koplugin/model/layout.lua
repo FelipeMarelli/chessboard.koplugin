@@ -32,7 +32,7 @@ local BACK_BUTTON = "back"
 local ROWS = {
     main = { left = { PEEK_BUTTON, MOVE_BUTTON, "flip", "edit", "more" },
         right = { "close", "forward", "backward" } },
-    more = { left = { BACK_BUTTON, "size", "reset", "split", "qr" }, right = {} },
+    more = { left = { BACK_BUTTON, "size", "reset", "split", "qr", "dark" }, right = {} },
     size = { left = { BACK_BUTTON, "smaller", "bigger" }, right = {} },
     edit = { left = { BACK_BUTTON, "clear", "erase" }, right = {},
         upper = { "color", "king", "queen", "rook", "bishop", "knight", "pawn" } },
@@ -43,7 +43,8 @@ local OPENS = { size = "size", edit = "edit", more = "more" }
 -- the book and the board the other way round, and "float" takes the window back over the page.
 -- The eye has no page under the board to show, and the window is moved and sized by the divider.
 local SPLIT_ROWS = {
-    main = { "backward", "forward", "flip", "reset", "edit", "qr", "swap", "float", "close" },
+    main = { "backward", "forward", "flip", "reset", "edit", "qr", "dark", "swap", "float",
+        "close" },
     edit = { "color", "king", "queen", "rook", "bishop", "knight", "pawn", BACK_BUTTON, "clear",
         "erase" },
 }

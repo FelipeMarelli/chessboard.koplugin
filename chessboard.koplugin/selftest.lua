@@ -1327,9 +1327,46 @@ local function e03(t, plugin)
     return steps
 end
 
+-- The window drawn dark: playing, a selected piece, the editor and the split screen; and light
+-- again.
+local function dark(t, plugin)
+    local session = plugin.session
+    local steps, step = new_steps(plugin)
+    step(function() plugin:toggle() end)
+    step(function()
+        tap_squares(t, plugin, unpack(RUY_LOPEZ, 1, 12))
+        tap_buttons(t, plugin, "more", "dark", "back")
+    end)
+    step(function()
+        t:check("the dark button draws the window dark", session:isDark())
+        tap_squares(t, plugin, "f3")
+    end)
+    step(function()
+        t:shot("dark")
+        tap_squares(t, plugin, "f3")
+        tap_buttons(t, plugin, "edit", "color", "queen")
+    end)
+    step(function()
+        t:shot("editor")
+        tap_buttons(t, plugin, "back", "more", "split")
+    end)
+    step(function()
+        t:shot("split")
+        t:check("split, the window is still dark", session:isDark())
+        tap_buttons(t, plugin, "dark")
+    end)
+    step(function()
+        t:check("the dark button draws it light again", not session:isDark())
+        t:shot("light")
+        tap_buttons(t, plugin, "float")
+        plugin:toggle()
+    end)
+    return steps
+end
+
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
     edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, e03 = e03, readme = readme,
-    kit = kit }
+    kit = kit, dark = dark }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)

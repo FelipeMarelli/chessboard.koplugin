@@ -134,8 +134,8 @@ end
 -- The symbol shown instead of the turn when the game is over.
 local ENDINGS = { checkmate = "#", stalemate = "½" }
 
--- In the corner where the coordinate strips meet: a ring when White moves, a disc when Black
--- does, or the symbol of how the game ended.
+-- In the corner where the coordinate strips meet: a disc of the color of the side to move, or the
+-- symbol of how the game ended.
 local function paint_status(bb, layout, view)
     local r = layout:rects().status
     if not r then
@@ -146,9 +146,8 @@ local function paint_status(bb, layout, view)
     if ending then
         Kit.text(bb, r, ending, math.floor(r.h * style.text_share), style.color, true)
     else
-        local radius = share(r.h, style.radius)
-        Kit.disc(bb, r, radius, style.color,
-            view.turn == "w" and share(r.h, style.ring_width) or radius)
+        Kit.side(bb, r, share(r.h, style.radius), share(r.h, style.ring_width), view.turn,
+            style.color)
     end
 end
 

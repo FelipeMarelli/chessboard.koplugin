@@ -641,3 +641,16 @@ test("interrupting ends an edit and drops a promotion waiting for its piece", fu
     eq(session:interrupt(), true)
     eq(session:isPromoting(), false)
 end)
+
+test("the window is drawn light until dark is chosen, and the choice stays while editing",
+    function()
+        local session = session_at()
+        eq(session:isDark(), false); eq(session:view().dark, false)
+        eq(session:toggleDark(), true)
+        eq(session:isDark(), true); eq(session:view().dark, true)
+        session:startEdit()
+        eq(session:view().dark, true)
+        session:finishEdit()
+        session:toggleDark()
+        eq(session:view().dark, false)
+    end)

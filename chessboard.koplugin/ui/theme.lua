@@ -52,15 +52,17 @@ Theme.GRAY.row = Theme.GRAY.surface
 -- as big as fits in the button leaving gap on each side, with corners rounded by the share round of
 -- its side. Its icon, in ink, takes the share icon of the card, so a big button looks like a small
 -- one, only bigger. A button held down has its card in down and its icon in down_ink. stroke:
--- lines drawn by hand in a button, as thick as those of the icons. The icon of a button that would
--- do nothing is lightened by the share disabled; those of the tools of the editor not chosen by
--- unchosen, so that the chosen one stands out.
+-- lines drawn by hand in a button, as thick as those of the icons. tray: the ground of the bare
+-- buttons, the pieces of the editor, which must show black pieces as well as white ones. The icon
+-- of a button that would do nothing is lightened by the share disabled; those of the tools of the
+-- editor not chosen by unchosen, so that the chosen one stands out.
 Theme.BUTTON = {
     gap = 2,
     round = 0.22,
     icon = 0.66,
     stroke = 2,
     ground = Theme.GRAY.surface,
+    tray = Theme.GRAY.surface,
     face = gray(0xFF),
     ink = gray(0x00),
     down = gray(0xBB),
@@ -103,8 +105,9 @@ Theme.PROMOTION = {
     frame_width = 0.04,
 }
 
--- Whose turn it is, in the corner where the coordinate strips meet: a ring when White moves,
--- a disc when Black does, and a symbol when the game is over. Sizes are shares of the corner.
+-- Whose turn it is, in the corner where the coordinate strips meet: a disc of the color of the
+-- side to move with a ring in color, and a symbol when the game is over. Sizes are shares of the
+-- corner.
 Theme.STATUS = {
     color = gray(0x00),
     radius = 0.3,
@@ -135,6 +138,47 @@ Theme.LABEL = {
     file_corner = "bottom_right",
     rank_corner = "top_left",
 }
+
+-- The colors of the sides, which do not change with the look of the window: the color button of
+-- the editor shows them.
+Theme.SIDE = {
+    w = gray(0xFF),
+    b = gray(0x00),
+}
+
+-- The grays of the window drawn dark, by the table of Theme and the field they replace. The
+-- frame stays black, against the page. The board is darker too, but keeps the contrast of the
+-- pieces: black ones on a darker square, white ones on a lighter one.
+local DARK = {
+    GRAY = { surface = gray(0x44), row = gray(0x44), light_square = gray(0xBB),
+        dark_square = gray(0x88), gutter = gray(0x22) },
+    BUTTON = { ground = gray(0x44), tray = gray(0xAA), face = gray(0x22), ink = gray(0xFF),
+        down = gray(0x88), down_ink = gray(0xFF) },
+    DIVIDER = { held = gray(0x88), grip = gray(0xBB) },
+    MARK = { selected = gray(0x00), target = gray(0x22), capture = gray(0x22),
+        check = gray(0x44) },
+    STATUS = { color = gray(0xFF) },
+    NOTATION = { background = gray(0x44), color = gray(0xFF) },
+    LABEL = { on_gutter = gray(0xFF), on_light = gray(0x44), on_dark = gray(0xFF) },
+}
+
+-- The same fields drawn light, as set above.
+local LIGHT = {}
+for group, fields in pairs(DARK) do
+    LIGHT[group] = {}
+    for field in pairs(fields) do
+        LIGHT[group][field] = Theme[group][field]
+    end
+end
+
+-- Draws the window from now on dark (true) or light (false).
+function Theme.useDark(dark)
+    for group, fields in pairs(dark and DARK or LIGHT) do
+        for field, value in pairs(fields) do
+            Theme[group][field] = value
+        end
+    end
+end
 
 -- How many pixels of this screen a design pixel takes.
 function Theme.scale()
