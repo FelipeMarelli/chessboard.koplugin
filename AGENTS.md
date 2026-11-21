@@ -335,7 +335,7 @@ The only drag, moving the window, starts with `touch` and follows with `pan` and
 ## Interface style
 
 - Icons instead of text on buttons, from Lucide only: simple stroke, single tone.
-- Surfaces of 39 design pixels (7 mm on a 6-inch screen) or more for everything tapped, squares of 24 (4.2 mm) or more; when a row does not fit, its buttons shrink.
+- Surfaces of 39 design pixels (7 mm on a 6-inch screen) or more for everything tapped, squares of 29 (5 mm) or more; when a row does not fit, its buttons shrink, never below the room for the gray square of a held button around its icon.
 - Thin borders, no shadows, gradients or textures.
 - A disabled button looks lighter (60 %) and does not respond.
 - Dialogs only to ask for a name or to confirm something that deletes data.

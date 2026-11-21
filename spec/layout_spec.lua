@@ -355,7 +355,7 @@ end
 -- Layouts with the sizes of ui/theme.lua, at their minimum size, on the emulator and on a screen
 -- of twice the density.
 local function smallest_with_theme_sizes()
-    local sizes = { row = 39, button = 39, border = 2, margin = 11, min_square = 24, gutter = 14,
+    local sizes = { row = 39, button = 39, border = 2, margin = 11, min_square = 29, gutter = 14,
         notation = 26, size_step = 6 }
     local list = {}
     for _, size in ipairs({ { 632, 840 }, { 1272, 1696 } }) do
