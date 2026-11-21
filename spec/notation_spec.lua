@@ -115,3 +115,36 @@ test("C7: the last move is there even when it does not fit whole", function()
     local moves = moves_of(nil, "e2e4", "e7e5", "g1f3")
     eq(show(Notation.fit(moves, true, width_of, 1)), "2.[N]f3")
 end)
+
+-- Each line of some lines of parts as one text.
+local function shown_lines(lines)
+    local out = {}
+    for i, line in ipairs(lines) do
+        out[i] = show(line)
+    end
+    return out
+end
+
+test("over several lines, the moves are cut between moves, without the gap at the cut",
+    function()
+        local moves = moves_of(nil, "e2e4", "e7e5", "g1f3", "b8c6")
+        eq(shown_lines(Notation.lines(moves, true, width_of, 8, 3)),
+            { "1.e4 e5", "2.[N]f3", "[N]c6" })
+        eq(shown_lines(Notation.lines(moves, true, width_of, 19, 3)),
+            { "1.e4 e5 2.[N]f3 [N]c6" })
+    end)
+
+test("over fewer lines than the line needs, the most recent moves that fit", function()
+    local moves = moves_of(nil, "e2e4", "e7e5", "g1f3", "b8c6")
+    eq(shown_lines(Notation.lines(moves, true, width_of, 8, 2)), { "2.[N]f3", "[N]c6" })
+    eq(shown_lines(Notation.lines(moves, true, width_of, 8, 2, 1)), { "1.e4 e5", "2.[N]f3" })
+end)
+
+test("one line of lines is what fit gives", function()
+    local moves = moves_of(nil, "e2e4", "e7e5", "g1f3", "b8c6")
+    for room = 1, 20 do
+        eq(Notation.lines(moves, true, width_of, room, 1)[1], Notation.fit(moves, true, width_of,
+            room), "room " .. room)
+    end
+    eq(Notation.lines({}, true, width_of, 10, 3), {})
+end)

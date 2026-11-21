@@ -73,31 +73,79 @@ local function parts_between(moves, numbered, current, first, last)
     return Notation.parts({ unpack(moves, first, last) }, numbered, current - first + 1)
 end
 
--- The earliest move from which the moves up to last fit in room; last itself when not even it fits.
-local function first_fitting(moves, numbered, current, width_of, room, last)
+-- The parts of each move, and the gap before each one but the first.
+local function by_move(parts)
+    local groups, gaps = { {} }, {}
+    for _, part in ipairs(parts) do
+        if part.kind == "gap" then
+            groups[#groups + 1] = {}
+            gaps[#groups] = part
+        else
+            table.insert(groups[#groups], part)
+        end
+    end
+    return groups, gaps
+end
+
+-- Parts cut into lines no wider than room, between moves: a move goes on the line before when it
+-- fits there after its gap, and else starts a line, alone if it is wider than room.
+local function wrap(parts, width_of, room)
+    local groups, gaps = by_move(parts)
+    local lines, used = {}, 0
+    for i, group in ipairs(groups) do
+        local w, line = width(group, width_of), lines[#lines]
+        local gap = gaps[i]
+        if line and used + width_of(gap) + w <= room then
+            line[#line + 1] = gap
+            used = used + width_of(gap) + w
+        else
+            line = {}
+            lines[#lines + 1] = line
+            used = w
+        end
+        for _, part in ipairs(group) do
+            line[#line + 1] = part
+        end
+    end
+    return lines
+end
+
+-- Whether the moves from first to last take no more than rows lines of room.
+local function fits(moves, numbered, current, width_of, room, rows, first, last)
+    local parts = parts_between(moves, numbered, current, first, last)
+    return #wrap(parts, width_of, room) <= rows
+end
+
+-- The earliest move from which the moves up to last fit in rows lines of room; last itself when
+-- not even it fits.
+local function first_fitting(moves, numbered, current, width_of, room, rows, last)
     local first = last
-    while first > 1
-        and width(parts_between(moves, numbered, current, first - 1, last), width_of) <= room do
+    while first > 1 and fits(moves, numbered, current, width_of, room, rows, first - 1, last) do
         first = first - 1
     end
     return first
 end
 
--- The parts of the moves of a line that fit in room, as wide as width_of says each part is.
--- current is the index of the move that led to the position shown (0 at the start of the line;
--- the last one when nil): it is marked, and always there, even when it does not fit whole. The
--- moves shown end with the line when they can; else they start with the current one (with the
--- first one, at the start).
-function Notation.fit(moves, numbered, width_of, room, current)
+-- The parts of the moves of a line that fit in rows lines of room, a list of parts for each line,
+-- cut between moves. As wide as width_of says each part is. current is the index of the move that
+-- led to the position shown (0 at the start of the line; the last one when nil): it is marked, and
+-- always there, even when it does not fit whole. The moves shown end with the line when they can;
+-- else they start with the current one (with the first one, at the start).
+function Notation.lines(moves, numbered, width_of, room, rows, current)
     current = current or #moves
     local anchor = math.max(current, 1)
     for last = #moves, anchor, -1 do
-        local first = first_fitting(moves, numbered, current, width_of, room, last)
+        local first = first_fitting(moves, numbered, current, width_of, room, rows, last)
         if first <= anchor or last == anchor then
-            return parts_between(moves, numbered, current, first, last)
+            return wrap(parts_between(moves, numbered, current, first, last), width_of, room)
         end
     end
     return {}
+end
+
+-- The parts of the moves of a line that fit in one line of room (see Notation.lines).
+function Notation.fit(moves, numbered, width_of, room, current)
+    return Notation.lines(moves, numbered, width_of, room, 1, current)[1] or {}
 end
 
 return Notation
