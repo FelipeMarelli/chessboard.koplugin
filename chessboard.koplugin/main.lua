@@ -12,7 +12,6 @@ local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Window = require("ui/window")
-local logger = require("logger")
 
 local Screen = Device.screen
 
@@ -123,15 +122,10 @@ function ChessBoard:toggle()
     end
 end
 
--- A failure of the plugin must not stop the reading: log it and close the window.
+-- Calls fn, its failure logged and the window closed (see Window:guard); false when it failed.
 function ChessBoard:guard(what, fn, ...)
-    local ok, result = pcall(fn, ...)
-    if ok then
-        return result
-    end
-    logger.err("chessboard:", what, "failed:", result)
-    pcall(self.layout.setOpen, self.layout, false)
-    return false
+    local ok, result = self.window:guard(what, fn, ...)
+    return ok and result
 end
 
 function ChessBoard:onTap(ges)

@@ -173,15 +173,21 @@ local function cancel_promotion(self)
     repaint_if(self, self.session:cancelPromotion())
 end
 
--- Runs what a tap does, and gives the book the part of the screen left to it after; a failure
--- closes the window, so that the reader can go on.
+-- Calls fn. A failure of the plugin must not stop the reading: it is logged, and closes the
+-- window. Returns whether fn ran, and what it returned.
+function Window:guard(name, fn, ...)
+    local ok, result = pcall(fn, ...)
+    if not ok then
+        logger.err("chessboard:", name, "failed:", result)
+        pcall(self.setOpen, self, false)
+    end
+    return ok, result
+end
+
+-- Runs what a tap does, and gives the book the part of the screen left to it after.
 function Window:run(name, action, ...)
-    local ok, err = pcall(action, self, ...)
-    if ok then
+    if self:guard(name, action, self, ...) then
         self:fitReader()
-    else
-        logger.err("chessboard:", name, "failed:", err)
-        self:setOpen(false)
     end
 end
 
