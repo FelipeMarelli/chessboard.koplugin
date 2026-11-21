@@ -26,6 +26,8 @@ Theme.SIZES = {
     notation = 26,  -- strip with the last moves, between the board and the buttons (H16)
     spacing = 8,    -- gap between the board and a row of buttons right under it, so that their
                     -- white cards do not run into the white border of the board
+    divider = 24,   -- the strip dragged to move the edge of the split screen (H18)
+    split_controls = 80, -- the least room beside the board for its buttons, split
 }
 
 local function gray(value)
@@ -62,6 +64,15 @@ Theme.BUTTON = {
     down_ink = gray(0x00),
     disabled = 0.6,
     unchosen = 0.6,
+}
+
+-- The divider of the split screen: a strip in ground, with a grip in the middle, grip_length
+-- long along it and grip_width thick, in design pixels.
+Theme.DIVIDER = {
+    ground = gray(0xCC),
+    grip = gray(0x44),
+    grip_length = 60,
+    grip_width = 6,
 }
 
 -- Marks on the squares, in the manner of lichess. Sizes are shares of the square side.

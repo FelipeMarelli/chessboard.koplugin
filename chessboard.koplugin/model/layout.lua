@@ -142,7 +142,7 @@ end
 
 -- Sets the screen size. The same size keeps the window where it is, and its size; a new one (the
 -- screen turned) puts it back in the default place and size, until each orientation keeps its own
--- (H14).
+-- (H14). Split, it stays split. True when the size is new.
 function Layout:setScreen(screen_w, screen_h)
     local same = screen_w == self.screen_w and screen_h == self.screen_h
     self.screen_w, self.screen_h = screen_w, screen_h
@@ -151,6 +151,7 @@ function Layout:setScreen(screen_w, screen_h)
         self.floating = same and self.floating or nil
         self.drag = same and self.drag or nil
         self:fitSplit()
+        return not same
     elseif same then
         self.square = self:fittedSquare(self.square)
         self:moveTo(self.x, self.y)
@@ -159,6 +160,7 @@ function Layout:setScreen(screen_w, screen_h)
         self:placeDefault()
         self.drag = nil
     end
+    return not same
 end
 
 -- Centred, at the bottom.

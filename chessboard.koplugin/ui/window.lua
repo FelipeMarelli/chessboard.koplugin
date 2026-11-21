@@ -16,9 +16,17 @@ local Screen = Device.screen
 local Window = {}
 Window.__index = Window
 
--- view: the ReaderView; layout and session: the models it shows.
-function Window.new(view, layout, session)
-    return setmetatable({ view = view, layout = layout, session = session }, Window)
+-- view: the ReaderView; layout and session: the models it shows; area: the ReaderArea that gives
+-- the book its part of the screen while split.
+function Window.new(view, layout, session, area)
+    return setmetatable({ view = view, layout = layout, session = session, area = area }, Window)
+end
+
+-- Gives the book the part of the screen the layout leaves it: all of it, unless split and open.
+-- The screen is painted again whole when that changed. forced: the screen turned, and KOReader
+-- gave the book the whole of it.
+function Window:fitReader(forced)
+    self.area:fit(self.layout:readerRect(), forced)
 end
 
 -- Asks for one repaint of a region of the screen; the page under it is painted again first.
@@ -55,6 +63,7 @@ function Window:setOpen(open)
     end
     self.layout:setOpen(open)
     self:refresh(self.layout:dirtyRect(), open)
+    self:fitReader()
 end
 
 function Window:toggle()
@@ -67,6 +76,15 @@ local function resize(self, steps)
     local before = self.layout:rects()
     if self.layout:resize(steps) then
         self:refresh(self.layout:dirtyRect(before), steps > 0)
+    end
+end
+
+-- Splits the screen between the book and the board, or takes the window back over the page.
+local function split(self, on)
+    self.session:finishEdit()
+    local before = self.layout:rects()
+    if self.layout:setSplit(on) then
+        self:refresh(self.layout:dirtyRect(before), true)
     end
 end
 
@@ -93,6 +111,9 @@ local ACTIONS = {
     forward = function(self) repaint_if(self, self.session:navigate("forward")) end,
     smaller = function(self) resize(self, -1) end,
     bigger = function(self) resize(self, 1) end,
+    split = function(self) split(self, true) end,
+    float = function(self) split(self, false) end,
+    swap = function(self) repaint_if(self, self.layout:swapSplit()) end,
     clear = function(self) repaint_if(self, self.session:clearBoard()) end,
     color = function(self) repaint_if(self, self.session:toggleColor()) end,
     erase = function(self) repaint_if(self, self.session:chooseEraser()) end,
@@ -135,10 +156,13 @@ local function cancel_promotion(self)
     repaint_if(self, self.session:cancelPromotion())
 end
 
--- Runs what a tap does; a failure closes the window, so that the reader can go on.
+-- Runs what a tap does, and gives the book the part of the screen left to it after; a failure
+-- closes the window, so that the reader can go on.
 function Window:run(name, action, ...)
     local ok, err = pcall(action, self, ...)
-    if not ok then
+    if ok then
+        self:fitReader()
+    else
         logger.err("chessboard:", name, "failed:", err)
         self:setOpen(false)
     end
@@ -249,6 +273,7 @@ function Window:drop(pos, marked)
     local hidden = self.layout:isHidden()
     if self.layout:endDrag(pos.x, pos.y) or hidden then
         self:refresh(self.layout:dirtyRect(before), true)
+        self:fitReader()
     elseif marked then
         self:repaintButton(marked)
     end
@@ -266,8 +291,15 @@ local function paint_color(bb, face, side, color, ink)
     end
 end
 
+-- The file of the icon of a button: the one that swaps the book and the board points the way the
+-- screen is split.
+local function icon_name(id, axis)
+    return (id == "swap" and axis == "x") and "swap-x" or id
+end
+
 -- The icon of a button, in ink; in the edit row, the pieces show in the color they are put in.
-local function paint_icon(bb, id, face, side, edit, ink)
+-- axis: the one the screen is split along.
+local function paint_icon(bb, id, face, side, edit, ink, axis)
     local letter = PIECE_BUTTONS[id]
     if id == "color" then
         paint_color(bb, face, side, edit.color, ink)
@@ -275,7 +307,7 @@ local function paint_icon(bb, id, face, side, edit, ink)
         local piece = edit.color == "w" and letter:upper() or letter
         Kit.bitmap(bb, Theme.pieceIcon(piece, side), face)
     else
-        Kit.mask(bb, Theme.iconMask(id, side), face, ink)
+        Kit.mask(bb, Theme.iconMask(icon_name(id, axis), side), face, ink)
     end
 end
 
@@ -314,10 +346,10 @@ local function look_of(button, pressed, view)
 end
 
 -- One button of the row, whole. view is the session view.
-local function paint_button(bb, button, pressed, view)
+local function paint_button(bb, button, pressed, view, axis)
     local side = Kit.iconSide(button.rect, button.upper)
     Kit.button(bb, button.rect, look_of(button, pressed, view), function(target, face, ink)
-        paint_icon(target, button.id, face, side, view.edit, ink)
+        paint_icon(target, button.id, face, side, view.edit, ink, axis)
     end)
 end
 
@@ -326,7 +358,8 @@ end
 -- make the mark wait for the page. The button lies on the window, so nothing of the page is in it.
 function Window:repaintButton(id)
     local button = self.layout:button(id)
-    paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view())
+    paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view(),
+        self.layout:splitAxis())
     UIManager:setDirty(nil, "fast", Geom:new(button.rect))
     UIManager:forceRePaint()
 end
@@ -341,6 +374,19 @@ local function paint_frame(bb, rects)
     end
 end
 
+-- The divider of the split screen: a strip with a grip in the middle, laid along it.
+local function paint_divider(bb, rect)
+    local style = Theme.DIVIDER
+    Kit.fill(bb, rect, style.ground)
+    local long, thick = Theme.px(style.grip_length), Theme.px(style.grip_width)
+    local w, h = long, thick
+    if rect.h > rect.w then
+        w, h = thick, long
+    end
+    local x, y = Kit.centred(rect, w, h)
+    Kit.fill(bb, { x = x, y = y, w = w, h = h }, style.grip)
+end
+
 -- Called by ReaderView after it paints the page.
 function Window:paintTo(bb)
     if not self.layout:isOpen() or self.layout:isHidden() then
@@ -348,6 +394,9 @@ function Window:paintTo(bb)
     end
     local rects = self.layout:rects()
     paint_frame(bb, rects)
+    if rects.divider then
+        paint_divider(bb, rects.divider)
+    end
     local view = self.session:view()
     local strip = rects.notation
     if strip and view.edit then
@@ -357,8 +406,9 @@ function Window:paintTo(bb)
         Strip.paint(bb, strip, view.notation)
     end
     local pressed = self.layout:pressedButton()
+    local axis = self.layout:splitAxis()
     for _, button in ipairs(self.layout:buttons()) do
-        paint_button(bb, button, pressed, view)
+        paint_button(bb, button, pressed, view, axis)
     end
     Board.paint(bb, self.layout, view)
 end

@@ -6,8 +6,10 @@ local Device = require("device")
 local Game = require("chess/game")
 local I18n = require("i18n")
 local Layout = require("model/layout")
+local ReaderArea = require("ui/readerarea")
 local Session = require("model/session")
 local Theme = require("ui/theme")
+local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Window = require("ui/window")
 local logger = require("logger")
@@ -103,7 +105,7 @@ function ChessBoard:addToMainMenu(menu_items)
 end
 
 function ChessBoard:onReaderReady()
-    self.window = Window.new(self.view, self.layout, self.session)
+    self.window = Window.new(self.view, self.layout, self.session, ReaderArea.new(self.ui))
     self.view:registerViewModule("chessboard", self)
     local zones = { touch_zone("tap", TAP_OVERRIDES, function(ges) return self:onTap(ges) end) }
     for ges, overrides in pairs(DRAG_OVERRIDES) do
@@ -145,9 +147,15 @@ function ChessBoard:paintTo(bb)
     self:guard("paint", self.window.paintTo, self.window, bb)
 end
 
--- Called by ReaderView when the screen turns or changes size.
+-- Called by ReaderView when the screen turns or changes size, and when the book is given a part of
+-- the screen. On a turned screen KOReader gives the book the whole of it: once it is done, the book
+-- is given its part again.
 function ChessBoard:resetLayout()
-    self.layout:setScreen(Screen:getWidth(), Screen:getHeight())
+    if self.layout:setScreen(Screen:getWidth(), Screen:getHeight()) and self.window then
+        UIManager:nextTick(function()
+            self:guard("turn", self.window.fitReader, self.window, true)
+        end)
+    end
 end
 
 function ChessBoard:onCloseDocument()
