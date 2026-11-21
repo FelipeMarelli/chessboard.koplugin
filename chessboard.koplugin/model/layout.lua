@@ -1,9 +1,12 @@
 -- Geometry of the floating window: where it is, its parts, its buttons and which part a point hits.
 --
--- Rectangles are plain tables { x, y, w, h } in whole pixels. Sizes come in millimetres and are
--- turned into pixels with the screen density, so the same numbers work on any screen.
+-- Rectangles are plain tables { x, y, w, h } in whole pixels. Sizes come in design pixels, the
+-- pixels of a reference screen of 600 by 800, and are scaled to the screen (Layout.scaleFor).
 local Layout = {}
 Layout.__index = Layout
+
+-- The reference screen of the design pixels: its short side and its long side.
+local REFERENCE_SHORT, REFERENCE_LONG = 600, 800
 
 local BOARD_SHARE = 0.6 -- of the short side of the screen, on first open
 local FILES = 8
@@ -32,13 +35,21 @@ local OPENS = { size = "size", edit = "edit" }
 -- goes towards.
 local RESIZES = { smaller = -1, bigger = 1 }
 
-local function px(mm, px_per_mm)
-    return math.max(1, math.floor(mm * px_per_mm + 0.5))
+-- How many pixels of a screen a design pixel takes: as much as the reference screen grows to fit
+-- in it, by its short and long sides, so turning the screen does not change it.
+function Layout.scaleFor(screen_w, screen_h)
+    local short, long = math.min(screen_w, screen_h), math.max(screen_w, screen_h)
+    return math.min(short / REFERENCE_SHORT, long / REFERENCE_LONG)
+end
+
+-- A size in design pixels on a screen of a scale, in whole pixels and never under one.
+function Layout.px(size, scale)
+    return math.max(1, math.floor(size * scale + 0.5))
 end
 
 -- A size that may be left out: 0 when it is nil or 0.
-local function optional_px(mm, px_per_mm)
-    return (mm or 0) > 0 and px(mm, px_per_mm) or 0
+local function optional_px(size, scale)
+    return (size or 0) > 0 and Layout.px(size, scale) or 0
 end
 
 local function inside(rect, x, y)
@@ -49,24 +60,26 @@ local function clamp(value, low, high)
     return math.max(low, math.min(high, value))
 end
 
--- A layout for a screen. sizes, in millimetres: row (height of the button row under the board),
--- button (width of a button), border, margin (to the screen edge), min_square, size_step (how much
--- the side of a square changes with each step of resize), gutter (the strips left of and
--- under the board where the coordinates go; 0 or nil to put them on the squares) and notation
--- (height of the strip with the last moves, between the board and the buttons; 0 or nil for none).
+-- A layout for a screen. scale: Layout.scaleFor the screen. sizes, in design pixels: row (height
+-- of the button row under the board), button (width of a button), border, margin (to the screen
+-- edge), min_square, size_step (how much the side of a square changes with each step of resize),
+-- gutter (the strips left of and under the board where the coordinates go; 0 or nil to put them
+-- on the squares) and notation (height of the strip with the last moves, between the board and
+-- the buttons; 0 or nil for none).
 function Layout.new(args)
     local self = setmetatable({}, Layout)
-    local ppm = args.px_per_mm
+    local scale = args.scale
     local sizes = args.sizes
+    local px = Layout.px
     self.px = {
-        row = px(sizes.row, ppm),
-        button = px(sizes.button, ppm),
-        border = px(sizes.border, ppm),
-        margin = px(sizes.margin, ppm),
-        min_square = px(sizes.min_square, ppm),
-        size_step = px(sizes.size_step, ppm),
-        gutter = optional_px(sizes.gutter, ppm),
-        notation = optional_px(sizes.notation, ppm),
+        row = px(sizes.row, scale),
+        button = px(sizes.button, scale),
+        border = px(sizes.border, scale),
+        margin = px(sizes.margin, scale),
+        min_square = px(sizes.min_square, scale),
+        size_step = px(sizes.size_step, scale),
+        gutter = optional_px(sizes.gutter, scale),
+        notation = optional_px(sizes.notation, scale),
     }
     self.open = false
     self.row = MAIN_ROW

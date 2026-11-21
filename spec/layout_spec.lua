@@ -6,14 +6,38 @@ local eq, test = Helper.eq, Helper.test
 
 local sq = Rules.squareFromName
 
-local SIZES = { row = 7, button = 9, border = 0.3, margin = 2, min_square = 5, size_step = 1 }
-local PX_PER_MM = 150 / 25.4
+-- Sizes in design pixels; on the emulator (632 by 840) one is 1.05 pixels.
+local SIZES = { row = 39, button = 50, border = 2, margin = 11, min_square = 29, size_step = 6 }
+local SCALE = Layout.scaleFor(632, 840)
+-- The smallest surface to tap, 7 mm on a 6-inch screen.
+local MIN_TOUCH = 39
 
 local function new(w, h, open)
-    local layout = Layout.new{ screen_w = w, screen_h = h, px_per_mm = PX_PER_MM, sizes = SIZES }
+    local layout = Layout.new{ screen_w = w, screen_h = h, scale = SCALE, sizes = SIZES }
     layout:setOpen(open ~= false)
     return layout
 end
+
+-- Design pixels -------------------------------------------------------------------------------
+
+test("a design pixel grows with the screen, as the 600 by 800 one fits in it", function()
+    eq(Layout.scaleFor(600, 800), 1)
+    eq(Layout.scaleFor(1200, 1600), 2)
+    eq(Layout.scaleFor(632, 840), 1.05) -- the long side is the tighter one
+    eq(Layout.scaleFor(1200, 1800), 2) -- and here the short one
+end)
+
+test("turning the screen does not change the size of a design pixel", function()
+    eq(Layout.scaleFor(840, 632), Layout.scaleFor(632, 840))
+    eq(Layout.scaleFor(1648, 1236), Layout.scaleFor(1236, 1648))
+end)
+
+test("a size in design pixels is whole pixels, rounded, and never under one", function()
+    eq(Layout.px(39, 1.05), 41)
+    eq(Layout.px(10, 2.06), 21)
+    eq(Layout.px(2, 1.05), 2)
+    eq(Layout.px(0.2, 1), 1)
+end)
 
 local function is_int(n)
     return type(n) == "number" and n % 1 == 0
@@ -96,12 +120,12 @@ local function buttons_in(layout, area)
     return list
 end
 
--- Every button of the row shown is in the row under the board, 7 mm or more on each side, or in
--- the strip of moves (the upper ones of the edit row), as high as the strip. Narrower than 7 mm
--- only when their area has no room for them all at 7 mm, and then all of the same width.
-local function assert_buttons_fit(layout, px_per_mm)
+-- Every button of the row shown is in the row under the board, MIN_TOUCH or more on each side, or
+-- in the strip of moves (the upper ones of the edit row), as high as the strip. Narrower than
+-- MIN_TOUCH only when their area has no room for them all at it, and then all of the same width.
+local function assert_buttons_fit(layout, scale)
     local rects = layout:rects()
-    local seven = 7 * px_per_mm - 1
+    local seven = MIN_TOUCH * scale - 1
     local count = 0
     local function check(area)
         local buttons = buttons_in(layout, area)
@@ -109,11 +133,11 @@ local function assert_buttons_fit(layout, px_per_mm)
         for _, button in ipairs(buttons) do
             eq(button.rect.h, area.h)
             assert(button.rect.w >= seven or (not room and button.rect.w == buttons[1].rect.w),
-                "button narrower than 7 mm: " .. button.id)
+                "button narrower than MIN_TOUCH: " .. button.id)
         end
         count = count + #buttons
     end
-    assert(rects.buttons.h >= seven, "row lower than 7 mm")
+    assert(rects.buttons.h >= seven, "row lower than MIN_TOUCH")
     check(rects.buttons)
     if rects.notation then
         check(rects.notation)
@@ -126,7 +150,7 @@ test("C2: eye, move, flip, size, reset and edit from the left; backward, forward
     function()
         local layout = new(632, 840)
         local row = layout:rects().buttons
-        assert_buttons_fit(layout, PX_PER_MM)
+        assert_buttons_fit(layout, SCALE)
         eq(ids_of(layout), MAIN_ROW)
         eq(layout:buttonRect("peek").x, row.x)
         eq(layout:buttonRect("close").x + layout:buttonRect("close").w, row.x + row.w)
@@ -331,12 +355,12 @@ end
 -- Layouts with the sizes of ui/theme.lua, at their minimum size, on the emulator and on a screen
 -- of twice the density.
 local function smallest_with_theme_sizes()
-    local sizes = { row = 7, button = 7, border = 0.3, margin = 2, min_square = 4.2, gutter = 2.5,
-        notation = 4.5, size_step = 1 }
+    local sizes = { row = 39, button = 39, border = 2, margin = 11, min_square = 24, gutter = 14,
+        notation = 26, size_step = 6 }
     local list = {}
     for _, size in ipairs({ { 632, 840 }, { 1272, 1696 } }) do
         local layout = Layout.new{ screen_w = size[1], screen_h = size[2],
-            px_per_mm = size[1] / 632 * PX_PER_MM, sizes = sizes }
+            scale = Layout.scaleFor(size[1], size[2]), sizes = sizes }
         layout:setOpen(true)
         list[#list + 1] = smallest(layout)
     end
@@ -357,7 +381,7 @@ test("H04 C1: with the window at its minimum size the buttons do not overlap", f
     end
 end)
 
-local MARGIN = 12 -- 2 mm at 150 dpi
+local MARGIN = 12 -- SIZES.margin on the emulator
 
 test("H04: moveTo puts the top left corner of the window at a point", function()
     local layout = new(632, 840)
@@ -573,13 +597,13 @@ local function with_sizes(w, h, more)
     local sizes = {}
     for k, v in pairs(SIZES) do sizes[k] = v end
     for k, v in pairs(more) do sizes[k] = v end
-    local layout = Layout.new{ screen_w = w, screen_h = h, px_per_mm = PX_PER_MM, sizes = sizes }
+    local layout = Layout.new{ screen_w = w, screen_h = h, scale = SCALE, sizes = sizes }
     layout:setOpen(true)
     return layout
 end
 
 local function with_gutter(w, h)
-    return with_sizes(w, h, { gutter = 2.5 })
+    return with_sizes(w, h, { gutter = 14 })
 end
 
 test("C7: without gutters each label is centred in its own square", function()
@@ -597,7 +621,7 @@ test("C7: with gutters, ranks go in a strip left of the board and files in one u
         for _, size in ipairs(SCREENS) do
             local layout = with_gutter(size[1], size[2])
             local r = layout:rects()
-            local g = 15 -- 2.5 mm at 150 dpi
+            local g = 15 -- a gutter of 14 on the emulator
             eq(r.ranks, { x = r.board.x - g, y = r.board.y, w = g, h = r.board.h })
             eq(r.files, { x = r.board.x, y = r.board.y + r.board.h, w = r.board.w, h = g })
             eq(r.buttons.y, r.files.y + g)
@@ -679,7 +703,7 @@ local function tap_button(layout, id)
     return layout:hit(center(layout:buttonRect(id)))
 end
 
-local STEP = 6 -- 1 mm at 150 dpi
+local STEP = 6 -- SIZES.size_step on the emulator
 
 test("H05 C1: the size button shows the size row: back, smaller and bigger", function()
     local layout = new(632, 840)
@@ -796,13 +820,13 @@ test("H05 C6: the region to repaint after a resize covers the window before and 
 end)
 
 -- This criterion changed on 15 November 2026: when a row has no room for its buttons at
--- 7 mm they are narrowed, instead of going to two rows.
+-- MIN_TOUCH they are narrowed, instead of going to two rows.
 test("H05 C7: at the minimum size the buttons of every row fit and are apart, narrowed if need be",
     function()
         for _, layout in ipairs(smallest_with_theme_sizes()) do
             for _, row in ipairs({ "main", "size", "edit" }) do
                 layout:showRow(row)
-                assert_buttons_fit(layout, layout.screen_w / 632 * PX_PER_MM)
+                assert_buttons_fit(layout, Layout.scaleFor(layout.screen_w, layout.screen_h))
                 assert_apart(layout:buttons())
             end
         end
@@ -846,7 +870,7 @@ end)
 
 -- H16: the strip with the last moves --------------------------------------------------------
 
-local NOTATION = { gutter = 2.5, notation = 4.5 }
+local NOTATION = { gutter = 14, notation = 26 }
 
 test("H16 C1: the strip of moves goes between the board and the buttons, as wide as the row",
     function()
@@ -855,7 +879,7 @@ test("H16 C1: the strip of moves goes between the board and the buttons, as wide
             local n = r.notation
             eq(n.y, r.files.y + r.files.h)
             eq(n.y + n.h, r.buttons.y)
-            eq(n.h, 27) -- 4.5 mm at 150 dpi
+            eq(n.h, 27) -- a strip of 26 on the emulator
             eq({ n.x, n.w }, { r.buttons.x, r.buttons.w })
             assert(contains(r.window, n))
         end

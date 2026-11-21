@@ -86,7 +86,7 @@ function ChessBoard:init()
     self.layout = Layout.new{
         screen_w = Screen:getWidth(),
         screen_h = Screen:getHeight(),
-        px_per_mm = Theme.pxPerMm(),
+        scale = Theme.scale(),
         sizes = Theme.SIZES,
     }
     self.session = Session.new(assert(Game.new()))

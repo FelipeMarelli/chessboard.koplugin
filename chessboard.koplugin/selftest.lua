@@ -220,7 +220,7 @@ function SelfTest:minimumLayout()
     local min_px = Theme.px(Theme.SIZES.min_square)
     local side = math.ceil(8 * min_px / 0.6) + 1
     local layout = Layout.new{ screen_w = side, screen_h = side + 2 * Theme.px(Theme.SIZES.row),
-        px_per_mm = Theme.pxPerMm(), sizes = Theme.SIZES }
+        scale = Theme.scale(), sizes = Theme.SIZES }
     layout:setOpen(true)
     return layout
 end
@@ -1135,7 +1135,7 @@ end
 -- The kit: every look of a button, at the width of a row with room and at the narrowest one, with
 -- the kinds of content a button has. It paints straight on the screen, for a screenshot to judge
 -- the style by; it checks nothing.
-local KIT_NARROW = 4.2 -- mm, about the narrowest a button of the main row gets
+local KIT_NARROW = 24 -- about the narrowest a button of the main row gets
 local KIT_LOOKS = { {}, { down = true }, { dim = true } }
 
 local function kit_contents(Kit, Theme, side)

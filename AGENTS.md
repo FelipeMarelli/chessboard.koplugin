@@ -117,7 +117,7 @@ Dependency rules:
 
 - Arrows only point down: `ui/` and `main.lua` use `model/`; `model/` uses `chess/`; `chess/` uses nothing.
 - `chess/` and `model/` do not `require` any KOReader module, nor `ui/`, and do not touch files, the clock or the screen. They take numbers and tables and return numbers and tables; the date, the page and the screen size are passed as arguments. `spec/run.lua` checks this by loading them where KOReader `require`s fail.
-- `model/layout.lua` works with rectangles as plain tables and gets the screen size and density as data. It does not know `Geom` or `Screen`.
+- `model/layout.lua` works with rectangles as plain tables and gets the screen size and scale as data. It does not know `Geom` or `Screen`.
 - `model/session.lua` exposes what must be drawn as data; `ui/board.lua` walks that and paints.
 - `store.lua` only carries the table that `model/state.lua` produces to the document settings and back. Validation and version migration are in `model/state.lua`.
 - `main.lua` wires the pieces together and holds no chess, interaction or drawing logic.
@@ -183,7 +183,8 @@ The starting position must pass `rules.validate`. The cursor is the number of mo
 **`model/layout.lua`**
 
 ```lua
-layout.new{ screen_w, screen_h, px_per_mm, sizes }
+layout.new{ screen_w, screen_h, scale, sizes }
+layout.scaleFor(screen_w, screen_h)   layout.px(size, scale)
 layout:setScreen(screen_w, screen_h)          -- rotation; keeps the window inside
 layout:rects()      -- -> { window, board, buttons, strip, notation?, status? }
 layout:squareRect(sq, flipped)
@@ -200,7 +201,7 @@ layout:dirtyRect(previous_rects)
 layout:serialize()         layout.deserialize(table, screen)
 ```
 
-- `sizes` carries millimeters defined in `ui/theme.lua`: `row`, `button`, `border`, `margin`, `min_square`, `size_step` and `notation` (height of the move strip; 0 or nothing, no strip).
+- `sizes` carries design pixels defined in `ui/theme.lua`, and `scale` is `layout.scaleFor` the screen: `row`, `button`, `border`, `margin`, `min_square`, `size_step` and `notation` (height of the move strip; 0 or nothing, no strip).
 - The window shows one button row at a time, by name (`"main"`, `"size"`, the editor's). A button can open another row instead of acting (`opens`); `"back"` opens the main one; opening or closing the window goes back to the main one. To add a row, declare it in `model/layout.lua` with the button that opens it. A row can have top buttons, in the place of the move strip.
 - Buttons are laid out like a CSS flex row: if they don't fit at their size, they all shrink equally.
 - Main row, from the left: eye (while the finger is on it the window is hidden: `isHidden`), move (the only place from which a drag moves the window), flip, size, reset (trash can) and edit; on the right, backward, forward and close. Held down, the arrows go to the start and the end of the line.
@@ -304,7 +305,7 @@ The only drag, moving the window, starts with `touch` and follows with `pan` and
 - Only the region that changed is marked dirty: the window, or the union of the old and new regions when the window moves, resizes or changes state. Switching button rows repaints only the row.
 - Refresh `ui` (no flash) for normal use, and `flashui` on the window when it covers new text (opening and enlarging): on the Kindle's MTK screen, `ui` let the text show through the gray squares.
 - During a drag the window jumps to the new place on release, like KOReader's `MovableContainer`; it is not drawn along the way (on the Kindle, an outline following the finger lagged about 30 s). Only the move button is marked, once, as soon as the finger lands: painted directly on screen with a `fast` refresh and `forceRePaint`, like `Button:_doFeedbackHighlight`. KOReader only sends the first `pan` after about 35 dp of movement.
-- Sizes in millimeters in `ui/theme.lua`, converted with the screen density. No fixed pixels outside that file.
+- Sizes in design pixels in `ui/theme.lua`: pixels of a 600×800 reference screen, scaled by `min(short side / 600, long side / 800)` so turning the screen does not change them. On a 6-inch screen one is about 0.18 mm. No sizes outside that file.
 - Cache bitmaps are freed when the square size changes and when the book is closed.
 
 ### Board on electronic ink
@@ -334,7 +335,7 @@ The only drag, moving the window, starts with `touch` and follows with `pan` and
 ## Interface style
 
 - Icons instead of text on buttons, from Lucide only: simple stroke, single tone.
-- Surfaces of 7 mm or more for everything tapped, squares of 4 mm or more; when a row does not fit, its buttons shrink (minimum square 4.2 mm).
+- Surfaces of 39 design pixels (7 mm on a 6-inch screen) or more for everything tapped, squares of 24 (4.2 mm) or more; when a row does not fit, its buttons shrink.
 - Thin borders, no shadows, gradients or textures.
 - A disabled button looks lighter (60 %) and does not respond.
 - Dialogs only to ask for a name or to confirm something that deletes data.

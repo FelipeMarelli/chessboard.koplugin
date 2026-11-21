@@ -1,10 +1,12 @@
 -- Sizes, grays and the cache of bitmaps the window is drawn with.
 --
--- Sizes are in millimetres and grays are values from 0 (black) to 255 (white). They are first
--- guesses, to be tuned on the Kindle.
+-- Sizes are in design pixels, those of a screen of 600 by 800 scaled to the real one
+-- (Layout.scaleFor): on a 6-inch screen one is about 0.18 mm. Grays are values from 0 (black) to
+-- 255 (white). They are first guesses, to be tuned on the Kindle.
 local Blitbuffer = require("ffi/blitbuffer")
 local Device = require("device")
 local Font = require("ui/font")
+local Layout = require("model/layout")
 local RenderImage = require("ui/renderimage")
 local TextWidget = require("ui/widget/textwidget")
 
@@ -14,14 +16,14 @@ local Theme = {}
 
 -- Window geometry, for model/layout.lua.
 Theme.SIZES = {
-    row = 7,        -- height of the button row under the board
-    button = 7,     -- button width
-    border = 0.3,   -- window frame
-    margin = 2,     -- gap to the screen edge
-    min_square = 4.2,
-    size_step = 1,  -- how much the side of a square changes with each tap on smaller or bigger
-    gutter = 2.5,   -- strips for the coordinates outside the board; 0 puts them on the squares
-    notation = 4.5, -- strip with the last moves, between the board and the buttons (H16)
+    row = 39,       -- height of the button row under the board
+    button = 39,    -- button width
+    border = 2,     -- window frame
+    margin = 11,    -- gap to the screen edge
+    min_square = 24,
+    size_step = 6,  -- how much the side of a square changes with each tap on smaller or bigger
+    gutter = 14,    -- strips for the coordinates outside the board; 0 puts them on the squares
+    notation = 26,  -- strip with the last moves, between the board and the buttons (H16)
 }
 
 local function gray(value)
@@ -37,16 +39,16 @@ Theme.GRAY = {
 }
 
 -- Buttons (ui/kit.lua): a box with rounded corners and a thin border in each cell of its row,
--- parted from the next by gap, its icon inside by pad; in mm. A button held down, or the tool of
+-- parted from the next by gap, its icon inside by pad. A button held down, or the tool of
 -- the editor chosen, has the down ground. A button that would do nothing is lightened by the
 -- share disabled. stroke: lines drawn by hand in a button, as thick as those of the icons.
 Theme.BUTTON = {
-    gap = 0.5,
-    pad = 0.4,
-    radius = 1.2,
-    border = 0.3,
-    icon = 4.2,
-    stroke = 0.4,
+    gap = 3,
+    pad = 2,
+    radius = 7,
+    border = 2,
+    icon = 24,
+    stroke = 2,
     ground = Theme.GRAY.row,
     face = gray(0xFF),
     down = gray(0xBB),
@@ -89,13 +91,13 @@ Theme.STATUS = {
 }
 
 -- The strip with the last moves. text_share: text height as a share of the strip;
--- gap (between moves) and pad (at the ends) in mm.
+-- gap (between moves) and pad (at the ends).
 Theme.NOTATION = {
     background = gray(0xFF),
     color = gray(0x00),
     text_share = 0.6,
-    gap = 1.5,
-    pad = 1,
+    gap = 9,
+    pad = 6,
 }
 
 -- Coordinate labels. share: text height as a share of the square; gutter_share: as a share of
@@ -112,12 +114,14 @@ Theme.LABEL = {
     rank_corner = "top_left",
 }
 
-function Theme.pxPerMm()
-    return Screen:getDPI() / 25.4
+-- How many pixels of this screen a design pixel takes.
+function Theme.scale()
+    return Layout.scaleFor(Screen:getWidth(), Screen:getHeight())
 end
 
-function Theme.px(mm)
-    return math.max(1, math.floor(mm * Theme.pxPerMm() + 0.5))
+-- A size in design pixels, in pixels of this screen.
+function Theme.px(size)
+    return Layout.px(size, Theme.scale())
 end
 
 -- Font:getFace scales the size it gets with the screen; this asks for a size in pixels.
