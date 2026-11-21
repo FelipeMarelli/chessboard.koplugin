@@ -186,10 +186,10 @@ end)
 
 -- Buttons ------------------------------------------------------------------------------------
 
-test("split, the main row has every button of the floating one but the eye, and swap and float",
+test("split, the main row has the buttons of the game, and swap and float; no eye, move or size",
     function()
-        eq(ids_of(split(PORTRAIT)), { "backward", "forward", "flip", "reset", "edit", "size",
-            "move", "swap", "float", "close" })
+        eq(ids_of(split(PORTRAIT)), { "backward", "forward", "flip", "reset", "edit", "swap",
+            "float", "close" })
     end)
 
 test("the size row of the floating window has the button that splits the screen", function()
@@ -211,7 +211,7 @@ end)
 test("split, the buttons are big, apart and inside the room beside the board", function()
     for _, size in ipairs(SCREENS) do
         local layout = split(size)
-        for _, row in ipairs({ "main", "size", "edit" }) do
+        for _, row in ipairs({ "main", "edit" }) do
             layout:showRow(row)
             local buttons = layout:buttons()
             for i, button in ipairs(buttons) do
@@ -242,8 +242,8 @@ test("split, a tap finds the squares, the buttons, the strip and the divider", f
         eq(layout:hit(center(layout:squareRect(Rules.squareFromName("e4"), false))),
             { zone = "board", square = Rules.squareFromName("e4") })
         eq(layout:hit(center(layout:buttonRect("swap"))), { zone = "button", button = "swap" })
-        eq(layout:hit(center(layout:buttonRect("size"))),
-            { zone = "button", button = "size", opens = "size" })
+        eq(layout:hit(center(layout:buttonRect("edit"))),
+            { zone = "button", button = "edit", opens = "edit" })
         eq(layout:hit(center(layout:rects().notation)), { zone = "notation" })
         eq(layout:hit(center(layout:rects().divider)), { zone = "divider" })
         eq(layout:hit(center(layout:rects().reader)), nil)
@@ -294,16 +294,6 @@ test("the divider stops at its limits, and a drag across it does nothing", funct
     assert(layout:squareSize() >= layout.px.min_square)
 end)
 
-test("the move button drags the divider too, and is marked while held", function()
-    local layout = split(PORTRAIT)
-    local x, y = center(layout:buttonRect("move"))
-    layout:startDrag(x, y, false)
-    eq(layout:pressedButton(), "move")
-    eq(layout:endDrag(x, y + 50), true)
-    eq(layout:textLength(), 470)
-    eq(layout:pressedButton(), nil)
-end)
-
 test("while a promotion waits for its piece the divider does not move", function()
     local layout = split(PORTRAIT)
     local x, y = center(layout:rects().divider)
@@ -316,24 +306,6 @@ test("a drag from the board does not move the divider", function()
     local layout = split(PORTRAIT)
     eq(drag(layout, layout:rects().board, 0, -60), false)
     eq(layout:textLength(), 420)
-end)
-
-test("split, the size buttons move the divider by as much as the board grows", function()
-    local layout = split(PORTRAIT)
-    local step = 8 * layout.px.size_step
-    eq(layout:resize(1), true)
-    eq(layout:textLength(), 420 - step)
-    eq(layout:resize(-2), true)
-    eq(layout:textLength(), 420 + step)
-    local least, most = Split.textLimits(632, 840, layout.px)
-    while layout:resize(1) do end
-    eq(layout:textLength(), least)
-    eq(layout:canResize(1), false)
-    eq(layout:canResize(-1), true)
-    while layout:resize(-1) do end
-    eq(layout:textLength(), most)
-    layout:showRow("size")
-    eq(layout:button("smaller").enabled, false)
 end)
 
 -- Floating again and turning the screen --------------------------------------------------------

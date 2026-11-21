@@ -36,13 +36,11 @@ local ROWS = {
 }
 local OPENS = { size = "size", edit = "edit" }
 
--- The buttons of each row while split, in a grid beside the board, from the top left. The size
--- row moves the divider; "swap" puts the book and the board the other way round, and "float"
--- takes the window back over the page. The eye has no page under the board to show.
+-- The buttons of each row while split, in a grid beside the board, from the top left. "swap" puts
+-- the book and the board the other way round, and "float" takes the window back over the page.
+-- The eye has no page under the board to show, and the window is moved and sized by the divider.
 local SPLIT_ROWS = {
-    main = { "backward", "forward", "flip", "reset", "edit", "size", MOVE_BUTTON, "swap",
-        "float", "close" },
-    size = { BACK_BUTTON, "smaller", "bigger" },
+    main = { "backward", "forward", "flip", "reset", "edit", "swap", "float", "close" },
     edit = { "color", "king", "queen", "rook", "bishop", "knight", "pawn", BACK_BUTTON, "clear",
         "erase" },
 }
@@ -238,30 +236,16 @@ function Layout:resizedSquare(steps)
     return self:fittedSquare(self.square + steps * self.px.size_step)
 end
 
--- While split, the room for the book after some steps of resize: each step takes from it as much
--- as the board would grow.
-function Layout:resizedText(steps)
-    return Split.fitText(self.screen_w, self.screen_h, self.px,
-        self:textLength() - steps * FILES * self.px.size_step)
-end
-
 -- True when some steps of resize would change the size: false at the limit they go towards.
--- While split, they move the divider.
 function Layout:canResize(steps)
-    if self.split then
-        return self:resizedText(steps) ~= self:textLength()
-    end
     return self:resizedSquare(steps) ~= self.square
 end
 
 -- Grows (steps > 0) or shrinks the board by some steps, up to its limits. The top left corner
--- stays, unless the window would go off the screen. While split, the divider moves by as much as
--- the board would grow. True when the size changed.
+-- stays, unless the window would go off the screen. True when the size changed.
 function Layout:resize(steps)
     if not self:canResize(steps) then
         return false
-    elseif self.split then
-        return self:setTextLength(self:resizedText(steps))
     end
     self.square = self:resizedSquare(steps)
     self:moveTo(self.x, self.y)
@@ -369,7 +353,7 @@ end
 -- ROWS), and is kept on the screen when it grows back. Returns whether the window changed size
 -- and whether it grew.
 function Layout:showRow(name)
-    assert(ROWS[name], "no such row")
+    assert(ROWS[name] and (SPLIT_ROWS[name] or not self.split), "no such row")
     local _, before = self:windowSize()
     self.row = name
     self:moveTo(self.x, self.y)
@@ -602,9 +586,9 @@ end
 
 -- Drags. A drag runs from the finger down to the finger up and is the window's when it starts on
 -- the window, wherever the finger goes after. Only a drag that starts on the move button moves the
--- window, or, while split, the divider, as one that starts on the divider does; one that starts on
--- the eye hides it until the finger is lifted; from anywhere else it does nothing, and from the
--- board above all, which is for playing.
+-- window, and one that starts on the divider of the split screen moves the divider; one that
+-- starts on the eye hides the window until the finger is lifted; from anywhere else it does
+-- nothing, and from the board above all, which is for playing.
 
 -- Starts a drag with the finger down at x, y. False when the point is off the window: the drag is
 -- the reader's. Called again with the same point, it goes on with the drag already started. With
@@ -619,10 +603,8 @@ function Layout:startDrag(x, y, flipped, locked)
         self.drag = nil
         return false
     end
-    local on_move = not locked and hit.button == MOVE_BUTTON
-    self.drag = { x = x, y = y, pressed = on_move and MOVE_BUTTON or nil,
-        moves = on_move and not self.split,
-        divides = self.split and not locked and (on_move or hit.zone == "divider"),
+    local moves = not locked and hit.button == MOVE_BUTTON
+    self.drag = { x = x, y = y, moves = moves, divides = not locked and hit.zone == "divider",
         hides = hit.button == PEEK_BUTTON }
     return true
 end
@@ -637,11 +619,11 @@ function Layout:isHidden()
     return d ~= nil and d.hides
 end
 
--- The id of the button held down to drag the window or the divider, so that it can be marked
--- while the finger is on it; nil when no such drag is going on.
+-- The id of the button held down to drag the window, so that it can be marked while the finger is
+-- on it; nil when no drag that moves the window is going on.
 function Layout:pressedButton()
     local d = self.drag
-    return d and d.pressed
+    return d and d.moves and MOVE_BUTTON or nil
 end
 
 -- Where the window would be if the finger, now at x, y, were lifted: a window rect, kept on the
