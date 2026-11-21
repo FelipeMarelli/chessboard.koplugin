@@ -9,6 +9,7 @@ local DataStorage = require("datastorage")
 local Device = require("device")
 local Event = require("ui/event")
 local Geom = require("ui/geometry")
+local I18n = require("i18n")
 local UIManager = require("ui/uimanager")
 local dump = require("dump")
 local lfs = require("libs/libkoreader-lfs")
@@ -24,6 +25,12 @@ SelfTest.__index = SelfTest
 -- "h" or "v", for the names of the images.
 local function orientation()
     return Screen:getWidth() > Screen:getHeight() and "h" or "v"
+end
+
+-- The widget shown on top of every other, by UIManager.
+local function top_widget()
+    local stack = UIManager._window_stack
+    return stack[#stack].widget
 end
 
 -- Saves the screen as it is now.
@@ -427,9 +434,9 @@ local function h04(t, plugin)
         local r = t.repaints[i]
         return r ~= nil and same_rect(r, rect) and r.refresh == refresh
     end
-    -- The i-th repaint was the quick one of the move button alone, to mark it or clear it.
-    local function button_repainted(i)
-        return repainted(i, t.button, "fast")
+    -- The i-th repaint was the quick one of the window, to mark it and its move button.
+    local function lift_repainted(i)
+        return repainted(i, t.from, "fast")
     end
     local function button_changed()
         return differences(grab(t.button), t.unpressed)
@@ -449,7 +456,7 @@ local function h04(t, plugin)
         t:check(name .. " moves the window", window_at(layout, offset(t.from, dx, dy)),
             place_text(t.from) .. " -> " .. place_text(layout:rects().window))
         t:check(name .. " marks the move button, then repaints the old and new place with a flash",
-            #t.repaints == 2 and button_repainted(1)
+            #t.repaints == 2 and lift_repainted(1)
             and repainted(2, layout:dirtyRect({ window = t.from }), "flashui"), #t.repaints)
         reader_untouched(name)
         t:check(name .. " does not move the reading", reading_position(plugin.ui) == t.position,
@@ -460,8 +467,13 @@ local function h04(t, plugin)
     local function pressed_in_place(name)
         t:check(name .. " does not move the window", window_at(layout, t.from),
             place_text(layout:rects().window))
-        t:check(name .. " marks the move button and clears it, repainting only the button",
-            #t.repaints == 2 and button_repainted(1) and button_repainted(2), #t.repaints)
+        t:check(name .. " marks the window and clears it, without a flash",
+            #t.repaints >= 2 and lift_repainted(1) and repainted(2, t.from, "ui"), #t.repaints)
+        local hint = top_widget()
+        t:check(name .. " tells how to move the window",
+            hint.text == I18n.t("Drag the cross of arrows to move the window."), hint.text)
+        t:shot("hint")
+        UIManager:close(hint)
         t:check(name .. " leaves the move button as before", button_changed() == 0,
             button_changed() .. " pixels differ")
         reader_untouched(name)
@@ -488,8 +500,8 @@ local function h04(t, plugin)
         t.held_at = move_button()
         t:touch(t.held_at)
         -- No forceRePaint from here on: the mark must be on the screen without a whole repaint.
-        t:check("touching the move button marks it at once, repainting only the button",
-            #t.repaints == 1 and button_repainted(1), #t.repaints)
+        t:check("touching the move button marks it and the window at once, without a flash",
+            #t.repaints == 1 and lift_repainted(1), #t.repaints)
         t:check("the mark is drawn on the move button", button_changed() > 0,
             button_changed() .. " pixels differ")
         -- Then it rests and moves a little, without being lifted.
@@ -1292,12 +1304,6 @@ local function kit(t, plugin)
         t:save("gallery")
     end)
     return steps
-end
-
--- The widget shown on top of every other, by UIManager.
-local function top_widget()
-    local stack = UIManager._window_stack
-    return stack[#stack].widget
 end
 
 -- E03: the QR code button shows the game as a lichess link, and closing it leaves the window.

@@ -10,6 +10,14 @@ function Kit.fill(bb, rect, color)
 end
 
 -- A rect made smaller by by pixels on every side.
+-- A frame of the given width inside rect.
+function Kit.frame(bb, rect, width, color)
+    Kit.fill(bb, { x = rect.x, y = rect.y, w = rect.w, h = width }, color)
+    Kit.fill(bb, { x = rect.x, y = rect.y + rect.h - width, w = rect.w, h = width }, color)
+    Kit.fill(bb, { x = rect.x, y = rect.y, w = width, h = rect.h }, color)
+    Kit.fill(bb, { x = rect.x + rect.w - width, y = rect.y, w = width, h = rect.h }, color)
+end
+
 function Kit.inset(rect, by)
     return { x = rect.x + by, y = rect.y + by, w = rect.w - 2 * by, h = rect.h - 2 * by }
 end

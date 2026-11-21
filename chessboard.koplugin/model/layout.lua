@@ -21,9 +21,9 @@ local FILES = 8
 -- of acting, and the back button of any row shows the main one again. "peek" hides the window
 -- while the finger is on it; "move" is the one to drag the window by; "backward" and "forward"
 -- step along the line of moves, next to close; "more" opens a row with the buttons used less
--- often, among them "qr", which shows the game as a QR code that opens it on lichess. A row with upper buttons puts them after the others when they all fit there at their
--- usual width, and the window has no strip of moves while it shows; else, from the left, in the
--- place of the strip.
+-- often, among them "qr", which shows the game as a QR code that opens it on lichess. A row with
+-- upper buttons puts them after the others when they all fit there at their usual width, and the
+-- window has no strip of moves while it shows; else, from the left, in the place of the strip.
 local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
 local PEEK_BUTTON = "peek"
@@ -649,7 +649,8 @@ function Layout:dragRect(x, y)
 end
 
 -- Ends the drag with the finger lifted at x, y, and leaves the window, or the divider, there. True
--- when it moved.
+-- when it moved; else false, and true after it when the window was held by the move button and let
+-- go where it was: the reader may not know that the button is dragged.
 function Layout:endDrag(x, y)
     local d = self.drag
     local target = self:dragRect(x, y)
@@ -657,7 +658,7 @@ function Layout:endDrag(x, y)
     if d and d.divides then
         return self:moveDivider(Split.travel(self.screen_w, self.screen_h, d.x, d.y, x, y))
     elseif not target or (target.x == self.x and target.y == self.y) then
-        return false
+        return false, d ~= nil and d.moves
     end
     self:moveTo(target.x, target.y)
     return true

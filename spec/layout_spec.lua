@@ -447,6 +447,19 @@ test("H04 C1: a drag that starts on a square is the window's but does not move i
     end
 end)
 
+test("the move button let go where it was says so, a drag that moved the window does not",
+    function()
+        local layout = new(632, 840)
+        local x, y = row_point(layout)
+        layout:startDrag(x, y, false)
+        eq({ layout:endDrag(x, y) }, { false, true })
+        layout:startDrag(x, y, false)
+        eq({ layout:endDrag(x - 40, y - 300) }, { true })
+        local bx, by = center(layout:buttonRect("flip"))
+        layout:startDrag(bx, by, false)
+        eq({ layout:endDrag(bx, by) }, { false, false })
+    end)
+
 test("H08 C4: a locked drag from the move button is the window's but does not move it",
     function()
         local layout = new(632, 840)

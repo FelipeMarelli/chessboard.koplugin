@@ -91,6 +91,9 @@ local function split(self, on)
     end
 end
 
+-- How long the hint on moving the window stays.
+local HINT_SECONDS = 2
+
 -- The longest link shown as a QR code. QRWidget cuts text longer than 2953 bytes, and newer
 -- KOReader versions cut it into several codes; a link cut opens nothing.
 local QR_MAX = 2400
@@ -198,7 +201,7 @@ end
 -- True when the tap was on the window, so that the reader does not get it.
 function Window:onTap(ges)
     -- A tap is a finger lifted where it went down: it ends the touch that started it.
-    self:drop(ges.pos, self.layout:pressedButton())
+    self:drop(ges.pos)
     local hit = self.layout:hit(ges.pos.x, ges.pos.y, self.session:flipped())
     if not hit then
         self.area:toReader(ges)
@@ -281,25 +284,33 @@ function Window:onDrag(ges)
     local lift = point_of(ges, LIFT_FIELD)
     local pressed = self.layout:pressedButton()
     if lift then
-        self:drop(lift, marked)
+        self:drop(lift)
     elseif pressed ~= marked then
         self:repaintButton(pressed or marked)
     end
     return true
 end
 
+-- Tells how to move the window, after its move button was let go where it was.
+local function hint_move()
+    UIManager:show(InfoMessage:new{ text = I18n.t("Drag the cross of arrows to move the window."),
+        timeout = HINT_SECONDS })
+end
+
 -- Ends the drag with the finger lifted at pos, if there is one. A window that moved is repainted
--- whole, in the old place and the new one, and so is one that was hidden; one that did not move
--- only loses the mark of the button it was held by.
-function Window:drop(pos, marked)
+-- whole, in the old place and the new one, and so is one that was hidden; one held by its move
+-- button and let go where it was loses its marks, and tells how it is moved.
+function Window:drop(pos)
     local before = self.layout:rects()
     local hidden = self.layout:isHidden()
     local dividing = self.layout:isDividing()
-    if self.layout:endDrag(pos.x, pos.y) or hidden then
+    local moved, still = self.layout:endDrag(pos.x, pos.y)
+    if moved or hidden then
         self:refresh(self.layout:dirtyRect(before), true)
         self:fitReader()
-    elseif marked then
-        self:repaintButton(marked)
+    elseif still then
+        self:refresh(self.layout:dirtyRect())
+        hint_move()
     elseif dividing then
         self:repaintDivider()
     end
@@ -408,13 +419,21 @@ local function show_now(rect)
     UIManager:forceRePaint()
 end
 
--- Paints one button straight on the screen and shows it at once.
+-- The window held by its move button: a thick frame, so that it is seen to be what is dragged.
+local function paint_lift(bb, rects)
+    Kit.frame(bb, rects.window, Theme.px(Theme.SIZES.lift), Theme.GRAY.frame)
+end
+
+-- Paints the button held down straight on the screen and shows it at once, with the frame of the
+-- window held by it.
 function Window:repaintButton(id)
-    local button = self.layout:button(id)
+    local button, rects = self.layout:button(id), self.layout:rects()
     paint_button(Screen.bb, button, self.layout:pressedButton(), self.session:view(),
         self.layout:splitAxis())
-    show_now(button.rect)
+    paint_lift(Screen.bb, rects)
+    show_now(rects.window)
 end
+
 
 -- The divider, marked while held, the same way.
 function Window:repaintDivider()
@@ -457,6 +476,9 @@ function Window:paintTo(bb)
         paint_button(bb, button, pressed, view, axis)
     end
     Board.paint(bb, self.layout, view)
+    if pressed then
+        paint_lift(bb, rects)
+    end
 end
 
 return Window

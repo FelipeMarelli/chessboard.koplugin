@@ -30,6 +30,7 @@ Theme.SIZES = {
     split_controls = 80, -- the least room beside the board for its buttons, split
     split_button = 80, -- the biggest a button gets, split; the room left is between the board
                        -- and the buttons
+    lift = 6,       -- frame of the window while it is held by its move button
 }
 
 local function gray(value)
