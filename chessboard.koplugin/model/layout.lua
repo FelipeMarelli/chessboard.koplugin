@@ -16,8 +16,8 @@ local FILES = 8
 -- of acting, and the back button of any row shows the main one again. "peek" hides the window
 -- while the finger is on it; "move" is the one to drag the window by; "backward" and "forward"
 -- step along the line of moves, next to close. A row with
--- upper buttons puts them, from the left, in the place of the strip of moves (after the others,
--- when there is no strip).
+-- upper buttons puts them after the others when they all fit there at their usual width, and the
+-- window has no strip of moves while it shows; else, from the left, in the place of the strip.
 local MAIN_ROW = "main"
 local MOVE_BUTTON = "move"
 local PEEK_BUTTON = "peek"
@@ -157,10 +157,23 @@ function Layout:framedSide()
     return FILES * self.square + 2 * self.px.gutter
 end
 
+-- True when the row shown has upper buttons and there is room for all of them in the row under
+-- the board, at their usual width.
+function Layout:isOneRow()
+    local row = ROWS[self.row]
+    local count = #row.left + #row.right + #(row.upper or {})
+    return row.upper ~= nil and count * self.px.button <= self:framedSide()
+end
+
+-- The height of the strip of moves: none while the row shown takes all its buttons in one row.
+function Layout:stripHeight()
+    return self:isOneRow() and 0 or self.px.notation
+end
+
 function Layout:windowSize()
     local p = self.px
     local framed = self:framedSide()
-    return framed + 2 * p.border, framed + p.notation + p.row + 2 * p.border
+    return framed + 2 * p.border, framed + self:stripHeight() + p.row + 2 * p.border
 end
 
 -- Opening or closing the window drops the drag and shows the main row.
@@ -204,10 +217,16 @@ function Layout:shownRow()
     return self.row
 end
 
--- Shows a row of buttons by its name.
+-- Shows a row of buttons by its name. The window is shorter while a row fits in one line (see
+-- ROWS), and is kept on the screen when it grows back. Returns whether the window changed size
+-- and whether it grew.
 function Layout:showRow(name)
     assert(ROWS[name], "no such row")
+    local _, before = self:windowSize()
     self.row = name
+    self:moveTo(self.x, self.y)
+    local _, after = self:windowSize()
+    return after ~= before, after > before
 end
 
 -- The name of the row a button shows when tapped, or nil when the button acts instead.
@@ -226,7 +245,7 @@ function Layout:rects()
     local w, h = self:windowSize()
     local side = FILES * self.square
     local left, top = self.x + p.border, self.y + p.border
-    local g, n = p.gutter, p.notation
+    local g, n = p.gutter, self:stripHeight()
     local framed = self:framedSide()
     local rects = {
         window = { x = self.x, y = self.y, w = w, h = h },
@@ -248,6 +267,15 @@ function Layout:rects()
         rects.status = { x = left, y = top + g + side, w = g, h = g }
     end
     return rects
+end
+
+local function contains_id(ids, id)
+    for _, each in ipairs(ids or {}) do
+        if each == id then
+            return true
+        end
+    end
+    return false
 end
 
 local function concat(a, b)
@@ -275,7 +303,8 @@ local function add_buttons(self, list, rect, left, right)
 end
 
 -- Every button of the row shown, with its id, its rect and whether it is enabled: those of the
--- row under the board from left to right, then the upper ones (see ROWS).
+-- row under the board from left to right, then the upper ones (see ROWS), marked upper wherever
+-- they go.
 function Layout:buttons()
     local rects = self:rects()
     local row = ROWS[self.row]
@@ -287,6 +316,9 @@ function Layout:buttons()
     add_buttons(self, list, rects.buttons, left, row.right)
     if upper then
         add_buttons(self, list, rects.notation, upper, {})
+    end
+    for _, button in ipairs(list) do
+        button.upper = contains_id(row.upper, button.id) or nil
     end
     return list
 end

@@ -116,12 +116,14 @@ local ROW_ENTERED = {
 }
 
 -- Shows another row of buttons in place of the one shown; only the row is repainted, unless the
--- board changed too.
+-- board or the size of the window changed too. Grown, the window flashes over the page.
 local function show_row(self, name)
-    self.layout:showRow(name)
+    local before = self.layout:rects()
+    local resized, grew = self.layout:showRow(name)
     local entered = ROW_ENTERED[name]
     local board_changed = entered and entered(self.session)
-    self:refresh(board_changed and self.layout:dirtyRect() or self.layout:rects().buttons)
+    local whole = board_changed or resized
+    self:refresh(whole and self.layout:dirtyRect(before) or self.layout:rects().buttons, grew)
 end
 
 local function tap_square(self, sq)
@@ -301,14 +303,15 @@ local function lightening(button, view)
     end
 end
 
--- How a button looks: its card darker while it is held, and lighter as lightening says.
+-- How a button looks: its card darker while it is held, lighter as lightening says, and bare, with
+-- no card, for the upper ones (the color and the pieces of the editor).
 local function look_of(button, pressed, view)
-    return { down = button.id == pressed, dim = lightening(button, view) }
+    return { down = button.id == pressed, dim = lightening(button, view), bare = button.upper }
 end
 
 -- One button of the row, whole. view is the session view.
 local function paint_button(bb, button, pressed, view)
-    local side = Kit.iconSide(button.rect)
+    local side = Kit.iconSide(button.rect, button.upper)
     Kit.button(bb, button.rect, look_of(button, pressed, view), function(target, face, ink)
         paint_icon(target, button.id, face, side, view.edit, ink)
     end)

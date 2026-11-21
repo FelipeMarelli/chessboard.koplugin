@@ -926,6 +926,63 @@ end)
 -- Decided on 16 November 2026: the color and the pieces go up, in the place of the strip of moves,
 -- so they are not so narrow with a small board.
 -- The edit row with a strip of moves and buttons of 39, and the board at its biggest or smallest.
+local NOTATION_39 = { gutter = 14, notation = 26, button = 39 }
+
+local function edit_row(steps)
+    local layout = with_sizes(632, 840, NOTATION_39)
+    layout:resize(steps)
+    layout:showRow("edit")
+    return layout
+end
+
+test("Edit: when all its buttons fit under the board at their width, they go in one row and the "
+    .. "window has no strip of moves", function()
+    local layout = edit_row(100)
+    local main_h = with_sizes(632, 840, NOTATION_39)
+    main_h:resize(100)
+    local r = layout:rects()
+    eq(layout:isOneRow(), true); eq(r.notation, nil)
+    eq(ids_of(layout), { "back", "clear", "erase", unpack(EDIT_UPPER) })
+    for _, button in ipairs(layout:buttons()) do
+        eq(button.rect.w, 41, button.id) -- 39 on the emulator
+        assert(contains(r.buttons, button.rect), button.id)
+    end
+    eq(r.buttons.y, r.board_frame.y + r.board_frame.h)
+    eq(r.window.h, main_h:rects().window.h - 27) -- a strip of 26 on the emulator
+end)
+
+test("Edit: when they do not fit, the color and the pieces stay in the place of the strip",
+    function()
+        local layout = edit_row(-100)
+        eq(layout:isOneRow(), false)
+        eq(#buttons_in(layout, layout:rects().notation), #EDIT_UPPER)
+    end)
+
+test("Edit: showing the row says whether the window changed size and grew, and leaving it keeps "
+    .. "the window on the screen", function()
+    local layout = with_sizes(632, 840, NOTATION_39)
+    layout:resize(100)
+    eq({ layout:showRow("edit") }, { true, false })
+    layout:moveTo(0, 10000)
+    local bottom = layout:rects().window.y + layout:rects().window.h
+    eq({ layout:showRow("main") }, { true, true })
+    eq(layout:rects().window.y + layout:rects().window.h, bottom)
+    eq({ layout:showRow("size") }, { false, false })
+    eq({ edit_row(-100):showRow("main") }, { false, false })
+end)
+
+test("Edit: the color and the pieces are marked upper, and only those, wherever they go",
+    function()
+        local upper = {}
+        for _, id in ipairs(EDIT_UPPER) do upper[id] = true end
+        for _, layout in ipairs({ edit_row(100), edit_row(-100), new(632, 840) }) do
+            layout:showRow("edit")
+            for _, button in ipairs(layout:buttons()) do
+                eq(button.upper, upper[button.id], button.id)
+            end
+        end
+    end)
+
 test("Edit, H16: the color and the six pieces take the place of the strip of moves", function()
     local layout = with_sizes(632, 840, NOTATION)
     layout:showRow("edit")
