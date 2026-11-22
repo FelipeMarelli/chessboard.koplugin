@@ -66,12 +66,65 @@ function ReaderArea:zoomPage(split)
     end
 end
 
+-- The part each paged document is reflowed for while split; none, the whole screen. By document, as
+-- the reflowing module is one for every document open.
+local reflow_parts = setmetatable({}, { __mode = "k" })
+local reflow_wrapped = setmetatable({}, { __mode = "k" })
+
+-- k2pdfopt reflows a page (PDF, DjVu in reflow mode) for the whole screen
+-- (KoptInterface:createContext) and keeps it by the screen's size (getContextHash): both are
+-- wrapped, so that while split the page is reflowed for the book's part and kept by that size too.
+local function reflow_for_parts(kopt)
+    if reflow_wrapped[kopt] then
+        return
+    end
+    reflow_wrapped[kopt] = true
+    local create, hash = kopt.createContext, kopt.getContextHash
+    -- k2pdfopt sizes the text in proportion to the width it reflows for (KoptInterface:reflowPage):
+    -- its zoom is made up for, so the text is as big as on the whole screen.
+    kopt.createContext = function(kopt_self, doc, ...)
+        local kc = create(kopt_self, doc, ...)
+        local part = reflow_parts[doc]
+        if part then
+            kc:setZoom(kc.zoom * kc.dev_width / part.w)
+            kc:setDeviceDim(part.w, part.h)
+        end
+        return kc
+    end
+    kopt.getContextHash = function(kopt_self, doc, pageno, bbox, hash_list)
+        hash(kopt_self, doc, pageno, bbox, hash_list)
+        local part = reflow_parts[doc]
+        if part then
+            table.insert(hash_list, part.w)
+            table.insert(hash_list, part.h)
+        end
+    end
+end
+
+-- How far down its page the view of a paged document is, and how long the page is.
+local function place_in_page(view)
+    return view.visible_area.y - view.page_area.y, view.page_area.h
+end
+
+-- KOReader shows a page from its top when the view changes size: the view is taken back as far
+-- down the page as it was, which matters for a page longer than the view (a reflowed one, or one
+-- zoomed to its width). In continuous scroll the place is kept by the scroll states.
 function ReaderArea:fitPaging(dimen, split)
-    local ui = self.ui
-    ui.view:onSetDimensions(dimen)
+    local ui, view = self.ui, self.ui.view
+    local kopt = ui.document.koptinterface
+    if kopt then
+        reflow_for_parts(kopt)
+        reflow_parts[ui.document] = split and { w = dimen.w, h = dimen.h } or nil
+    end
+    local offset, length = place_in_page(view)
+    view:onSetDimensions(dimen)
     ui.zooming:onSetDimensions(dimen)
     self:zoomPage(split)
     ui:handleEvent(Event:new("InitScrollPageStates"))
+    if not view.page_scroll then
+        local now, new_length = place_in_page(view)
+        view:PanningUpdate(0, Rect.samePlace(offset, length, new_length) - now)
+    end
 end
 
 -- The status bar lays itself out for the whole screen whenever it is laid out again, so its
