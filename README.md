@@ -24,6 +24,8 @@ A KOReader plugin for reading chess books: an interactive board that floats **ov
 
 <img src="screenshots/play.png" width="300" alt="A selected pawn and its targets"/> <img src="screenshots/editor.png" width="300" alt="The position editor"/>
 
+<img src="screenshots/split.png" width="300" alt="The screen split: the book above, the board and its moves below"/> <img src="screenshots/dark.png" width="300" alt="The split screen drawn dark"/>
+
 ## Install
 
 From Storefront or AppStore, searching for "Chess Board". Or by hand: copy the `chessboard.koplugin` folder to `koreader/plugins/` on the reader and restart KOReader.
