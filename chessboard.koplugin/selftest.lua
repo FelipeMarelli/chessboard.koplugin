@@ -1478,9 +1478,14 @@ end
 
 -- H18: the book laid out again for its part each time the divider moves, and its pages turned
 -- there. A paged book (PDF) gets a new zoom with its whole page inside the part, also on the page
--- turned to; a reflowed one (EPUB) a new count of pages. It works with any book: BOOK=petroff for a
--- PDF.
+-- turned to; a reflowed one (EPUB) a new count of pages, and a PDF reflowed by KOReader a page
+-- reflowed for the part. It works with any book: BOOK=petroff for a PDF.
 local DIVIDER_MOVES = { -150, 250, -100 }
+
+-- Whether a paged book (PDF, DjVu) is reflowed by KOReader to the width it is shown at.
+local function is_reflowed(ui)
+    return ui.paging ~= nil and ui.document.configurable.text_wrap == 1
+end
 
 -- What changes when the book is laid out again: its zoom, or its count of pages.
 local function book_layout(ui)
@@ -1490,23 +1495,65 @@ local function book_layout(ui)
     return "pages " .. ui.document:getPageCount()
 end
 
+-- Whether the book was laid out again for its part: a page reflowed by KOReader as wide as the
+-- part, which in portrait does not change, and any other book laid out otherwise than before.
+local function laid_out_for(ui, rect, before)
+    if is_reflowed(ui) then
+        local width = ui.view.page_area.w
+        return width == rect.w, string.format("reflowed %d wide, part %d", width, rect.w)
+    end
+    local now = book_layout(ui)
+    return now ~= before, before .. " to " .. now
+end
+
+-- How far down its page a paged book is shown, from 0 to 1, and whether the view is at the foot of
+-- the page, which a shorter page may have made it.
+local function place_in_page(ui)
+    local page, shown = ui.view.page_area, ui.view.visible_area
+    return (shown.y - page.y) / page.h, shown.y + shown.h >= page.y + page.h
+end
+
+-- The share of a page that is as near as the view can be to another: the place a reflowed page is
+-- shown at is kept, unless the page is now too short for it.
+local PLACE_SHARE = 0.02
+
+local function place_kept(ui, before)
+    local now, at_foot = place_in_page(ui)
+    return math.abs(now - before) <= PLACE_SHARE or at_foot,
+        string.format("%.3f to %.3f", before, now)
+end
+
 -- Whether the book is drawn inside its part: the view is the part, and a paged book's page is not
 -- bigger than it, nor shown past it.
 local function book_inside(ui, rect)
     local fits, detail = view_fits(ui, rect)
     if ui.paging then
         local page, shown = ui.view.page_area, ui.view.visible_area
-        fits = fits and page.w <= rect.w and page.h <= rect.h and shown.h <= rect.h
+        -- A reflowed page is as long as its text, and is shown a part at a time.
+        local long = is_reflowed(ui)
+        fits = fits and page.w <= rect.w and (long or page.h <= rect.h) and shown.h <= rect.h
         detail = string.format("%s, page %dx%d, shown %dx%d", detail, page.w, page.h, shown.w,
             shown.h)
     end
     return fits, detail
 end
 
-local function pages(t, plugin)
+-- Turns KOReader's reflow of a paged book on or off; nothing for a reflowed one (EPUB).
+local function set_reflow(ui, on)
+    if ui.paging and is_reflowed(ui) ~= on then
+        ui:handleEvent(Event:new("ToggleReflow"))
+    end
+end
+
+-- reflowed: a paged book is reflowed by KOReader all along, and given back as it was.
+local function pages(t, plugin, reflowed)
     local ui, layout = plugin.ui, plugin.layout
     local steps, step = new_steps(plugin)
+    local was_reflowed = is_reflowed(ui)
     step(function()
+        if reflowed then
+            set_reflow(ui, true)
+        end
         plugin:toggle()
         tap_buttons(t, plugin, "more", "split")
     end)
@@ -1522,6 +1569,7 @@ local function pages(t, plugin)
             t:check("and the page turned to is inside the part",
                 book_inside(ui, layout:readerRect()))
             t.laid_out = book_layout(ui)
+            t.page_place = ui.paging and place_in_page(ui)
             local from = center(layout:rects().divider)
             local to = layout:splitAxis() == "y" and offset(from, 0, travel)
                 or offset(from, travel, 0)
@@ -1530,8 +1578,11 @@ local function pages(t, plugin)
         end)
         step(function()
             t:shot("moved_" .. i)
-            t:check("the divider moved, the book is laid out again", book_layout(ui) ~= t.laid_out,
-                t.laid_out .. " to " .. book_layout(ui))
+            t:check("the divider moved, the book is laid out again",
+                laid_out_for(ui, layout:readerRect(), t.laid_out))
+            if t.page_place then
+                t:check("and it is shown as far down its page", place_kept(ui, t.page_place))
+            end
         end)
     end
     step(function()
@@ -1541,14 +1592,20 @@ local function pages(t, plugin)
     step(function()
         t:check("floating, the book has the whole screen again", view_fits(ui, Screen:getSize()))
         plugin:toggle()
+        set_reflow(ui, was_reflowed)
     end)
     return steps
+end
+
+-- H18: the scenario pages with a paged book reflowed (BOOK=petroff).
+local function reflow(t, plugin)
+    return pages(t, plugin, true)
 end
 
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
     edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, e03 = e03, readme = readme,
     kit = kit, dark = dark, idle = idle, prefs = prefs,
-    pages = pages }
+    pages = pages, reflow = reflow }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
