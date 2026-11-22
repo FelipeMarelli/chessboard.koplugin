@@ -1380,12 +1380,16 @@ end
 -- reader opened again.
 local IDLE_STEPS = 30
 local split_reader -- the reader the scenario idle split; any other one is the book opened again
+local idle_rotation -- the rotation of the screen before the scenario idle turned it
 
 local function idle(t, plugin)
     local ui = plugin.ui
     local steps, step = new_steps(plugin)
     if split_reader then
-        step(function() t:check("split and idle, the book is not opened again", false) end)
+        step(function()
+            t:check("split and idle, the book is not opened again", false)
+            ui:handleEvent(Event:new("SetRotationMode", idle_rotation))
+        end)
         return steps
     end
     split_reader = ui
@@ -1394,15 +1398,15 @@ local function idle(t, plugin)
         tap_buttons(t, plugin, "more", "split")
     end)
     step(function()
-        t.rotation = Screen:getRotationMode()
-        ui:handleEvent(Event:new("SetRotationMode", (t.rotation + 1) % 4))
+        idle_rotation = Screen:getRotationMode()
+        ui:handleEvent(Event:new("SetRotationMode", (idle_rotation + 1) % 4))
     end)
     for _ = 1, IDLE_STEPS do
         step(function() end)
     end
     step(function()
         t:check("split and idle, the book is not opened again", plugin.layout:isSplit())
-        ui:handleEvent(Event:new("SetRotationMode", t.rotation))
+        ui:handleEvent(Event:new("SetRotationMode", idle_rotation))
     end)
     step(function()
         tap_buttons(t, plugin, "float")
