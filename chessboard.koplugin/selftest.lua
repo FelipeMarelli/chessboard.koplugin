@@ -1476,9 +1476,79 @@ local function prefs(t, plugin)
     return steps
 end
 
+-- H18: the book laid out again for its part each time the divider moves, and its pages turned
+-- there. A paged book (PDF) gets a new zoom with its whole page inside the part, also on the page
+-- turned to; a reflowed one (EPUB) a new count of pages. It works with any book: BOOK=petroff for a
+-- PDF.
+local DIVIDER_MOVES = { -150, 250, -100 }
+
+-- What changes when the book is laid out again: its zoom, or its count of pages.
+local function book_layout(ui)
+    if ui.paging then
+        return string.format("zoom %.4f", ui.zooming.zoom)
+    end
+    return "pages " .. ui.document:getPageCount()
+end
+
+-- Whether the book is drawn inside its part: the view is the part, and a paged book's page is not
+-- bigger than it, nor shown past it.
+local function book_inside(ui, rect)
+    local fits, detail = view_fits(ui, rect)
+    if ui.paging then
+        local page, shown = ui.view.page_area, ui.view.visible_area
+        fits = fits and page.w <= rect.w and page.h <= rect.h and shown.h <= rect.h
+        detail = string.format("%s, page %dx%d, shown %dx%d", detail, page.w, page.h, shown.w,
+            shown.h)
+    end
+    return fits, detail
+end
+
+local function pages(t, plugin)
+    local ui, layout = plugin.ui, plugin.layout
+    local steps, step = new_steps(plugin)
+    step(function()
+        plugin:toggle()
+        tap_buttons(t, plugin, "more", "split")
+    end)
+    for i, travel in ipairs(DIVIDER_MOVES) do
+        step(function()
+            t:check("split, the book is inside its part (" .. i .. ")",
+                book_inside(ui, layout:readerRect()))
+            turn_page(t, plugin)
+        end)
+        step(function()
+            t:shot("turned_" .. i)
+            t:check("its page turns", reading_position(ui) ~= t.place, t.place)
+            t:check("and the page turned to is inside the part",
+                book_inside(ui, layout:readerRect()))
+            t.laid_out = book_layout(ui)
+            local from = center(layout:rects().divider)
+            local to = layout:splitAxis() == "y" and offset(from, 0, travel)
+                or offset(from, travel, 0)
+            t:press(from, to, false)
+            t:lift(from, to, "pan_release")
+        end)
+        step(function()
+            t:shot("moved_" .. i)
+            t:check("the divider moved, the book is laid out again", book_layout(ui) ~= t.laid_out,
+                t.laid_out .. " to " .. book_layout(ui))
+        end)
+    end
+    step(function()
+        t:check("at last, the book is inside its part", book_inside(ui, layout:readerRect()))
+        tap_buttons(t, plugin, "float")
+    end)
+    step(function()
+        t:check("floating, the book has the whole screen again", view_fits(ui, Screen:getSize()))
+        plugin:toggle()
+    end)
+    return steps
+end
+
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
     edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, e03 = e03, readme = readme,
-    kit = kit, dark = dark, idle = idle, prefs = prefs }
+    kit = kit, dark = dark, idle = idle, prefs = prefs,
+    pages = pages }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)
