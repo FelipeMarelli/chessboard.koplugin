@@ -39,3 +39,14 @@ test("something centred in a rect leaves as much room on each side, rounding dow
     eq({ Rect.centred(RECT, 10, 10) }, { 20, 35 })
     eq({ Rect.centred(RECT, 11, 11) }, { 19, 34 })
 end)
+
+test("the same place in something longer or shorter is as far through it", function()
+    eq(Rect.samePlace(100, 400, 800), 200)
+    eq(Rect.samePlace(100, 400, 200), 50)
+    eq(Rect.samePlace(1, 3, 10), 3)
+    eq(Rect.samePlace(0, 400, 800), 0)
+end)
+
+test("in something empty, the same place is its start", function()
+    eq(Rect.samePlace(10, 0, 800), 0)
+end)

@@ -37,4 +37,13 @@ function Rect.centred(rect, w, h)
     return rect.x + math.floor((rect.w - w) / 2), rect.y + math.floor((rect.h - h) / 2)
 end
 
+-- The same place in something longer or shorter: offset from its start, out of length, is moved to
+-- as far through new_length, rounded. Nothing to keep in something empty: its start.
+function Rect.samePlace(offset, length, new_length)
+    if length <= 0 then
+        return 0
+    end
+    return math.floor(offset * new_length / length + 0.5)
+end
+
 return Rect
