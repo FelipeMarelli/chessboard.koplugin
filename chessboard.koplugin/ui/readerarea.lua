@@ -47,9 +47,30 @@ local function fit_rolling(ui, dimen)
     ui.rolling:onRedrawCurrentView()
 end
 
-local function fit_paging(ui, dimen)
+-- The zoom a paged document is shown with in its part: the whole page, as the part is smaller than
+-- the screen; KOReader's default, the width of the page, would leave most of it out of sight.
+local SPLIT_ZOOM = "page"
+
+-- While split, the page is shown whole, and the reader's own zoom is given back after. As KOReader
+-- does in its flipping mode, the zoom it keeps aside is the one saved in the book's settings.
+function ReaderArea:zoomPage(split)
+    local zooming = self.ui.zooming
+    if split and not self.reader_zoom then
+        self.reader_zoom = zooming.zoom_mode
+        zooming.orig_zoom_mode = self.reader_zoom
+        self.ui:handleEvent(Event:new("SetZoomMode", SPLIT_ZOOM))
+    elseif not split and self.reader_zoom then
+        zooming.orig_zoom_mode = nil
+        self.ui:handleEvent(Event:new("SetZoomMode", self.reader_zoom))
+        self.reader_zoom = nil
+    end
+end
+
+function ReaderArea:fitPaging(dimen, split)
+    local ui = self.ui
     ui.view:onSetDimensions(dimen)
     ui.zooming:onSetDimensions(dimen)
+    self:zoomPage(split)
     ui:handleEvent(Event:new("InitScrollPageStates"))
 end
 
@@ -143,7 +164,7 @@ function ReaderArea:fit(rect, force)
     if self.ui.rolling then
         fit_rolling(self.ui, dimen)
     else
-        fit_paging(self.ui, dimen)
+        self:fitPaging(dimen, rect ~= nil)
     end
     self:fitFooter()
     UIManager:setDirty(self.ui.dialog, "full")

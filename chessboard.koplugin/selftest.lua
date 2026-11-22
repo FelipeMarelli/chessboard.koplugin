@@ -1155,6 +1155,13 @@ local function view_fits(ui, rect)
         dimen.w, dimen.h, rect.w, rect.h)
 end
 
+-- The zoom of a paged document (PDF, DjVu), and whether it is the given one; any for a reflowed
+-- one (EPUB).
+local function zoom_is(ui, mode)
+    local zoom = ui.paging and ui.zooming.zoom_mode
+    return not zoom or zoom == mode, tostring(zoom)
+end
+
 -- Taps the right of the book's part, half way down, after noting where the reader is.
 local function turn_page(t, plugin)
     local reader = plugin.layout:readerRect()
@@ -1174,6 +1181,7 @@ local function h18(t, plugin)
     local ui, layout = plugin.ui, plugin.layout
     local steps, step = new_steps(plugin)
     local footer_mode = ui.view.footer.mode
+    local zoom = ui.paging and ui.zooming.zoom_mode
     step(function()
         show_footer(ui)
     end)
@@ -1188,6 +1196,7 @@ local function h18(t, plugin)
         local footer = ui.view.footer
         t:check("the status bar is as wide as the book's part",
             footer.dimen.w == layout:readerRect().w, footer.dimen.w)
+        t:check("a paged book shows its whole page", zoom_is(ui, "page"))
         tap_squares(t, plugin, unpack(RUY_LOPEZ))
     end)
     step(function()
@@ -1238,6 +1247,7 @@ local function h18(t, plugin)
         t:shot("floating")
         t:check("float takes the window back over the page", not layout:isSplit())
         t:check("and the book has the whole screen again", view_fits(ui, Screen:getSize()))
+        t:check("and its own zoom", zoom_is(ui, zoom))
         tap_buttons(t, plugin, "more", "split", "close")
     end)
     step(function()
