@@ -44,7 +44,8 @@ With a book open, the board opens and closes from the reader menu, under Tools â
 - **Set up a position**: the pencil opens the editor, with the pieces, the side to move, an eraser and a trash can that puts the start position or empties the board. Back starts the game from the new position.
 - **Start over**: the trash can, under the three dots, goes back to the start position.
 - **Dark mode**: the moon, under the three dots, draws the window in dark grays; the sun draws it light again.
-- **Split the screen**: the split button, under the three dots, puts the book on one half of the screen and the board on the other: the book above in portrait, on the left in landscape. Drag the line between them to move it. In the split screen every button shows at once; the swap button puts the book and the board the other way round, and the window button takes the board back over the page. Beside the board, the moves of the line take every row that fits above the buttons.
+- **Split the screen**: the split button, under the three dots, puts the book on one half of the screen and the board on the other: the book above in portrait, on the left in landscape. Drag the line between them to move it. In the split screen every button shows at once; the swap button puts the book and the board the other way round, and the window button takes the board back over the page. Beside the board, the moves of the line take every row that fits above the buttons, at least two. A PDF or DjVu page is shown whole in its half, and with its own zoom again when the board floats.
+- **Remembered**: split or floating, where the line between book and board is, the size of the window, and dark or light are kept for every book, also after KOReader restarts. Each book still opens with the board closed.
 
 ## Like it?
 

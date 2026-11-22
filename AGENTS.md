@@ -94,6 +94,7 @@ DEPENDS ON KOREADER (no automated tests; checked with screenshots)
   ui/editor.lua       paints the editor palette and tools
   ui/theme.lua        sizes, grays, piece and icon cache
   store.lua           reads and writes the document settings
+  prefsfile.lua       reads and writes the plugin's own preferences file
   i18n.lua            translatable texts
   selftest.lua        interface test with synthetic taps
 
@@ -103,6 +104,7 @@ PURE LUA (no KOReader; all with tests in spec/)
   model/session.lua   interaction with the board: selection, targets,
                       pending promotion, marks to show, active buttons
   model/notation.lua  the moves written as in a book
+  model/preferences.lua  the choices kept across books, to a plain table and back
   model/editor.lua    editing session: tool, place, erase, turn,
                       castling inference, validation
   model/layout.lua    window geometry: place, size, limits, states,
@@ -201,6 +203,7 @@ layout:startDrag(x, y, flipped, locked)       layout:pressedButton()   layout:is
 layout:squareSize()        layout.labelSquares(flipped)
 layout:dirtyRect(previous_rects)
 layout:serialize()         layout.deserialize(table, screen)
+layout:preferences()       layout:usePreferences(table)   -- the choices kept across books
 ```
 
 - `sizes` carries design pixels defined in `ui/theme.lua`, and `scale` is `layout.scaleFor` the screen: `row`, `button`, `border`, `margin`, `min_square`, `size_step`, `notation` (height of the move strip; 0 or nothing, no strip) and `spacing` (gap between the board and a row that takes the place of the strip).
@@ -264,9 +267,9 @@ state.new()   state.serialize(state)   state.deserialize(table)   -- -> state, w
 
 ```
 chessboard.koplugin/
-  _meta.lua  main.lua  i18n.lua  selftest.lua
+  _meta.lua  main.lua  i18n.lua  prefsfile.lua  selftest.lua
   chess/     rules.lua  game.lua  LICENSE-GPL-3.0
-  model/     session.lua  editor.lua  notation.lua  layout.lua
+  model/     session.lua  editor.lua  notation.lua  layout.lua  preferences.lua
   ui/        window.lua  board.lua  notation.lua  theme.lua
   assets/    pieces/merida/*.svg   icons/*.svg
   l10n/      es.lua
