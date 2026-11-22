@@ -29,9 +29,9 @@ end
 -- The book is laid out whole for its part, not partly as KOReader does by default
 -- (ReaderRolling:handleRenderingDelayed): after a partial layout KOReader lays the whole book out
 -- in the background and, once the reader is idle for some seconds, reloads it, which opens it
--- again on the whole screen and the plugin with it, the board gone. When the screen turned, KOReader
--- has laid it out partly for the whole screen already: laid out whole now, that reload is called
--- off.
+-- again on the whole screen and the plugin with it, the board gone. When the screen turned,
+-- KOReader has laid it out partly for the whole screen already: laid out whole now, that reload is
+-- called off.
 local function fit_rolling(ui, dimen)
     local document = ui.document
     document:enablePartialRerendering(false)
