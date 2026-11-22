@@ -16,8 +16,9 @@ Split.TEXT_SHARE = 0.5
 -- The least share of the screen, along the split, kept for the book.
 Split.MIN_TEXT_SHARE = 0.25
 
--- The least lines of moves kept above the buttons beside the board.
-Split.NOTATION_LINES = 2
+-- The lines of moves kept above the buttons beside the board, by the axis of the split: more in
+-- portrait, where the room beside the board is narrow.
+Split.NOTATION_LINES = { y = 3, x = 2 }
 
 -- The axis the screen is split along: "y" when it is taller than wide, else "x".
 function Split.axis(screen_w, screen_h)
@@ -90,22 +91,13 @@ local function parts(axis, long, cross, px, text_first, text)
     }
 end
 
--- The least room beside the board kept for the moves, with the gap under them: none without a
--- strip of moves.
-local function notation_room(px)
-    if px.notation == 0 then
-        return 0
-    end
-    return Split.NOTATION_LINES * px.notation + px.spacing
-end
-
 -- The board with its coordinate strips at the start of inner across the split, centred along it,
--- as big as fits while leaving the moves and the buttons their least room beside it.
+-- as big as fits while leaving the moves and the buttons their least room beside it: the board is
+-- never made smaller for the moves, the buttons are.
 local function place_board(axis, inner, px)
     local inner_along, inner_cross = lengths(axis, inner.w, inner.h)
     local inner_a, inner_b = lengths(axis, inner.x, inner.y)
-    local beside = px.split_controls + notation_room(px) + px.spacing
-    local room = math.min(inner_along, inner_cross - beside)
+    local room = math.min(inner_along, inner_cross - px.split_controls - px.spacing)
     local square = math.max(px.min_square, math.floor((room - 2 * px.gutter) / FILES))
     local framed = FILES * square + 2 * px.gutter
     local frame = along(axis, inner_a + math.floor((inner_along - framed) / 2), framed, inner_b,
@@ -116,14 +108,27 @@ local function place_board(axis, inner, px)
     return square, frame, controls
 end
 
--- The buttons at the foot of the room beside the board, in a grid (see Split.grid) under the least
--- lines of moves and the gap after them, and the moves over the room left above them.
+-- The grid of buttons at the foot of the room beside the board (see Split.grid), under some lines
+-- of moves and the gap after them.
+local function grid_under(axis, controls, px, count, lines)
+    local below = controls.y + (lines > 0 and lines * px.notation + px.spacing or 0)
+    local room = Rect.band(controls, below, controls.y + controls.h)
+    return Split.grid(room, count, px.split_button, axis)
+end
+
+-- The buttons at the foot of the room beside the board, under the lines of moves kept for its axis,
+-- and the moves over all the room left above them. The buttons are made smaller for the moves, down
+-- to the least side of a button; below that, the moves give up lines, down to one.
 local function place_controls(axis, controls, px, count)
-    local bottom = controls.y + controls.h
-    local below = controls.y + notation_room(px)
-    local top = Split.grid(Rect.band(controls, below, bottom), count, px.split_button, axis)[1].y
-    local buttons = Rect.band(controls, top, bottom)
-    if px.notation == 0 then
+    local lines = px.notation > 0 and Split.NOTATION_LINES[axis] or 0
+    local cells = grid_under(axis, controls, px, count, lines)
+    while lines > 1 and math.min(cells[1].w, cells[1].h) < px.min_square do
+        lines = lines - 1
+        cells = grid_under(axis, controls, px, count, lines)
+    end
+    local top = cells[1].y
+    local buttons = Rect.band(controls, top, controls.y + controls.h)
+    if lines == 0 then
         return nil, buttons
     end
     return Rect.band(controls, controls.y, top - px.spacing), buttons

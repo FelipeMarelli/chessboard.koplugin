@@ -169,21 +169,68 @@ test("portrait, the buttons are on the right of their room, the spare room by th
         eq(right, room.x + room.w)
     end)
 
-test("split, the moves take the room above the buttons, at least two lines, wherever the divider"
-    .. " is", function()
+-- How many lines of moves fit in the room the split window keeps for them.
+local function lines_of(layout)
+    return math.floor(layout:rects().notation.h / layout.px.notation)
+end
+
+-- The smaller side of the buttons of a layout.
+local function button_side(layout)
+    local rect = layout:buttons()[1].rect
+    return math.min(rect.w, rect.h)
+end
+
+test("split, the moves take the room above the buttons, wherever the divider is", function()
     for _, size in ipairs(SCREENS) do
         local layout = split(size)
         local function check(where)
             local moves, top = layout:rects().notation, layout:buttons()[1].rect.y
-            assert(moves.h >= Split.NOTATION_LINES * layout.px.notation,
-                "less than two lines of moves " .. where .. ": " .. moves.h)
+            assert(lines_of(layout) >= 1, "no line of moves " .. where)
             eq(top - (moves.y + moves.h), layout.px.spacing, where)
+            assert(button_side(layout) >= layout.px.min_square, "buttons too small " .. where)
         end
         check("at first")
         drag(layout, layout:rects().divider, -800, -800)
         check("one way")
         drag(layout, layout:rects().divider, 800, 800)
         check("the other way")
+    end
+end)
+
+test("split in portrait, beside the board, the moves keep three lines, the board at its biggest"
+    .. " too", function()
+    for _, size in ipairs({ PORTRAIT, { 1072, 1448 } }) do
+        local layout = split(size)
+        assert(lines_of(layout) >= Split.NOTATION_LINES.y, "at first")
+        drag(layout, layout:rects().divider, 0, -800)
+        assert(lines_of(layout) >= Split.NOTATION_LINES.y, "the board at its biggest")
+    end
+end)
+
+test("split in landscape, under the board, the moves keep two lines, and one at least as wide as"
+    .. " the board when it is at its biggest and the buttons would be too small", function()
+    for _, size in ipairs({ LANDSCAPE, { 1448, 1072 } }) do
+        local layout = split(size)
+        assert(lines_of(layout) >= Split.NOTATION_LINES.x, "at first")
+        drag(layout, layout:rects().divider, -800, 0)
+        eq(lines_of(layout), 1)
+        assert(layout:rects().notation.w >= layout:rects().board_frame.w, "as wide as the board")
+    end
+end)
+
+test("split, the board is not made smaller for the moves", function()
+    local bare = {}
+    for key, value in pairs(SIZES) do
+        bare[key] = value
+    end
+    bare.notation = 0
+    for _, size in ipairs(SCREENS) do
+        local layout, without = split(size), new(size, bare)
+        without:setSplit(true)
+        eq(layout:squareSize(), without:squareSize())
+        drag(layout, layout:rects().divider, -800, -800)
+        drag(without, without:rects().divider, -800, -800)
+        eq(layout:squareSize(), without:squareSize())
     end
 end)
 
