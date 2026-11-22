@@ -6,12 +6,15 @@ local Device = require("device")
 local Game = require("chess/game")
 local I18n = require("i18n")
 local Layout = require("model/layout")
+local Preferences = require("model/preferences")
+local PrefsFile = require("prefsfile")
 local ReaderArea = require("ui/readerarea")
 local Session = require("model/session")
 local Theme = require("ui/theme")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Window = require("ui/window")
+local logger = require("logger")
 
 local Screen = Device.screen
 
@@ -91,7 +94,17 @@ function ChessBoard:init()
         sizes = Theme.SIZES,
     }
     self.session = Session.new(assert(Game.new()))
+    local ok, warning = Preferences.apply(PrefsFile.read(), self.layout, self.session)
+    if not ok then
+        logger.warn("chessboard:", warning)
+    end
     self.ui.menu:registerToMainMenu(self)
+end
+
+-- Called by the reader when it saves its settings: on closing the book, on suspend and now and
+-- then. The choices kept across books go to the plugin's own file.
+function ChessBoard:onSaveSettings()
+    PrefsFile.write(Preferences.of(self.layout, self.session))
 end
 
 function ChessBoard:addToMainMenu(menu_items)

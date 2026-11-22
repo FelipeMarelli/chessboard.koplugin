@@ -12,6 +12,7 @@ local Geom = require("ui/geometry")
 local I18n = require("i18n")
 local Kit = require("ui/kit")
 local Layout = require("model/layout")
+local Preferences = require("model/preferences")
 local Rect = require("model/rect")
 local Rules = require("chess/rules")
 local Theme = require("ui/theme")
@@ -1415,9 +1416,60 @@ local function idle(t, plugin)
     return steps
 end
 
+-- The choices kept across books: bigger, split, the book second and dark, the book is opened again
+-- and the plugin, new, has them. The scenario starts over in the reader opened again, which checks
+-- them, those made too (the checks of the first reader are lost with it), and puts the defaults
+-- back.
+local chosen_preferences -- what the reader opened first chose; nil until then
+
+-- Whether two flat tables have the same fields, with both written out.
+local function same_fields(a, b)
+    local same = true
+    for key in pairs(a) do
+        same = same and a[key] == b[key]
+    end
+    for key in pairs(b) do
+        same = same and a[key] ~= nil
+    end
+    return same, dump(a) .. " / " .. dump(b)
+end
+
+local function prefs(t, plugin)
+    local layout, session = plugin.layout, plugin.session
+    local steps, step = new_steps(plugin)
+    if chosen_preferences then
+        step(function()
+            local chosen = chosen_preferences.window
+            t:check("the choices were made", chosen.split and not chosen.text_first
+                and chosen_preferences.dark)
+            t:check("the size and split come back with the book opened again",
+                same_fields(layout:preferences(), chosen_preferences.window))
+            t:check("and dark", session:isDark() == chosen_preferences.dark)
+            plugin:toggle()
+        end)
+        step(function()
+            t:shot("again")
+            tap_buttons(t, plugin, "dark", "float")
+            plugin:toggle()
+        end)
+        return steps
+    end
+    step(function()
+        plugin:toggle()
+        tap_buttons(t, plugin, "more", "size", "bigger", "back", "more", "dark", "split", "swap")
+    end)
+    step(function()
+        t:shot("chosen")
+        chosen_preferences = Preferences.of(layout, session)
+        plugin:toggle()
+        plugin.ui:reloadDocument()
+    end)
+    return steps
+end
+
 local SCENARIOS = { h03 = h03, h04 = h04, h05 = h05, h07 = h07, h08 = h08, reset = reset,
     edit = edit, line = line, h16 = h16, h17 = h17, h18 = h18, e03 = e03, readme = readme,
-    kit = kit, dark = dark, idle = idle }
+    kit = kit, dark = dark, idle = idle, prefs = prefs }
 
 function SelfTest.start(plugin)
     local t = setmetatable({ shots = 0, results = {}, failed = false }, SelfTest)

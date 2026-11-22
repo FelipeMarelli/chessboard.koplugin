@@ -98,6 +98,8 @@ tasks:
       # No window: SDL draws off screen and the screenshots come out the same. SDL_VIDEO_DRIVER=x11
       # or wayland shows it.
       export SDL_VIDEO_DRIVER="${SDL_VIDEO_DRIVER:-offscreen}"
+      # Every scenario starts from the plugin's defaults, not the choices a run before saved.
+      rm -f emu-data/settings/chessboard.lua emu-data/settings/chessboard.lua.old
       echo "selftest {{.SCENARIO}} ({{.ORIENTATION}}): $book"
       {{end}}
       ./run-emu.sh "$(realpath "$book")"
