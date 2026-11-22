@@ -337,6 +337,56 @@ function Layout:setTextLength(text)
     return self:textLength() ~= before
 end
 
+-- A share of a screen, a number above 0 and up to 1; nil when it is anything else.
+local function share(value)
+    if type(value) == "number" and value > 0 and value <= 1 then
+        return value
+    end
+end
+
+-- The side of a square of the floating window: kept aside while split, unless the screen turned.
+local function floating_square(self)
+    if self.split then
+        return self.floating and self.floating.square
+    end
+    return self.square
+end
+
+-- The choices of the window kept across books: split or floating, the book first or second and its
+-- share of the screen while split, and the side of a square of the floating window as a share of
+-- the short side of the screen, so that it fits a turned or another screen too.
+function Layout:preferences()
+    local square = floating_square(self)
+    return {
+        split = self.split,
+        text_first = self.text_first,
+        text_share = self.text_share,
+        square_share = square and square / math.min(self.screen_w, self.screen_h),
+    }
+end
+
+-- Takes up the choices of Layout:preferences, on a new layout; what is missing or not understood
+-- is left as it is. The floating window goes to its default place.
+function Layout:usePreferences(prefs)
+    local square_share = share(prefs.square_share)
+    if square_share and not self.split then
+        local short = math.min(self.screen_w, self.screen_h)
+        self.square = self:fittedSquare(math.floor(square_share * short + 0.5))
+        self:placeDefault()
+    end
+    if type(prefs.text_first) == "boolean" then
+        self.text_first = prefs.text_first
+    end
+    local text_share = share(prefs.text_share)
+    if text_share then
+        local w, h = self.screen_w, self.screen_h
+        self.text_share = Split.shareOf(w, h, Split.textLength(w, h, self.px, text_share))
+    end
+    if type(prefs.split) == "boolean" then
+        self:setSplit(prefs.split)
+    end
+end
+
 -- Moves the divider by some pixels along the split, towards the board when positive.
 function Layout:moveDivider(travel)
     local text = self:textLength()
