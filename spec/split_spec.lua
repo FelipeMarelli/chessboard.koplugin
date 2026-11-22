@@ -169,12 +169,14 @@ test("portrait, the buttons are on the right of their room, the spare room by th
         eq(right, room.x + room.w)
     end)
 
-test("split, the moves take the room above the buttons, wherever the divider is", function()
-    for _, size in ipairs({ PORTRAIT, LANDSCAPE }) do
+test("split, the moves take the room above the buttons, at least two lines, wherever the divider"
+    .. " is", function()
+    for _, size in ipairs(SCREENS) do
         local layout = split(size)
         local function check(where)
             local moves, top = layout:rects().notation, layout:buttons()[1].rect.y
-            assert(moves.h >= layout.px.notation, "no line of moves " .. where)
+            assert(moves.h >= Split.NOTATION_LINES * layout.px.notation,
+                "less than two lines of moves " .. where .. ": " .. moves.h)
             eq(top - (moves.y + moves.h), layout.px.spacing, where)
         end
         check("at first")
