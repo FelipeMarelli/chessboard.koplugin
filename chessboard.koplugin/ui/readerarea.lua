@@ -71,6 +71,12 @@ end
 local reflow_parts = setmetatable({}, { __mode = "k" })
 local reflow_wrapped = setmetatable({}, { __mode = "k" })
 
+-- The part a document is reflowed for now. None for one that is not reflowed: k2pdfopt also finds
+-- the margins of its pages to crop (KoptInterface:getAutoBBox), which do not depend on the part.
+local function reflow_part(doc)
+    return doc.configurable.text_wrap == 1 and reflow_parts[doc] or nil
+end
+
 -- k2pdfopt reflows a page (PDF, DjVu in reflow mode) for the whole screen
 -- (KoptInterface:createContext) and keeps it by the screen's size (getContextHash): both are
 -- wrapped, so that while split the page is reflowed for the book's part and kept by that size too.
@@ -84,7 +90,7 @@ local function reflow_for_parts(kopt)
     -- its zoom is made up for, so the text is as big as on the whole screen.
     kopt.createContext = function(kopt_self, doc, ...)
         local kc = create(kopt_self, doc, ...)
-        local part = reflow_parts[doc]
+        local part = reflow_part(doc)
         if part then
             kc:setZoom(kc.zoom * kc.dev_width / part.w)
             kc:setDeviceDim(part.w, part.h)
@@ -93,7 +99,7 @@ local function reflow_for_parts(kopt)
     end
     kopt.getContextHash = function(kopt_self, doc, pageno, bbox, hash_list)
         hash(kopt_self, doc, pageno, bbox, hash_list)
-        local part = reflow_parts[doc]
+        local part = reflow_part(doc)
         if part then
             table.insert(hash_list, part.w)
             table.insert(hash_list, part.h)
